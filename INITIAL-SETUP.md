@@ -66,9 +66,12 @@ dotnet add package Microsoft.EntityFrameworkCore.SqlServer
 dotnet add package Microsoft.EntityFrameworkCore.Design
 dotnet add package Microsoft.EntityFrameworkCore.Tools
 dotnet add package CsvHelper
+dotnet add package Microsoft.AspNetCore.Identity.EntityFrameworkCore
 ```
 
 `CsvHelper` is a well-maintained library for parsing CSV files in C#. It handles quoted fields, type conversion, and edge cases that manual string splitting will not.
+
+`Microsoft.AspNetCore.Identity.EntityFrameworkCore` wires ASP.NET Identity into EF Core, so user/role tables are created alongside your application tables in the same migration.
 
 ### 1.3 Project Structure
 
@@ -225,12 +228,14 @@ Follow the same pattern — one property per CSV column, using the camelCase ver
 Create `./Backend/Data/AppDbContext.cs`:
 
 ```csharp
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Backend.Models;
 
 namespace Backend.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<IdentityUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
@@ -416,6 +421,7 @@ public class DbCheckController : ControllerBase
 
 ```csharp
 using Backend.Data;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -423,6 +429,14 @@ var builder = WebApplication.CreateBuilder(args);
 // ── Database ──────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// ── Identity ──────────────────────────────────────────────────────────────────
+// AddRoles<IdentityRole>() enables role-based authorization (e.g. [Authorize(Roles = "Admin")]).
+// Use the default IdentityUser for now — swap in a custom ApplicationUser later if you need
+// extra profile fields (e.g. a foreign key to an employee or social worker record).
+builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 // Allows the Vercel frontend to call this API.
@@ -464,6 +478,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
@@ -475,7 +491,7 @@ app.Run();
 cd Backend
 dotnet user-secrets init
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" \
-  "Server=YOUR_AZURE_SERVER.database.windows.net;Database=intexdb;User Id=sqladmin;Password=YOUR_PASSWORD;TrustServerCertificate=False;Encrypt=True;"
+  "Server=YOUR_AZURE_SERVER.database.windows.net;Database=lunas-project-db;User Id=sqladmin;Password=YOUR_PASSWORD;TrustServerCertificate=False;Encrypt=True;"
 ```
 
 > You will fill in the real server name and password after completing Part 3 (Azure setup). For now, you can use a local SQL Server Express connection string to test locally if you have it, or skip local DB testing and test against Azure directly.
@@ -691,37 +707,37 @@ Run these commands one at a time. Replace `YourStrongPassword123!` with a real p
 
 ```bash
 # Resource group — one container for everything
-az group create --name intex-rg --location eastus
+az group create --name lunas-project-rg --location eastus
 
 # SQL Server instance
 az sql server create \
-  --name intex-sql-server \
-  --resource-group intex-rg \
+  --name lunas-project-sql \
+  --resource-group lunas-project-rg \
   --location eastus \
   --admin-user sqladmin \
   --admin-password "YourStrongPassword123!"
 
 # Allow Azure services (including your App Service) to connect to the SQL server
 az sql server firewall-rule create \
-  --resource-group intex-rg \
-  --server intex-sql-server \
+  --resource-group lunas-project-rg \
+  --server lunas-project-sql \
   --name AllowAzureServices \
   --start-ip-address 0.0.0.0 \
   --end-ip-address 0.0.0.0
 
 # Allow your local machine to connect (for running migrations locally against Azure)
 az sql server firewall-rule create \
-  --resource-group intex-rg \
-  --server intex-sql-server \
+  --resource-group lunas-project-rg \
+  --server lunas-project-sql \
   --name AllowMyIP \
   --start-ip-address YOUR_IP \
   --end-ip-address YOUR_IP
 
 # Create the database (Basic tier = ~$5/month, sufficient for development)
 az sql db create \
-  --resource-group intex-rg \
-  --server intex-sql-server \
-  --name intexdb \
+  --resource-group lunas-project-rg \
+  --server lunas-project-sql \
+  --name lunas-project-db \
   --service-objective Basic
 ```
 
@@ -732,15 +748,15 @@ az sql db create \
 ```bash
 # App Service Plan — the underlying VM that hosts your app
 az appservice plan create \
-  --name intex-plan \
-  --resource-group intex-rg \
+  --name lunas-project-plan \
+  --resource-group lunas-project-rg \
   --sku B1 \
   --is-linux
 
 # Web App — replace YOUR_APP_NAME with something unique like intex-api-teamname
 az webapp create \
-  --resource-group intex-rg \
-  --plan intex-plan \
+  --resource-group lunas-project-rg \
+  --plan lunas-project-plan \
   --name YOUR_APP_NAME \
   --runtime "DOTNETCORE:10.0"
 ```
@@ -753,10 +769,10 @@ This is the production equivalent of `dotnet user-secrets`. These values are sto
 
 ```bash
 az webapp config connection-string set \
-  --resource-group intex-rg \
+  --resource-group lunas-project-rg \
   --name YOUR_APP_NAME \
   --connection-string-type SQLAzure \
-  --settings DefaultConnection="Server=intex-sql-server.database.windows.net;Database=intexdb;User Id=sqladmin;Password=YourStrongPassword123!;TrustServerCertificate=False;Encrypt=True;"
+  --settings DefaultConnection="Server=lunas-project-sql.database.windows.net;Database=lunas-project-db;User Id=sqladmin;Password=YourStrongPassword123!;TrustServerCertificate=False;Encrypt=True;"
 ```
 
 ---
@@ -893,7 +909,7 @@ Walk through this checklist after both services are deployed:
 ## Troubleshooting
 
 **"Could not connect to database" error in the Azure logs:**
-- Confirm the App Service connection string was set correctly: `az webapp config connection-string list --resource-group intex-rg --name YOUR_APP_NAME`
+- Confirm the App Service connection string was set correctly: `az webapp config connection-string list --resource-group lunas-project-rg --name YOUR_APP_NAME`
 - Confirm the firewall rule for Azure services is in place
 
 **First load takes 60+ seconds:**
