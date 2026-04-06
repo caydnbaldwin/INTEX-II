@@ -1,0 +1,46 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+
+# .NET
+bin/
+obj/
+*.dll
+*.pdb
+*.exe
+publish/
+appsettings.Development.json
+
+# Node / React
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+
+# Python / ML
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Secrets
+*.pfx
+*.key
+*.pem
+credentials.json
