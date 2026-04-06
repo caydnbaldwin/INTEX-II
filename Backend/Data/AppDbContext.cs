@@ -9,6 +9,32 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // The CSV files contain explicit IDs that must be preserved to maintain
+        // foreign key relationships across tables. Tell EF not to treat these as
+        // auto-generated identity columns so we can insert the CSV values directly.
+        modelBuilder.Entity<Safehouse>().Property(e => e.SafehouseId).ValueGeneratedNever();
+        modelBuilder.Entity<Resident>().Property(e => e.ResidentId).ValueGeneratedNever();
+        modelBuilder.Entity<Donation>().Property(e => e.DonationId).ValueGeneratedNever();
+        modelBuilder.Entity<DonationAllocation>().Property(e => e.AllocationId).ValueGeneratedNever();
+        modelBuilder.Entity<EducationRecord>().Property(e => e.EducationRecordId).ValueGeneratedNever();
+        modelBuilder.Entity<HealthWellbeingRecord>().Property(e => e.HealthRecordId).ValueGeneratedNever();
+        modelBuilder.Entity<HomeVisitation>().Property(e => e.VisitationId).ValueGeneratedNever();
+        modelBuilder.Entity<InKindDonationItem>().Property(e => e.ItemId).ValueGeneratedNever();
+        modelBuilder.Entity<IncidentReport>().Property(e => e.IncidentId).ValueGeneratedNever();
+        modelBuilder.Entity<InterventionPlan>().Property(e => e.PlanId).ValueGeneratedNever();
+        modelBuilder.Entity<Partner>().Property(e => e.PartnerId).ValueGeneratedNever();
+        modelBuilder.Entity<PartnerAssignment>().Property(e => e.AssignmentId).ValueGeneratedNever();
+        modelBuilder.Entity<ProcessRecording>().Property(e => e.RecordingId).ValueGeneratedNever();
+        modelBuilder.Entity<PublicImpactSnapshot>().Property(e => e.SnapshotId).ValueGeneratedNever();
+        modelBuilder.Entity<SafehouseMonthlyMetric>().Property(e => e.MetricId).ValueGeneratedNever();
+        modelBuilder.Entity<SocialMediaPost>().Property(e => e.PostId).ValueGeneratedNever();
+        modelBuilder.Entity<Supporter>().Property(e => e.SupporterId).ValueGeneratedNever();
+    }
+
     public DbSet<Safehouse> Safehouses { get; set; }
     public DbSet<Resident> Residents { get; set; }
     public DbSet<Donation> Donations { get; set; }
