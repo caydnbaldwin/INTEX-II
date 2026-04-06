@@ -24,7 +24,8 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(
             "http://localhost:5173",
             "https://lunas-project.site",
-            "https://www.lunas-project.site"
+            "https://www.lunas-project.site",
+            "https://intex-ii.vercel.app"
         )
         .AllowAnyHeader()
         .AllowAnyMethod());
