@@ -1,0 +1,60 @@
+===================================
+PRODUCT BACKLOG — 30 TRELLO CARDS
+===================================
+
+--- INFRASTRUCTURE & SETUP ---
+
+1. Scaffold .NET 10 backend — project structure, all 17 models, AppDbContext, DataSeeder, CSV seeding, initial EF Core migration, Program.cs config
+2. Scaffold React + TypeScript frontend — Vite setup, axios, react-router-dom, .env config, folder structure
+3. Provision Azure resources — Resource Group, SQL Server, SQL Database (Basic), App Service (B1 Linux), firewall rules, connection string in App Settings
+4. Set up CI/CD — GitHub Actions workflow for backend deploy to Azure, import frontend to Vercel, verify auto-deploy on push to main for both
+5. Verify end-to-end pipeline — health endpoint, DB check (17/17 tables seeded), frontend connects to backend, CORS working
+
+--- AUTHENTICATION & AUTHORIZATION ---
+
+6. Set up ASP.NET Identity — install packages, create Identity DbContext (separate Azure SQL DB), configure in Program.cs
+7. Build auth API endpoints — register, login, logout, /auth/me; configure stronger-than-default password policies per class instruction
+8. Create roles and seed test accounts — Admin role, Donor role; seed admin (no MFA), donor with history (no MFA), one account with MFA
+9. Build login page in React — form with validation, error handling, JWT storage, auth context/provider
+10. Implement route protection and RBAC — protect all CUD endpoints with [Authorize(Roles="Admin")], add React route guards, role-based nav rendering
+
+--- SECURITY ---
+
+11. Configure HTTPS, redirects, and security headers — TLS on Azure, HTTP→HTTPS redirect, Content-Security-Policy header, verify CSP in dev tools
+12. Implement privacy and cookie consent — write GDPR-compliant privacy policy page, link in footer, build fully functional cookie consent banner
+13. Add bonus security features — third-party OAuth (Google/Microsoft), HSTS header, light/dark mode browser cookie, data sanitization/encoding
+
+--- PUBLIC PAGES ---
+
+14. Build landing page — organization name/branding, mission statement, hero section with impact highlights from public_impact_snapshots, CTAs
+15. Build public Impact/Donor-Facing Dashboard — API endpoint for anonymized aggregated data, visualizations (residents served, education progress, health improvements, reintegration rates)
+
+--- ADMIN PORTAL ---
+
+16. Build Admin Dashboard — active residents by safehouse with capacity indicators, risk level summary (flag High/Critical), unresolved incidents, recent donations, upcoming case conferences, OKR metric display
+17. Build Caseload Inventory — list view with search/filter (status, safehouse, category, risk, social worker), full CRUD forms (40+ fields), resident detail page with linked records, pagination, delete confirmation
+18. Build Process Recording — session entry form (date, social worker, type, duration, emotional states, narrative, interventions, follow-up), chronological history per resident, emotional state trend visualization
+19. Build Home Visitation & Case Conferences — visitation log form (visit type, cooperation level, safety concerns, outcome), visitation history per resident, case conference view linked from intervention plans
+20. Build Donors & Contributions — supporter list with filters (type, status, channel), supporter CRUD, donation activity view (all 5 types), allocation view by safehouse/program, in-kind item details
+21. Build Reports & Analytics — donation trends (by campaign, channel, time), resident outcome charts, safehouse comparison, reintegration rates, social media effectiveness analysis
+
+--- DONOR PORTAL ---
+
+22. Build Donor Portal — authenticated donor-only page showing personal donation history, anonymized impact of their contributions, read-only access
+
+--- ML PIPELINES ---
+
+23. Build ML Pipeline 1: Donor Churn Predictor — full notebook (problem framing, data prep, exploration, predictive + explanatory models, evaluation, feature selection, deployment notes), write predictions to DB
+24. Build ML Pipeline 2: Resident Risk Predictor — full notebook (predict risk level changes, incident likelihood, concerns flagged), write predictions to DB
+25. Build ML Pipeline 3: Social Media Donation Driver — full notebook (predict donation value from post attributes, explanatory model for what drives donations vs engagement), write predictions to DB
+26. Integrate ML outputs into frontend — API endpoints for prediction results, risk alerts on Admin Dashboard, churn scores on Donors page, social media recommendations on Reports page
+27. Build stretch ML pipelines — Campaign ROI Analyzer, Reintegration Readiness, Intervention Effectiveness (as time allows)
+
+--- UI/UX & POLISH ---
+
+28. Implement responsive design and accessibility — all pages resize for desktop/mobile, achieve Lighthouse accessibility score 90%+ on every page
+29. Polish UI — consistent design system (colors, typography, spacing), page titles, favicon, logo, loading states, error handling, pagination on all lists, form validation
+
+--- VIDEOS & SUBMISSION ---
+
+30. Record videos and submit — IS 413 video (all pages, CRUD, deployment), IS 414 video (every security feature demonstrated), IS 455 video (each ML pipeline walkthrough), ensure GitHub is public, submit URLs + credentials via Qualtrics by Friday 10:00 AM
