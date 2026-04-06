@@ -15,6 +15,7 @@ public static class DataSeeder
             HeaderValidated = null,   // ignore columns in CSV that don't map to a property
             MissingFieldFound = null, // ignore missing columns gracefully
             BadDataFound = null,      // skip rows with bad data rather than throwing
+            PrepareHeaderForMatch = args => args.Header.Replace("_", "").ToLower(),
         };
 
         await SeedTable(db.Safehouses, "safehouses.csv", seedDataPath, config, db);

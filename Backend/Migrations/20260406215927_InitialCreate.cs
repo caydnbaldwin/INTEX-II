@@ -54,8 +54,7 @@ namespace Backend.Migrations
                 name: "DonationAllocations",
                 columns: table => new
                 {
-                    AllocationId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    AllocationId = table.Column<int>(type: "int", nullable: false),
                     DonationId = table.Column<int>(type: "int", nullable: true),
                     SafehouseId = table.Column<int>(type: "int", nullable: true),
                     ProgramArea = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -72,8 +71,7 @@ namespace Backend.Migrations
                 name: "Donations",
                 columns: table => new
                 {
-                    DonationId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DonationId = table.Column<int>(type: "int", nullable: false),
                     SupporterId = table.Column<int>(type: "int", nullable: true),
                     DonationType = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     DonationDate = table.Column<DateOnly>(type: "date", nullable: true),
@@ -96,8 +94,7 @@ namespace Backend.Migrations
                 name: "EducationRecords",
                 columns: table => new
                 {
-                    EducationRecordId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    EducationRecordId = table.Column<int>(type: "int", nullable: false),
                     ResidentId = table.Column<int>(type: "int", nullable: true),
                     RecordDate = table.Column<DateOnly>(type: "date", nullable: true),
                     EducationLevel = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -117,8 +114,7 @@ namespace Backend.Migrations
                 name: "HealthWellbeingRecords",
                 columns: table => new
                 {
-                    HealthRecordId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    HealthRecordId = table.Column<int>(type: "int", nullable: false),
                     ResidentId = table.Column<int>(type: "int", nullable: true),
                     RecordDate = table.Column<DateOnly>(type: "date", nullable: true),
                     GeneralHealthScore = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
@@ -142,8 +138,7 @@ namespace Backend.Migrations
                 name: "HomeVisitations",
                 columns: table => new
                 {
-                    VisitationId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    VisitationId = table.Column<int>(type: "int", nullable: false),
                     ResidentId = table.Column<int>(type: "int", nullable: true),
                     VisitDate = table.Column<DateOnly>(type: "date", nullable: true),
                     SocialWorker = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -167,8 +162,7 @@ namespace Backend.Migrations
                 name: "IncidentReports",
                 columns: table => new
                 {
-                    IncidentId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    IncidentId = table.Column<int>(type: "int", nullable: false),
                     ResidentId = table.Column<int>(type: "int", nullable: true),
                     SafehouseId = table.Column<int>(type: "int", nullable: true),
                     IncidentDate = table.Column<DateOnly>(type: "date", nullable: true),
@@ -190,8 +184,7 @@ namespace Backend.Migrations
                 name: "InKindDonationItems",
                 columns: table => new
                 {
-                    ItemId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ItemId = table.Column<int>(type: "int", nullable: false),
                     DonationId = table.Column<int>(type: "int", nullable: true),
                     ItemName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ItemCategory = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -210,8 +203,7 @@ namespace Backend.Migrations
                 name: "InterventionPlans",
                 columns: table => new
                 {
-                    PlanId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PlanId = table.Column<int>(type: "int", nullable: false),
                     ResidentId = table.Column<int>(type: "int", nullable: true),
                     PlanCategory = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     PlanDescription = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -232,8 +224,7 @@ namespace Backend.Migrations
                 name: "PartnerAssignments",
                 columns: table => new
                 {
-                    AssignmentId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    AssignmentId = table.Column<int>(type: "int", nullable: false),
                     PartnerId = table.Column<int>(type: "int", nullable: true),
                     SafehouseId = table.Column<int>(type: "int", nullable: true),
                     ProgramArea = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -252,8 +243,7 @@ namespace Backend.Migrations
                 name: "Partners",
                 columns: table => new
                 {
-                    PartnerId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PartnerId = table.Column<int>(type: "int", nullable: false),
                     PartnerName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     PartnerType = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     RoleType = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -275,8 +265,7 @@ namespace Backend.Migrations
                 name: "ProcessRecordings",
                 columns: table => new
                 {
-                    RecordingId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    RecordingId = table.Column<int>(type: "int", nullable: false),
                     ResidentId = table.Column<int>(type: "int", nullable: true),
                     SessionDate = table.Column<DateOnly>(type: "date", nullable: true),
                     SocialWorker = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -301,8 +290,7 @@ namespace Backend.Migrations
                 name: "PublicImpactSnapshots",
                 columns: table => new
                 {
-                    SnapshotId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SnapshotId = table.Column<int>(type: "int", nullable: false),
                     SnapshotDate = table.Column<DateOnly>(type: "date", nullable: true),
                     Headline = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     SummaryText = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -319,8 +307,7 @@ namespace Backend.Migrations
                 name: "Residents",
                 columns: table => new
                 {
-                    ResidentId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ResidentId = table.Column<int>(type: "int", nullable: false),
                     CaseControlNo = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     InternalCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     SafehouseId = table.Column<int>(type: "int", nullable: true),
@@ -379,8 +366,7 @@ namespace Backend.Migrations
                 name: "SafehouseMonthlyMetrics",
                 columns: table => new
                 {
-                    MetricId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MetricId = table.Column<int>(type: "int", nullable: false),
                     SafehouseId = table.Column<int>(type: "int", nullable: true),
                     MonthStart = table.Column<DateOnly>(type: "date", nullable: true),
                     MonthEnd = table.Column<DateOnly>(type: "date", nullable: true),
@@ -401,8 +387,7 @@ namespace Backend.Migrations
                 name: "Safehouses",
                 columns: table => new
                 {
-                    SafehouseId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SafehouseId = table.Column<int>(type: "int", nullable: false),
                     SafehouseCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Name = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Region = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -425,8 +410,7 @@ namespace Backend.Migrations
                 name: "SocialMediaPosts",
                 columns: table => new
                 {
-                    PostId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PostId = table.Column<int>(type: "int", nullable: false),
                     Platform = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     PlatformPostId = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     PostUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -475,8 +459,7 @@ namespace Backend.Migrations
                 name: "Supporters",
                 columns: table => new
                 {
-                    SupporterId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SupporterId = table.Column<int>(type: "int", nullable: false),
                     SupporterType = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     DisplayName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     OrganizationName = table.Column<string>(type: "nvarchar(max)", nullable: true),

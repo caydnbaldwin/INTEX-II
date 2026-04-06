@@ -25,10 +25,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.Donation", b =>
                 {
                     b.Property<int>("DonationId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DonationId"));
 
                     b.Property<decimal?>("Amount")
                         .HasColumnType("decimal(18,2)");
@@ -74,10 +71,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.DonationAllocation", b =>
                 {
                     b.Property<int>("AllocationId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AllocationId"));
 
                     b.Property<DateOnly?>("AllocationDate")
                         .HasColumnType("date");
@@ -105,10 +99,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.EducationRecord", b =>
                 {
                     b.Property<int>("EducationRecordId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EducationRecordId"));
 
                     b.Property<decimal?>("AttendanceRate")
                         .HasColumnType("decimal(18,2)");
@@ -145,10 +136,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.HealthWellbeingRecord", b =>
                 {
                     b.Property<int>("HealthRecordId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("HealthRecordId"));
 
                     b.Property<decimal?>("Bmi")
                         .HasColumnType("decimal(18,2)");
@@ -197,10 +185,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.HomeVisitation", b =>
                 {
                     b.Property<int>("VisitationId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VisitationId"));
 
                     b.Property<string>("FamilyCooperationLevel")
                         .HasColumnType("nvarchar(max)");
@@ -249,10 +234,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.InKindDonationItem", b =>
                 {
                     b.Property<int>("ItemId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ItemId"));
 
                     b.Property<int?>("DonationId")
                         .HasColumnType("int");
@@ -286,10 +268,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.IncidentReport", b =>
                 {
                     b.Property<int>("IncidentId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IncidentId"));
 
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
@@ -332,10 +311,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.InterventionPlan", b =>
                 {
                     b.Property<int>("PlanId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PlanId"));
 
                     b.Property<DateOnly?>("CaseConferenceDate")
                         .HasColumnType("date");
@@ -375,10 +351,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.Partner", b =>
                 {
                     b.Property<int>("PartnerId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PartnerId"));
 
                     b.Property<string>("ContactName")
                         .HasColumnType("nvarchar(max)");
@@ -421,10 +394,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.PartnerAssignment", b =>
                 {
                     b.Property<int>("AssignmentId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AssignmentId"));
 
                     b.Property<DateOnly?>("AssignmentEnd")
                         .HasColumnType("date");
@@ -458,10 +428,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.ProcessRecording", b =>
                 {
                     b.Property<int>("RecordingId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RecordingId"));
 
                     b.Property<bool?>("ConcernsFlagged")
                         .HasColumnType("bit");
@@ -513,10 +480,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.PublicImpactSnapshot", b =>
                 {
                     b.Property<int>("SnapshotId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SnapshotId"));
 
                     b.Property<string>("Headline")
                         .HasColumnType("nvarchar(max)");
@@ -544,10 +508,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.Resident", b =>
                 {
                     b.Property<int>("ResidentId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ResidentId"));
 
                     b.Property<string>("AgeUponAdmission")
                         .HasColumnType("nvarchar(max)");
@@ -701,10 +662,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.Safehouse", b =>
                 {
                     b.Property<int>("SafehouseId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SafehouseId"));
 
                     b.Property<int?>("CapacityGirls")
                         .HasColumnType("int");
@@ -750,10 +708,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.SafehouseMonthlyMetric", b =>
                 {
                     b.Property<int>("MetricId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MetricId"));
 
                     b.Property<int?>("ActiveResidents")
                         .HasColumnType("int");
@@ -793,10 +748,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.SocialMediaPost", b =>
                 {
                     b.Property<int>("PostId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PostId"));
 
                     b.Property<decimal?>("AvgViewDurationSeconds")
                         .HasColumnType("decimal(18,2)");
@@ -920,10 +872,7 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.Supporter", b =>
                 {
                     b.Property<int>("SupporterId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SupporterId"));
 
                     b.Property<string>("AcquisitionChannel")
                         .HasColumnType("nvarchar(max)");
