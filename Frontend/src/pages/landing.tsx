@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import {
   Shield,
   Heart,
@@ -19,6 +20,42 @@ import { Separator } from '@/components/ui/separator'
 import { impactStatistics } from '@/lib/mock-data'
 
 export function LandingPage() {
+  const API = import.meta.env.VITE_API_BASE_URL as string
+  const [backendStatus, setBackendStatus] = useState('')
+  const [dbStatus, setDbStatus] = useState('')
+  const [isCheckingBackend, setIsCheckingBackend] = useState(false)
+  const [isCheckingDb, setIsCheckingDb] = useState(false)
+
+  async function verifyBackend() {
+    setBackendStatus('Checking backend...')
+    setIsCheckingBackend(true)
+    try {
+      const response = await fetch(`${API}/api/health`, { method: 'GET', credentials: 'include' })
+      if (!response.ok) { setBackendStatus(`Backend check failed (${response.status}).`); return }
+      const data = await response.json() as { message?: string }
+      setBackendStatus(data.message ?? 'Backend reachable.')
+    } catch {
+      setBackendStatus('Unable to reach backend.')
+    } finally {
+      setIsCheckingBackend(false)
+    }
+  }
+
+  async function verifyDatabase() {
+    setDbStatus('Checking database...')
+    setIsCheckingDb(true)
+    try {
+      const response = await fetch(`${API}/api/dbcheck`, { method: 'GET', credentials: 'include' })
+      if (!response.ok) { setDbStatus(`Database check failed (${response.status}).`); return }
+      const data = await response.json() as Record<string, unknown>
+      setDbStatus(`Database check succeeded (${Object.keys(data).length} tables verified).`)
+    } catch {
+      setDbStatus('Unable to reach database check endpoint.')
+    } finally {
+      setIsCheckingDb(false)
+    }
+  }
+
   const scrollToContent = () => {
     document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -35,6 +72,30 @@ export function LandingPage() {
 
         <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 py-24 w-full flex justify-end">
           <div className="max-w-2xl text-right">
+            <div className="mb-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={verifyBackend}
+                disabled={isCheckingBackend}
+                className="h-8 px-3 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-white/90 text-xs hover:bg-white/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isCheckingBackend ? 'Verifying...' : 'Verify Backend Connection'}
+              </button>
+              <button
+                type="button"
+                onClick={verifyDatabase}
+                disabled={isCheckingDb}
+                className="h-8 px-3 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-white/90 text-xs hover:bg-white/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isCheckingDb ? 'Verifying...' : 'Verify Database Connection'}
+              </button>
+            </div>
+            {(backendStatus || dbStatus) && (
+              <div className="mb-4 flex flex-col items-end gap-1">
+                {backendStatus && <p className="text-xs text-white/70">Backend: {backendStatus}</p>}
+                {dbStatus && <p className="text-xs text-white/70">Database: {dbStatus}</p>}
+              </div>
+            )}
             <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-2 text-sm text-white/90">
               <Shield className="h-4 w-4" />
               <span>Lunas Shelter Management</span>
