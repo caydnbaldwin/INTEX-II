@@ -9,7 +9,7 @@ export default function Footer() {
         </p>
         <nav className="flex items-center gap-4">
           <Link
-            to="/privacy-policy"
+            to="/privacy"
             className="text-body-small text-on-surface-variant hover:text-on-surface transition-colors"
           >
             Privacy Policy

@@ -35,6 +35,7 @@ public static class DataSeeder
         await SeedTable(db.PublicImpactSnapshots, "public_impact_snapshots.csv", seedDataPath, config, db);
         await SeedTable(db.SafehouseMonthlyMetrics, "safehouse_monthly_metrics.csv", seedDataPath, config, db);
         await SeedTable(db.SocialMediaPosts, "social_media_posts.csv", seedDataPath, config, db);
+        await SeedTable(db.PipelineResults, "pipeline_results.csv", seedDataPath, config, db);
     }
 
     private static async Task SeedTable<T>(

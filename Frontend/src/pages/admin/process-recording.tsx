@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, Calendar, Brain, ArrowRight } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, Calendar, Brain, ArrowRight, Loader2 } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -26,6 +26,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { api } from '@/lib/api'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,6 +42,32 @@ type EmotionalState =
   | 'Angry'
   | 'Neutral'
 
+/** Shape returned by the API */
+interface ApiProcessRecording {
+  recordingId: number
+  residentId: number
+  sessionDate: string
+  socialWorker: string
+  sessionType: string
+  sessionDurationMinutes: number
+  emotionalStateObserved: string
+  emotionalStateEnd: string
+  sessionNarrative: string
+  interventionsApplied: string
+  followUpActions: string
+  progressNoted: string
+  concernsFlagged: string
+  referralMade: string
+}
+
+interface ApiResident {
+  residentId: number
+  caseControlNo: string
+  internalCode: string
+  [key: string]: unknown
+}
+
+/** Local display model */
 interface Session {
   id: number
   residentId: number
@@ -55,17 +82,8 @@ interface Session {
 }
 
 // ---------------------------------------------------------------------------
-// Mock data
+// Constants
 // ---------------------------------------------------------------------------
-
-const RESIDENTS = [
-  { id: 1, name: 'Maria Santos' },
-  { id: 2, name: 'Juan Dela Cruz' },
-  { id: 3, name: 'Ana Reyes' },
-  { id: 4, name: 'Carlo Bautista' },
-  { id: 5, name: 'Liza Manalo' },
-  { id: 6, name: 'Rosa Villanueva' },
-]
 
 const SESSION_TYPES: SessionType[] = ['Individual', 'Group']
 const EMOTIONAL_STATES: EmotionalState[] = [
@@ -76,87 +94,6 @@ const EMOTIONAL_STATES: EmotionalState[] = [
   'Hopeful',
   'Angry',
   'Neutral',
-]
-
-const initialSessions: Session[] = [
-  {
-    id: 1,
-    residentId: 1,
-    residentName: 'Maria Santos',
-    date: '2026-04-05',
-    sessionType: 'Individual',
-    emotionalStateStart: 'Anxious',
-    emotionalStateEnd: 'Calm',
-    narrative:
-      'Maria opened up about recurring nightmares related to her trafficking experience. She was able to articulate her feelings more clearly than in previous sessions and showed willingness to try the breathing exercises we discussed.',
-    interventions: 'Trauma-focused CBT, guided breathing exercises',
-    followUpActions: 'Schedule follow-up in 3 days, provide journal prompts',
-  },
-  {
-    id: 2,
-    residentId: 2,
-    residentName: 'Juan Dela Cruz',
-    date: '2026-04-04',
-    sessionType: 'Individual',
-    emotionalStateStart: 'Angry',
-    emotionalStateEnd: 'Neutral',
-    narrative:
-      'Juan expressed frustration about restrictions at the safehouse. We explored the source of his anger and identified triggers. He agreed to try conflict resolution strategies before escalating.',
-    interventions: 'Anger management techniques, role-playing',
-    followUpActions: 'Monitor behavior over the week, check in with house parent',
-  },
-  {
-    id: 3,
-    residentId: 3,
-    residentName: 'Ana Reyes',
-    date: '2026-04-03',
-    sessionType: 'Group',
-    emotionalStateStart: 'Withdrawn',
-    emotionalStateEnd: 'Hopeful',
-    narrative:
-      'Ana participated in the group art therapy session. Initially reluctant, she eventually engaged with peers and shared her drawing, which depicted her hopes for reunification with her family.',
-    interventions: 'Art therapy, peer support facilitation',
-    followUpActions: 'Continue group sessions, individual follow-up on family contact',
-  },
-  {
-    id: 4,
-    residentId: 1,
-    residentName: 'Maria Santos',
-    date: '2026-04-01',
-    sessionType: 'Individual',
-    emotionalStateStart: 'Distressed',
-    emotionalStateEnd: 'Anxious',
-    narrative:
-      'Maria reported difficulty sleeping and loss of appetite. She was visibly distressed during the first half of the session but calmed after grounding exercises. Progress is gradual but present.',
-    interventions: 'Grounding techniques, psychoeducation on trauma responses',
-    followUpActions: 'Consult with medical staff about sleep, daily check-ins',
-  },
-  {
-    id: 5,
-    residentId: 5,
-    residentName: 'Liza Manalo',
-    date: '2026-03-30',
-    sessionType: 'Individual',
-    emotionalStateStart: 'Neutral',
-    emotionalStateEnd: 'Hopeful',
-    narrative:
-      'Liza discussed her educational goals and expressed interest in returning to school. We reviewed available programs and she was enthusiastic about the vocational training option.',
-    interventions: 'Motivational interviewing, goal-setting framework',
-    followUpActions: 'Connect with education coordinator, set up skills assessment',
-  },
-  {
-    id: 6,
-    residentId: 6,
-    residentName: 'Rosa Villanueva',
-    date: '2026-03-28',
-    sessionType: 'Group',
-    emotionalStateStart: 'Anxious',
-    emotionalStateEnd: 'Calm',
-    narrative:
-      'Rosa joined the mindfulness group session. She practiced breathing exercises and reported feeling lighter afterward. She interacted positively with two other residents.',
-    interventions: 'Mindfulness meditation, progressive muscle relaxation',
-    followUpActions: 'Encourage continued participation, individual session next week',
-  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -198,38 +135,98 @@ const blankForm = {
 // ---------------------------------------------------------------------------
 
 export function ProcessRecording() {
-  const [sessions, setSessions] = useState<Session[]>(initialSessions)
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
   const [selectedResident, setSelectedResident] = useState('all')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState(blankForm)
   const [formResident, setFormResident] = useState('')
+
+  // --- Data fetching ---
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [apiSessions, apiResidents] = await Promise.all([
+        api.get<ApiProcessRecording[]>('/api/process-recordings'),
+        api.get<ApiResident[]>('/api/residents'),
+      ])
+
+      const residentList = apiResidents.map((r) => ({
+        id: r.residentId,
+        name: r.internalCode || r.caseControlNo || `Resident ${r.residentId}`,
+      }))
+      setResidents(residentList)
+
+      const residentMap = new Map(residentList.map((r) => [r.id, r.name]))
+
+      setSessions(
+        apiSessions.map((s) => ({
+          id: s.recordingId,
+          residentId: s.residentId,
+          residentName: residentMap.get(s.residentId) ?? `Resident ${s.residentId}`,
+          date: s.sessionDate,
+          sessionType: (s.sessionType as SessionType) || 'Individual',
+          emotionalStateStart: (s.emotionalStateObserved as EmotionalState) || 'Neutral',
+          emotionalStateEnd: (s.emotionalStateEnd as EmotionalState) || 'Neutral',
+          narrative: s.sessionNarrative ?? '',
+          interventions: s.interventionsApplied ?? '',
+          followUpActions: s.followUpActions ?? '',
+        })),
+      )
+    } catch (err) {
+      console.error('Failed to load process recording data', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const filteredSessions =
     selectedResident === 'all'
       ? sessions
       : sessions.filter((s) => String(s.residentId) === selectedResident)
 
-  function handleSave() {
-    const resident = RESIDENTS.find((r) => String(r.id) === formResident)
+  async function handleSave() {
+    const resident = residents.find((r) => String(r.id) === formResident)
     if (!resident) return
 
-    const newSession: Session = {
-      id: Date.now(),
-      residentId: resident.id,
-      residentName: resident.name,
-      date: form.date,
-      sessionType: (form.sessionType as SessionType) || 'Individual',
-      emotionalStateStart: (form.emotionalStateStart as EmotionalState) || 'Neutral',
-      emotionalStateEnd: (form.emotionalStateEnd as EmotionalState) || 'Neutral',
-      narrative: form.narrative,
-      interventions: form.interventions,
-      followUpActions: form.followUpActions,
-    }
+    setSaving(true)
+    try {
+      await api.post('/api/process-recordings', {
+        residentId: resident.id,
+        sessionDate: form.date,
+        sessionType: form.sessionType || 'Individual',
+        emotionalStateObserved: form.emotionalStateStart || 'Neutral',
+        emotionalStateEnd: form.emotionalStateEnd || 'Neutral',
+        sessionNarrative: form.narrative,
+        interventionsApplied: form.interventions,
+        followUpActions: form.followUpActions,
+      })
 
-    setSessions((prev) => [newSession, ...prev])
-    setDialogOpen(false)
-    setForm(blankForm)
-    setFormResident('')
+      setDialogOpen(false)
+      setForm(blankForm)
+      setFormResident('')
+      await fetchData()
+    } catch (err) {
+      console.error('Failed to save session', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // --- Loading state ---
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-violet-700" />
+      </div>
+    )
   }
 
   return (
@@ -270,7 +267,7 @@ export function ProcessRecording() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Residents</SelectItem>
-                {RESIDENTS.map((r) => (
+                {residents.map((r) => (
                   <SelectItem key={r.id} value={String(r.id)}>
                     {r.name}
                   </SelectItem>
@@ -374,7 +371,7 @@ export function ProcessRecording() {
                     <SelectValue placeholder="Select resident" />
                   </SelectTrigger>
                   <SelectContent>
-                    {RESIDENTS.map((r) => (
+                    {residents.map((r) => (
                       <SelectItem key={r.id} value={String(r.id)}>
                         {r.name}
                       </SelectItem>
@@ -505,8 +502,10 @@ export function ProcessRecording() {
             </Button>
             <Button
               onClick={handleSave}
+              disabled={saving}
               className="bg-violet-700 hover:bg-violet-800"
             >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Session
             </Button>
           </div>

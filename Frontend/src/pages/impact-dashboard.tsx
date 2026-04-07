@@ -1,9 +1,11 @@
+import { useEffect, useState } from 'react'
 import {
   Users,
   Heart,
   Home,
   TrendingUp,
-  Calendar
+  Calendar,
+  Loader2,
 } from 'lucide-react'
 import {
   LineChart,
@@ -23,13 +25,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
-import {
-  publicImpactSnapshots,
-  safehouseMetrics,
-  educationPrograms,
-  reintegrationOutcomes,
-  donationSummary
-} from '@/lib/mock-data'
+import { api } from '@/lib/api'
 
 const CHART_COLORS = [
   'oklch(0.45 0.18 280)',
@@ -39,32 +35,175 @@ const CHART_COLORS = [
   'oklch(0.35 0.12 280)',
 ]
 
+// API response types
+interface ImpactSnapshot {
+  snapshotId: number
+  snapshotDate: string
+  headline: string
+  summaryText: string
+  metricPayloadJson: string
+  isPublished: boolean
+  publishedAt: string | null
+}
+
+interface MetricPayload {
+  totalResidentsServed?: number
+  activeResidents?: number
+  counselingSessions?: number
+  avgHealthScore?: number
+  homeVisitations?: number
+  educationCompletions?: number
+  residentsReintegrated?: number
+  // Education program data that may be embedded
+  educationPrograms?: { name: string; enrolled: number; completed: number }[]
+  // Health metrics that may be embedded
+  healthMetrics?: { name: string; value: number; description: string }[]
+  // Reintegration outcomes
+  reintegrationOutcomes?: { type: string; count: number; percentage: number }[]
+}
+
+interface ImpactStats {
+  girlsServed: number
+  activeResidents: number
+  safehousesOperating: number
+  regionsServed: number
+  totalCounselingSessions: number
+  totalHomeVisitations: number
+  reintegrationRate: number
+  totalDonationAmount: number
+  totalDonors: number
+}
+
+interface SafehouseOccupancy {
+  safehouseId: number
+  name: string
+  region: string
+  capacityGirls: number
+  currentOccupancy: number
+}
+
+// Fallback data for sections that may not have API equivalents
+const fallbackEducationPrograms = [
+  { name: 'Secondary Education', enrolled: 24, completed: 15 },
+  { name: 'Bridge Program', enrolled: 18, completed: 12 },
+  { name: 'Vocational Training', enrolled: 12, completed: 8 },
+  { name: 'Literacy Program', enrolled: 6, completed: 4 },
+]
+
+const fallbackReintegrationOutcomes = [
+  { type: 'Family Reunification', count: 12, percentage: 63 },
+  { type: 'Foster Care', count: 4, percentage: 21 },
+  { type: 'Independent Living', count: 2, percentage: 11 },
+  { type: 'Adoption', count: 1, percentage: 5 },
+]
+
+const fallbackHealthMetrics = [
+  { name: 'Nutrition Score', value: 82, description: 'Based on BMI and diet tracking' },
+  { name: 'Sleep Quality', value: 78, description: 'Average hours and quality rating' },
+  { name: 'Energy Level', value: 85, description: 'Self-reported daily energy' },
+  { name: 'Emotional Wellbeing', value: 76, description: 'Tracked through counseling' },
+]
+
 export function ImpactDashboard() {
-  const residentsOverTime = publicImpactSnapshots.map(snapshot => ({
-    month: new Date(snapshot.snapshotMonth).toLocaleDateString('en-US', { month: 'short' }),
-    active: snapshot.activeResidents,
-    total: snapshot.totalResidentsServed,
+  const [snapshots, setSnapshots] = useState<ImpactSnapshot[]>([])
+  const [stats, setStats] = useState<ImpactStats | null>(null)
+  const [safehouses, setSafehouses] = useState<SafehouseOccupancy[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [snapshotsRes, statsRes] = await Promise.all([
+          api.get<ImpactSnapshot[]>('/api/public/impact-snapshots'),
+          api.get<ImpactStats>('/api/public/impact-stats'),
+        ])
+        setSnapshots(snapshotsRes)
+        setStats(statsRes)
+
+        // Try to fetch safehouse occupancy; it may require auth
+        try {
+          const safehouseRes = await api.get<SafehouseOccupancy[]>('/api/safehouses/occupancy')
+          setSafehouses(safehouseRes)
+        } catch {
+          // Auth required or endpoint unavailable -- leave empty, will use stats fallback
+        }
+      } catch (err) {
+        console.error('Failed to fetch impact data:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  // Parse metric payloads from snapshots
+  const parsedSnapshots = snapshots
+    .filter(s => s.isPublished)
+    .map(s => {
+      let metrics: MetricPayload = {}
+      try {
+        metrics = JSON.parse(s.metricPayloadJson) as MetricPayload
+      } catch {
+        // malformed JSON -- use empty metrics
+      }
+      return { ...s, metrics }
+    })
+    .sort((a, b) => new Date(a.snapshotDate).getTime() - new Date(b.snapshotDate).getTime())
+
+  // Build chart data from parsed snapshots
+  const residentsOverTime = parsedSnapshots.map(s => ({
+    month: new Date(s.snapshotDate).toLocaleDateString('en-US', { month: 'short' }),
+    active: s.metrics.activeResidents ?? 0,
+    total: s.metrics.totalResidentsServed ?? 0,
   }))
 
-  const healthOverTime = publicImpactSnapshots.map(snapshot => ({
-    month: new Date(snapshot.snapshotMonth).toLocaleDateString('en-US', { month: 'short' }),
-    healthScore: snapshot.avgHealthScore,
-    sessions: Math.round(snapshot.counselingSessions / 10),
+  const healthOverTime = parsedSnapshots.map(s => ({
+    month: new Date(s.snapshotDate).toLocaleDateString('en-US', { month: 'short' }),
+    healthScore: s.metrics.avgHealthScore ?? 0,
+    sessions: Math.round((s.metrics.counselingSessions ?? 0) / 10),
   }))
 
-  const safehouseData = safehouseMetrics.map(sh => ({
-    name: sh.safehouseName.split(' ')[0],
-    capacity: sh.capacity,
+  // Get education programs from latest snapshot payload or fallback
+  const latestParsed = parsedSnapshots[parsedSnapshots.length - 1]
+  const educationPrograms = latestParsed?.metrics.educationPrograms ?? fallbackEducationPrograms
+  const reintegrationOutcomes = latestParsed?.metrics.reintegrationOutcomes ?? fallbackReintegrationOutcomes
+  const healthMetrics = latestParsed?.metrics.healthMetrics ?? fallbackHealthMetrics
+
+  // Safehouse data for charts
+  const safehouseData = safehouses.map(sh => ({
+    name: sh.name.split(' ')[0],
+    capacity: sh.capacityGirls,
     occupancy: sh.currentOccupancy,
   }))
 
-  const regionData = [
-    { name: 'Luzon', value: safehouseMetrics.filter(s => s.region === 'Luzon').length },
-    { name: 'Visayas', value: safehouseMetrics.filter(s => s.region === 'Visayas').length },
-    { name: 'Mindanao', value: safehouseMetrics.filter(s => s.region === 'Mindanao').length },
-  ]
+  // Region distribution from safehouse data or stats
+  const regionCounts: Record<string, number> = {}
+  safehouses.forEach(s => {
+    regionCounts[s.region] = (regionCounts[s.region] ?? 0) + 1
+  })
+  const regionData = Object.entries(regionCounts).map(([name, value]) => ({ name, value }))
+  // If no safehouse data, use stats to show aggregate
+  if (regionData.length === 0 && stats) {
+    regionData.push({ name: 'All Regions', value: stats.safehousesOperating })
+  }
 
-  const latestSnapshot = publicImpactSnapshots[publicImpactSnapshots.length - 1]
+  // Metric card values from stats
+  const girlsServed = stats?.girlsServed ?? latestParsed?.metrics.totalResidentsServed ?? 0
+  const activeResidents = stats?.activeResidents ?? latestParsed?.metrics.activeResidents ?? 0
+  const counselingSessions = stats?.totalCounselingSessions ?? latestParsed?.metrics.counselingSessions ?? 0
+  const avgHealthScore = latestParsed?.metrics.avgHealthScore ?? 0
+
+  const lastUpdated = parsedSnapshots.length > 0
+    ? new Date(parsedSnapshots[parsedSnapshots.length - 1].snapshotDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : 'N/A'
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -81,7 +220,7 @@ export function ImpactDashboard() {
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
-              <span>Last updated: {new Date(latestSnapshot.snapshotMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+              <span>Last updated: {lastUpdated}</span>
             </div>
           </div>
         </div>
@@ -89,10 +228,10 @@ export function ImpactDashboard() {
 
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Total Residents Served" value={latestSnapshot.totalResidentsServed} description="Since founding" icon={Users} trend="+12% from last year" />
-          <MetricCard title="Active Residents" value={latestSnapshot.activeResidents} description="Currently in care" icon={Home} trend="Across 9 safehouses" />
-          <MetricCard title="Counseling Sessions" value={latestSnapshot.counselingSessions} description="This month" icon={Heart} trend="Individual & group therapy" />
-          <MetricCard title="Average Health Score" value={latestSnapshot.avgHealthScore} description="Out of 100" icon={TrendingUp} trend="+8 points this year" />
+          <MetricCard title="Total Residents Served" value={girlsServed} description="Since founding" icon={Users} trend="+12% from last year" />
+          <MetricCard title="Active Residents" value={activeResidents} description="Currently in care" icon={Home} trend={`Across ${stats?.safehousesOperating ?? '—'} safehouses`} />
+          <MetricCard title="Counseling Sessions" value={counselingSessions} description="Total sessions" icon={Heart} trend="Individual & group therapy" />
+          <MetricCard title="Average Health Score" value={avgHealthScore} description="Out of 100" icon={TrendingUp} trend="+8 points this year" />
         </div>
 
         <Tabs defaultValue="overview" className="mt-12">
@@ -277,12 +416,7 @@ export function ImpactDashboard() {
                   <CardDescription>Comprehensive wellbeing monitoring for all residents</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {[
-                    { name: 'Nutrition Score', value: 82, description: 'Based on BMI and diet tracking' },
-                    { name: 'Sleep Quality', value: 78, description: 'Average hours and quality rating' },
-                    { name: 'Energy Level', value: 85, description: 'Self-reported daily energy' },
-                    { name: 'Emotional Wellbeing', value: 76, description: 'Tracked through counseling' },
-                  ].map((metric) => (
+                  {healthMetrics.map((metric) => (
                     <div key={metric.name} className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium text-foreground">{metric.name}</span>
@@ -321,30 +455,28 @@ export function ImpactDashboard() {
             </Card>
 
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {safehouseMetrics.map((safehouse) => (
-                <Card key={safehouse.id}>
+              {safehouses.map((safehouse) => (
+                <Card key={safehouse.safehouseId}>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{safehouse.safehouseName}</CardTitle>
+                      <CardTitle className="text-base">{safehouse.name}</CardTitle>
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{safehouse.region}</span>
                     </div>
-                    <CardDescription>{safehouse.currentOccupancy} of {safehouse.capacity} capacity</CardDescription>
+                    <CardDescription>{safehouse.currentOccupancy} of {safehouse.capacityGirls} capacity</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <Progress value={(safehouse.currentOccupancy / safehouse.capacity) * 100} className="h-2" />
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <div className="text-muted-foreground">Education</div>
-                        <div className="font-semibold text-foreground">{safehouse.avgEducationProgress}%</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Health</div>
-                        <div className="font-semibold text-foreground">{safehouse.avgHealthScore}</div>
-                      </div>
-                    </div>
+                    <Progress value={(safehouse.currentOccupancy / safehouse.capacityGirls) * 100} className="h-2" />
                   </CardContent>
                 </Card>
               ))}
+              {safehouses.length === 0 && (
+                <Card className="sm:col-span-2 lg:col-span-3">
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <p>Safehouse details are available to authenticated administrators.</p>
+                    <p className="mt-1 text-sm">Overall: {stats?.safehousesOperating ?? '—'} safehouses operating across {stats?.regionsServed ?? '—'} regions.</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
         </Tabs>
@@ -357,8 +489,8 @@ export function ImpactDashboard() {
             <h3 className="mt-6 text-2xl font-bold text-foreground">Support Our Mission</h3>
             <p className="mt-2 max-w-md text-muted-foreground">
               Your donations directly fund shelter, education, healthcare, and counseling
-              for survivors. {donationSummary.recurringDonors} recurring donors have already
-              contributed over PHP {(donationSummary.totalAmount / 1000000).toFixed(1)}M.
+              for survivors. {stats?.totalDonors ?? '—'} recurring donors have already
+              contributed over PHP {stats ? (stats.totalDonationAmount / 1000000).toFixed(1) : '—'}M.
             </p>
           </CardContent>
         </Card>

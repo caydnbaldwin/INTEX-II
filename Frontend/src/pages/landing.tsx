@@ -68,7 +68,12 @@ export function LandingPage() {
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: 'url(/images/hero-bg.jpg)' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(to right, oklch(0.15 0.08 280 / 0.15), oklch(0.15 0.08 280 / 0.45), oklch(0.15 0.08 280 / 0.75))',
+          }}
+        />
 
         <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 py-24 w-full flex justify-end">
           <div className="max-w-2xl text-right">
