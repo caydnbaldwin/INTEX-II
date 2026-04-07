@@ -8,6 +8,8 @@ public static class AuthIdentityGenerator
         IServiceProvider serviceProvider,
         IConfiguration configuration)
     {
+        const string defaultAdminEmail = "admin@lunas-project.site";
+
         var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
@@ -24,12 +26,21 @@ public static class AuthIdentityGenerator
 
         // Seed default admin user
         var adminSection = configuration.GetSection("GenerateDefaultIdentityAdmin");
-        var adminEmail = adminSection["Email"] ?? "admin@lunas-project.site";
-        var adminPassword = adminSection["Password"] ?? throw new Exception("Admin seed password is not configured.");
+        var configuredAdminEmail = adminSection["Email"];
+        var adminEmail = string.IsNullOrWhiteSpace(configuredAdminEmail)
+            ? defaultAdminEmail
+            : configuredAdminEmail;
 
         var adminUser = await userManager.FindByEmailAsync(adminEmail);
         if (adminUser == null)
         {
+            var adminPassword = adminSection["Password"];
+            if (string.IsNullOrWhiteSpace(adminPassword))
+            {
+                throw new Exception(
+                    "Admin seed password is not configured. Set GenerateDefaultIdentityAdmin:Password before first startup.");
+            }
+
             adminUser = new ApplicationUser
             {
                 UserName = adminEmail,

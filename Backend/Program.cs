@@ -36,10 +36,16 @@ builder.Services.Configure<IdentityOptions>(options =>
 });
 
 // Cookie configuration for browser clients.
+// Dev: SameSite=None is required because the frontend (http://localhost:4200) and backend
+// (https://localhost:5200) use different schemes. Chrome's schemeful same-site treats
+// these as cross-site, blocking Lax cookies on fetch requests. None+Secure allows them.
+// Production: Lax is correct — frontend and backend share the same scheme and domain.
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SameSite = builder.Environment.IsDevelopment()
+        ? SameSiteMode.None
+        : SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.SlidingExpiration = true;
