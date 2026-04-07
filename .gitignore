@@ -48,5 +48,6 @@ credentials.json
 # Ai
 .claude/
 
-# Security Best Practices Example
+# Example Repositories
 RootkitIdentityW26/
+MockFrontend/
