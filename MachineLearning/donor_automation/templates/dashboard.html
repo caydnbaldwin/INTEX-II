@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Donor Upgrade Candidates — Lunas Foundation</title>
+<link rel="stylesheet" href="/static/styles.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── Header ────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <div>
+      <h1>Donor Upgrade Candidates</h1>
+      <p class="subtitle">Supporters most likely to give more when personally contacted — Lunas Foundation</p>
+    </div>
+    <div class="header-meta" id="lastUpdated">Loading...</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── Automation Control Card ─────────────────────────────────────────── -->
+  <div class="card automation-card" id="automationCard">
+    <div class="automation-header">
+      <div class="automation-label">
+        <span class="section-label">WEEKLY AUTOMATION</span>
+        <div class="automation-status" id="automationStatus">
+          <span class="dot dot-gray" id="statusDot"></span>
+          <span id="statusText">Loading...</span>
+        </div>
+      </div>
+      <div class="automation-actions">
+        <button class="btn btn-run-now" id="btnRunNow" onclick="runNow()">
+          ▶ Run Now
+        </button>
+        <button class="btn btn-automate" id="btnAutomate" onclick="toggleAutomation()">
+          Loading...
+        </button>
+      </div>
+    </div>
+    <div class="automation-meta" id="automationMeta">
+      <span id="metaLastRun">—</span>
+      <span class="meta-sep">|</span>
+      <span id="metaNextRun">—</span>
+    </div>
+    <div class="automation-stats" id="automationStats">
+      <div class="astat">
+        <div class="astat-value" id="statEmailsWeek">—</div>
+        <div class="astat-label">emails sent this week</div>
+      </div>
+      <div class="astat">
+        <div class="astat-value" id="statCandidates">—</div>
+        <div class="astat-label">candidates found</div>
+      </div>
+      <div class="astat">
+        <div class="astat-value" id="statAccuracy">—</div>
+        <div class="astat-label">model accuracy</div>
+      </div>
+      <div class="astat">
+        <div class="astat-value" id="statRuns">—</div>
+        <div class="astat-label">total runs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Stat Cards ──────────────────────────────────────────────────────── -->
+  <div class="stat-grid" id="statGrid">
+    <div class="stat-card">
+      <div class="stat-label">Total Monetary Donors</div>
+      <div class="stat-value" id="scTotal">—</div>
+      <div class="stat-sub">with at least one monetary gift</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Upgrade Candidates</div>
+      <div class="stat-value" id="scCandidates">—</div>
+      <div class="stat-sub" id="scCandidatesSub">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Candidates for More Donations</div>
+      <div class="stat-value" id="scReadyCount">—</div>
+      <div class="stat-sub" id="scReadySub">not yet contacted this week</div>
+    </div>
+  </div>
+
+  <!-- ── Donor Table ─────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2>All Monetary Donors — Ranked by Upgrade Priority</h2>
+        <p class="card-sub">Green border = upgrade candidate &nbsp;|&nbsp; Gray border = not yet a candidate</p>
+      </div>
+      <div class="table-filters">
+        <select id="filterScore" onchange="renderTable()">
+          <option value="">All Scores</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <select id="filterChannel" onchange="renderTable()">
+          <option value="">All Channels</option>
+        </select>
+        <select id="filterOutcome" onchange="renderTable()">
+          <option value="">All Outcomes</option>
+          <option value="none">Never Contacted</option>
+          <option value="converted">Converted</option>
+          <option value="declined">Declined</option>
+        </select>
+        <input id="searchBox" type="text" placeholder="Search name..." oninput="renderTable()"/>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="donorTable">
+        <thead>
+          <tr>
+            <th onclick="sortBy('rank')">Rank</th>
+            <th onclick="sortBy('display_name')">Name</th>
+            <th>Score</th>
+            <th onclick="sortBy('Monetary_avg')">Avg Gift</th>
+            <th onclick="sortBy('Monetary_total')">Total Given</th>
+            <th onclick="sortBy('Frequency')"># Gifts</th>
+            <th onclick="sortBy('Recency')">Days Since Last</th>
+            <th onclick="sortBy('latest_donation')">Latest Donation</th>
+            <th>Channel</th>
+            <th>Last Contacted</th>
+            <th>Outcome</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="12" class="loading-cell">Loading donors...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-footer" id="rowCount"></div>
+  </div>
+
+  <!-- ── Charts ──────────────────────────────────────────────────────────── -->
+  <div class="chart-grid">
+    <div class="card chart-box">
+      <h3>Upgrade Candidates by Acquisition Channel</h3>
+      <canvas id="chartChannel"></canvas>
+    </div>
+    <div class="card chart-box">
+      <h3>Model Accuracy Over Time <span class="chart-note">(improves as feedback is recorded)</span></h3>
+      <canvas id="chartAccuracy"></canvas>
+    </div>
+  </div>
+
+  <!-- ── Email Log ───────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header collapsible" onclick="toggleEmailLog()">
+      <div>
+        <h2>Simulated Email Log <span class="badge badge-gray" id="emailCount">0</span></h2>
+        <p class="card-sub">Every email the system would send — previewed here before going live</p>
+      </div>
+      <span class="collapse-icon" id="emailLogIcon">▼</span>
+    </div>
+    <div id="emailLogBody">
+      <div class="email-list" id="emailList">
+        <div class="loading-cell">Loading email log...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Feedback Loop Note ──────────────────────────────────────────────── -->
+  <div class="pipeline-note">
+    <strong>How the feedback loop works:</strong>
+    When you mark a donor as <em>Converted ✓</em> or <em>Declined ✗</em> using the outcome buttons,
+    that signal is saved to <code>feedback_log.json</code>. The next time the pipeline runs,
+    it reads those labels and uses them to retrain the model — so donors who actually upgrade
+    become positive training examples. Over time, this makes the upgrade_probability scores
+    more accurate than the rule-based labels alone.
+  </div>
+
+</main>
+
+<!-- ── Toast ─────────────────────────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<!-- ── Outcome Modal ─────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>Record Outcome</h3>
+    <p id="modalDonorName" class="modal-sub"></p>
+    <input type="hidden" id="modalDonorId"/>
+    <div class="outcome-buttons">
+      <button class="btn btn-converted" onclick="recordOutcome('converted')">
+        ✓ Converted — they donated again
+      </button>
+      <button class="btn btn-declined" onclick="recordOutcome('declined')">
+        ✗ Declined — they said no
+      </button>
+    </div>
+    <div style="text-align:right;margin-top:12px">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Email Preview Modal ───────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="previewOverlay">
+  <div class="modal modal-wide">
+    <h3 id="previewSubject"></h3>
+    <p class="modal-sub" id="previewMeta"></p>
+    <pre id="previewBody" class="email-preview"></pre>
+    <div style="text-align:right;margin-top:16px">
+      <button class="btn btn-cancel" onclick="closePreview()">Close</button>
+    </div>
+  </div>
+</div>
+
+{% raw %}
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let donors       = [];
+let emailLog     = [];
+let feedbackLog  = [];
+let automationOn = false;
+let sortKey      = 'rank';
+let sortAsc      = true;
+let channelChart = null;
+let accuracyChart = null;
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+async function init() {
+  // Load emails and feedback first so wasEmailedRecently() works when donors render
+  await Promise.all([loadEmails(), loadFeedback(), loadState()]);
+  await loadDonors();
+}
+
+// ── API calls ─────────────────────────────────────────────────────────────────
+async function loadDonors() {
+  try {
+    const r = await fetch('/api/donors');
+    const d = await r.json();
+    donors = d.donors || [];
+    document.getElementById('scTotal').textContent      = d.total || 0;
+    document.getElementById('scCandidates').textContent = d.candidates || 0;
+    document.getElementById('scCandidatesSub').textContent =
+      d.total ? Math.round(d.candidates / d.total * 100) + '% of monetary donors' : '';
+    document.getElementById('statCandidates').textContent = d.candidates || 0;
+    document.getElementById('statAccuracy').textContent   = (d.accuracy || 0) + '%';
+
+    // Third card: candidates not yet contacted this week
+    const readyCount = d.donors
+      ? d.donors.filter(dd => dd.upgrade_candidate === 1 && !wasEmailedRecently(dd.supporter_id)).length
+      : 0;
+    document.getElementById('scReadyCount').textContent = readyCount;
+    document.getElementById('scReadySub').textContent   =
+      readyCount === 1 ? '1 candidate not contacted this week'
+                       : readyCount + ' candidates not contacted this week';
+
+    // Populate channel filter
+    const channels = [...new Set(donors.map(d => d.acquisition_channel))].sort();
+    const sel = document.getElementById('filterChannel');
+    channels.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      sel.appendChild(o);
+    });
+
+    renderTable();
+    renderChannelChart(d.candidates);
+    document.getElementById('lastUpdated').textContent =
+      'Last refreshed: ' + new Date().toLocaleTimeString();
+  } catch(e) {
+    console.error('loadDonors', e);
+  }
+}
+
+async function loadState() {
+  try {
+    const r = await fetch('/api/state');
+    const s = await r.json();
+    automationOn = s.enabled || false;
+    updateAutomationUI(s);
+    document.getElementById('statRuns').textContent = (s.runs || []).length;
+    document.getElementById('statEmailsWeek').textContent = s.emails_this_week || 0;
+    renderAccuracyChart(s.runs || []);
+  } catch(e) { console.error('loadState', e); }
+}
+
+async function loadEmails() {
+  try {
+    const r = await fetch('/api/emails');
+    emailLog = await r.json();
+    renderEmailLog();
+  } catch(e) { console.error('loadEmails', e); }
+}
+
+async function loadFeedback() {
+  try {
+    const r = await fetch('/api/feedback');
+    feedbackLog = await r.json();
+  } catch(e) { console.error('loadFeedback', e); }
+}
+
+// ── Automation ────────────────────────────────────────────────────────────────
+function updateAutomationUI(state) {
+  const dot   = document.getElementById('statusDot');
+  const text  = document.getElementById('statusText');
+  const btn   = document.getElementById('btnAutomate');
+  const card  = document.getElementById('automationCard');
+  const meta  = document.getElementById('automationMeta');
+
+  if (state.enabled) {
+    dot.className   = 'dot dot-green pulse';
+    text.textContent = 'Active — running weekly';
+    btn.textContent  = 'Turn Off Automation';
+    btn.className    = 'btn btn-automate btn-automate-off';
+    card.classList.add('automation-active');
+    meta.innerHTML   =
+      '<span>Last run: ' + (state.last_run ? fmtDt(state.last_run) : 'Never') + '</span>' +
+      '<span class="meta-sep">|</span>' +
+      '<span>Next run: ' + (state.next_run ? fmtDt(state.next_run) : '—') + '</span>';
+  } else {
+    dot.className    = 'dot dot-gray';
+    text.textContent = 'Off — candidates are not being contacted';
+    btn.textContent  = 'Enable Automation';
+    btn.className    = 'btn btn-automate btn-automate-on';
+    card.classList.remove('automation-active');
+    meta.innerHTML   =
+      '<span>Last run: ' + (state.last_run ? fmtDt(state.last_run) : 'Never') + '</span>' +
+      '<span class="meta-sep">|</span><span>Next run: —</span>';
+  }
+}
+
+async function toggleAutomation() {
+  const endpoint = automationOn ? '/api/automate/off' : '/api/automate/on';
+  document.getElementById('btnAutomate').disabled = true;
+  try {
+    await fetch(endpoint, { method: 'POST' });
+    await Promise.all([loadState(), loadEmails(), loadDonors()]);
+    showToast(automationOn ? 'Automation disabled' : 'Automation enabled — running now');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    document.getElementById('btnAutomate').disabled = false;
+  }
+}
+
+async function runNow() {
+  document.getElementById('btnRunNow').disabled = true;
+  showToast('Running pipeline...');
+  try {
+    await fetch('/api/run-now', { method: 'POST' });
+    await new Promise(r => setTimeout(r, 800));  // Brief wait for bg thread
+    await Promise.all([loadState(), loadEmails(), loadDonors()]);
+    showToast('Pipeline run complete');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    document.getElementById('btnRunNow').disabled = false;
+  }
+}
+
+async function sendInvite(donorId, donorName) {
+  // Block if automation is on — it will handle outreach
+  if (automationOn) {
+    showToast('Automation is active — it will contact ' + donorName + ' on schedule.', 'info');
+    return;
+  }
+  // Block if emailed within the last 7 days
+  if (wasEmailedRecently(donorId)) {
+    const days = daysSinceContacted(donorId);
+    showToast(donorName + ' was already emailed ' + days + ' day(s) ago. Wait until 7 days have passed.', 'warn');
+    return;
+  }
+  try {
+    const r = await fetch('/api/run-now/' + donorId, { method: 'POST' });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    await loadEmails();
+    renderTable();
+    showToast('Email logged for ' + donorName);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Feedback modal ────────────────────────────────────────────────────────────
+function openFeedback(donorId, donorName) {
+  document.getElementById('modalDonorId').value    = donorId;
+  document.getElementById('modalDonorName').textContent = 'Recording outcome for ' + donorName;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+async function recordOutcome(outcome) {
+  const id   = parseInt(document.getElementById('modalDonorId').value);
+  const name = document.getElementById('modalDonorName').textContent.replace('Recording outcome for ', '');
+  try {
+    await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ donor_id: id, donor_name: name, outcome })
+    });
+    closeModal();
+    await loadFeedback();
+    renderTable();
+    showToast(outcome === 'converted' ? name + ' marked as Converted ✓' : name + ' marked as Declined ✗');
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Table rendering ───────────────────────────────────────────────────────────
+function sortBy(key) {
+  sortAsc = (sortKey === key) ? !sortAsc : true;
+  sortKey = key;
+  renderTable();
+}
+
+function wasEmailedRecently(donorId, days = 7) {
+  const ts = getLastContacted(donorId);
+  if (!ts) return false;
+  return (new Date() - new Date(ts)) / (1000 * 60 * 60 * 24) <= days;
+}
+
+function daysSinceContacted(donorId) {
+  const ts = getLastContacted(donorId);
+  if (!ts) return null;
+  return Math.floor((new Date() - new Date(ts)) / (1000 * 60 * 60 * 24));
+}
+
+function getFeedbackOutcome(donorId) {
+  const entries = feedbackLog.filter(f => f.donor_id === donorId);
+  if (!entries.length) return null;
+  return entries[entries.length - 1].outcome;
+}
+
+function getLastContacted(donorId) {
+  const entries = emailLog.filter(e => e.donor_id === donorId);
+  if (!entries.length) return null;
+  return entries[entries.length - 1].timestamp;
+}
+
+function renderTable() {
+  const filterScore   = document.getElementById('filterScore').value;
+  const filterChannel = document.getElementById('filterChannel').value;
+  const filterOutcome = document.getElementById('filterOutcome').value;
+  const search        = document.getElementById('searchBox').value.toLowerCase();
+
+  let rows = donors.map(d => {
+    const outcome   = getFeedbackOutcome(d.supporter_id);
+    const contacted = getLastContacted(d.supporter_id);
+    return { ...d, _outcome: outcome, _contacted: contacted };
+  });
+
+  if (filterScore)   rows = rows.filter(r => r.upgrade_score === filterScore);
+  if (filterChannel) rows = rows.filter(r => r.acquisition_channel === filterChannel);
+  if (filterOutcome === 'none')      rows = rows.filter(r => !r._outcome);
+  if (filterOutcome === 'converted') rows = rows.filter(r => r._outcome === 'converted');
+  if (filterOutcome === 'declined')  rows = rows.filter(r => r._outcome === 'declined');
+  if (search) rows = rows.filter(r => r.display_name.toLowerCase().includes(search));
+
+  rows.sort((a, b) => {
+    let va = a[sortKey], vb = b[sortKey];
+    if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+    return sortAsc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+  });
+
+  const tbody = document.getElementById('tableBody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="12" class="loading-cell">No donors match the current filters.</td></tr>';
+    document.getElementById('rowCount').textContent = 'No results';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const isCandidate = r.upgrade_candidate === 1;
+    const outcome     = r._outcome;
+    const contacted   = r._contacted;
+    const rowClass    = outcome === 'converted' ? 'row-converted'
+                      : isCandidate ? 'row-candidate' : 'row-non-cand';
+
+    const scoreBadge = '<span class="badge badge-' + r.upgrade_score.toLowerCase() + '">' + r.upgrade_score + '</span>';
+
+    const contactedCell = contacted
+      ? '<span class="contacted-date">' + fmtDt(contacted) + '</span>'
+      : '<span class="never">Never</span>';
+
+    let outcomeCell = '<span class="never">—</span>';
+    if (outcome === 'converted') outcomeCell = '<span class="outcome-converted">Converted ✓</span>';
+    else if (outcome === 'declined') outcomeCell = '<span class="outcome-declined">Declined ✗</span>';
+    else if (contacted) outcomeCell = '<span class="outcome-pending">Pending</span>';
+
+    let actionBtn;
+    if (!isCandidate) {
+      actionBtn = '<button class="btn btn-gray" disabled>Not a Candidate</button>';
+    } else if (automationOn) {
+      actionBtn = '<span class="auto-managed-tag" title="Automation is active — outreach is handled automatically">Auto ✦</span>';
+    } else if (wasEmailedRecently(r.supporter_id)) {
+      const d = daysSinceContacted(r.supporter_id);
+      actionBtn = '<button class="btn btn-gray" disabled title="Wait ' + (7 - d) + ' more day(s)">Sent ' + d + 'd ago</button>';
+    } else {
+      actionBtn = '<div class="action-btns">' +
+        '<button class="btn btn-invite" onclick="sendInvite(' + r.supporter_id + ',\'' + r.display_name.replace("'", "\\'") + '\')">Send Invite</button>' +
+        '<button class="btn btn-outcome" onclick="openFeedback(' + r.supporter_id + ',\'' + r.display_name.replace("'", "\\'") + '\')">Outcome</button>' +
+        '</div>';
+    }
+
+    return '<tr class="' + rowClass + '">' +
+      '<td class="rank-cell">#' + r.rank + '</td>' +
+      '<td><div class="donor-name">' + r.display_name + '</div><div class="donor-email">' + r.email + '</div></td>' +
+      '<td>' + scoreBadge + '</td>' +
+      '<td>&#8369;' + fmt(r.Monetary_avg) + '</td>' +
+      '<td>&#8369;' + fmt(r.Monetary_total) + '</td>' +
+      '<td class="freq-cell">' + r.Frequency + '</td>' +
+      '<td>' + r.Recency + ' days</td>' +
+      '<td class="date-cell">' + r.latest_donation + '</td>' +
+      '<td><span class="channel-tag">' + r.acquisition_channel + '</span></td>' +
+      '<td>' + contactedCell + '</td>' +
+      '<td>' + outcomeCell + '</td>' +
+      '<td>' + actionBtn + '</td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('rowCount').textContent =
+    'Showing ' + rows.length + ' of ' + donors.length + ' donors';
+}
+
+// ── Email log ─────────────────────────────────────────────────────────────────
+function toggleEmailLog() {
+  const body = document.getElementById('emailLogBody');
+  const icon = document.getElementById('emailLogIcon');
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? '' : 'none';
+  icon.textContent = isHidden ? '▲' : '▼';
+}
+
+function renderEmailLog() {
+  const list  = document.getElementById('emailList');
+  const count = document.getElementById('emailCount');
+  count.textContent = emailLog.length;
+  const recent = emailLog.slice(0, 10);
+  if (!recent.length) {
+    list.innerHTML = '<div class="loading-cell">No emails logged yet.</div>';
+    return;
+  }
+  list.innerHTML = recent.map((e, i) =>
+    '<div class="email-entry">' +
+    '<div class="email-meta">' +
+      '<span class="email-name">' + e.donor_name + '</span>' +
+      '<span class="email-addr">' + e.email + '</span>' +
+      '<span class="email-ts">' + fmtDt(e.timestamp) + '</span>' +
+      '<span class="badge badge-sim">simulated</span>' +
+    '</div>' +
+    '<div class="email-subject">' + e.subject + '</div>' +
+    '<button class="btn btn-preview" onclick="previewEmail(' + i + ')">Preview Body ▸</button>' +
+    '</div>'
+  ).join('');
+}
+
+function previewEmail(idx) {
+  const e = emailLog[idx];
+  document.getElementById('previewSubject').textContent = e.subject;
+  document.getElementById('previewMeta').textContent    = 'To: ' + e.donor_name + ' <' + e.email + '>  |  ' + fmtDt(e.timestamp);
+  document.getElementById('previewBody').textContent    = e.body;
+  document.getElementById('previewOverlay').classList.add('open');
+}
+
+function closePreview() {
+  document.getElementById('previewOverlay').classList.remove('open');
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+function renderChannelChart() {
+  const candidates = donors.filter(d => d.upgrade_candidate === 1);
+  const byChannel  = {};
+  candidates.forEach(d => {
+    byChannel[d.acquisition_channel] = (byChannel[d.acquisition_channel] || 0) + 1;
+  });
+  const labels = Object.keys(byChannel).sort();
+  const data   = labels.map(l => byChannel[l]);
+
+  if (channelChart) channelChart.destroy();
+  channelChart = new Chart(document.getElementById('chartChannel'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Candidates', data, backgroundColor: '#7C3AED', borderRadius: 6 }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderAccuracyChart(runs) {
+  const labels = runs.map((r, i) => 'Run ' + (i + 1));
+  const data   = runs.map(r => r.model_accuracy || 0);
+
+  if (accuracyChart) accuracyChart.destroy();
+  accuracyChart = new Chart(document.getElementById('chartAccuracy'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Model Accuracy (%)',
+        data,
+        borderColor: '#7C3AED',
+        backgroundColor: 'rgba(124,58,237,0.08)',
+        tension: 0.3,
+        fill: true,
+        pointRadius: 5,
+        pointBackgroundColor: '#7C3AED',
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function fmt(n) {
+  return Number(n).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function fmtDt(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+    ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  const cls = type === 'error' ? ' toast-error'
+            : type === 'warn'  ? ' toast-warn'
+            : type === 'info'  ? ' toast-info'
+            : '';
+  t.className = 'toast toast-show' + cls;
+  setTimeout(() => { t.className = 'toast'; }, 4000);
+}
+
+// Close modals on overlay click
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+document.getElementById('previewOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closePreview();
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+init();
+</script>
+{% endraw %}
+</body>
+</html>
