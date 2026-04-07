@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, Search, Users, UserCheck, Banknote, Trash2, Pencil } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, Search, Users, UserCheck, Banknote, Trash2, Pencil, AlertTriangle } from 'lucide-react'
 import {
   Tabs,
   TabsList,
@@ -44,19 +44,21 @@ import {
   SelectItem,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { api } from '@/lib/api'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type DonorType = 'Monetary' | 'In-Kind' | 'Volunteer' | 'Corporate' | 'Foundation'
+type DonorType = 'MonetaryDonor' | 'InKindDonor' | 'Volunteer' | 'SkillsContributor' | 'SocialMediaAdvocate' | 'PartnerOrganization'
 type DonorStatus = 'Active' | 'Inactive'
 type AcquisitionChannel =
   | 'Website'
-  | 'Referral'
-  | 'Social Media'
+  | 'SocialMedia'
   | 'Event'
-  | 'Direct Outreach'
+  | 'WordOfMouth'
+  | 'PartnerReferral'
+  | 'Church'
 
 interface Donor {
   id: number
@@ -75,178 +77,89 @@ interface Donation {
   donorName: string
   date: string
   amount: number
-  type: DonorType
+  type: string
   description: string
 }
 
+// API response types
+interface SupporterResponse {
+  supporterId: number
+  supporterType: string
+  displayName: string
+  organizationName?: string
+  firstName?: string
+  lastName?: string
+  email: string
+  status: string
+  firstDonationDate?: string
+  acquisitionChannel?: string
+}
+
+interface DonationResponse {
+  donationId: number
+  supporterId: number
+  donationType: string
+  donationDate: string
+  amount: number
+  campaignName?: string
+  notes?: string
+}
+
+interface DonorChurnResult {
+  pipelineResultId: number
+  entityId: number
+  score: number
+  label: string
+  detailsJson: string
+  supporter: {
+    displayName: string
+    email: string
+    supporterType: string
+    status: string
+    firstDonationDate: string
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Mock data
+// Constants
 // ---------------------------------------------------------------------------
 
 const DONOR_TYPES: DonorType[] = [
-  'Monetary',
-  'In-Kind',
+  'MonetaryDonor',
+  'InKindDonor',
   'Volunteer',
-  'Corporate',
-  'Foundation',
+  'SkillsContributor',
+  'SocialMediaAdvocate',
+  'PartnerOrganization',
 ]
 const DONOR_STATUSES: DonorStatus[] = ['Active', 'Inactive']
 const ACQUISITION_CHANNELS: AcquisitionChannel[] = [
   'Website',
-  'Referral',
-  'Social Media',
+  'SocialMedia',
   'Event',
-  'Direct Outreach',
+  'WordOfMouth',
+  'PartnerReferral',
+  'Church',
 ]
 
-const initialDonors: Donor[] = [
-  {
-    id: 1,
-    name: 'Isabel Chua',
-    email: 'isabel.chua@email.com',
-    type: 'Monetary',
-    status: 'Active',
-    acquisitionChannel: 'Website',
-    lastDonationDate: '2026-04-01',
-    totalAmount: 150000,
-  },
-  {
-    id: 2,
-    name: 'Andres Tan',
-    email: 'andres.tan@email.com',
-    type: 'Monetary',
-    status: 'Active',
-    acquisitionChannel: 'Referral',
-    lastDonationDate: '2026-03-28',
-    totalAmount: 320000,
-  },
-  {
-    id: 3,
-    name: 'GreenField Corp.',
-    email: 'csr@greenfield.ph',
-    type: 'Corporate',
-    status: 'Active',
-    acquisitionChannel: 'Direct Outreach',
-    lastDonationDate: '2026-03-15',
-    totalAmount: 500000,
-  },
-  {
-    id: 4,
-    name: 'Patricia Lim',
-    email: 'patricia.lim@email.com',
-    type: 'In-Kind',
-    status: 'Active',
-    acquisitionChannel: 'Social Media',
-    lastDonationDate: '2026-03-20',
-    totalAmount: 85000,
-  },
-  {
-    id: 5,
-    name: 'Bayanihan Foundation',
-    email: 'grants@bayanihan.org',
-    type: 'Foundation',
-    status: 'Active',
-    acquisitionChannel: 'Event',
-    lastDonationDate: '2026-02-10',
-    totalAmount: 750000,
-  },
-  {
-    id: 6,
-    name: 'Ricardo Soriano',
-    email: 'ricardo.s@email.com',
-    type: 'Volunteer',
-    status: 'Active',
-    acquisitionChannel: 'Referral',
-    lastDonationDate: '2026-03-05',
-    totalAmount: 25000,
-  },
-  {
-    id: 7,
-    name: 'Clara Villanueva',
-    email: 'clara.v@email.com',
-    type: 'Monetary',
-    status: 'Inactive',
-    acquisitionChannel: 'Website',
-    lastDonationDate: '2025-11-20',
-    totalAmount: 180000,
-  },
-  {
-    id: 8,
-    name: 'Manila Gives Inc.',
-    email: 'info@manilagives.ph',
-    type: 'Corporate',
-    status: 'Active',
-    acquisitionChannel: 'Event',
-    lastDonationDate: '2026-03-30',
-    totalAmount: 90000,
-  },
-]
+// Display-friendly labels
+const DONOR_TYPE_LABELS: Record<DonorType, string> = {
+  MonetaryDonor: 'Monetary',
+  InKindDonor: 'In-Kind',
+  Volunteer: 'Volunteer',
+  SkillsContributor: 'Skills',
+  SocialMediaAdvocate: 'Advocate',
+  PartnerOrganization: 'Partner',
+}
 
-const initialDonations: Donation[] = [
-  {
-    id: 1,
-    donorId: 1,
-    donorName: 'Isabel Chua',
-    date: '2026-04-01',
-    amount: 50000,
-    type: 'Monetary',
-    description: 'Monthly recurring donation',
-  },
-  {
-    id: 2,
-    donorId: 3,
-    donorName: 'GreenField Corp.',
-    date: '2026-03-15',
-    amount: 200000,
-    type: 'Corporate',
-    description: 'CSR quarterly partnership contribution',
-  },
-  {
-    id: 3,
-    donorId: 2,
-    donorName: 'Andres Tan',
-    date: '2026-03-28',
-    amount: 75000,
-    type: 'Monetary',
-    description: 'Birthday fundraiser proceeds',
-  },
-  {
-    id: 4,
-    donorId: 4,
-    donorName: 'Patricia Lim',
-    date: '2026-03-20',
-    amount: 35000,
-    type: 'In-Kind',
-    description: 'School supplies and hygiene kits (50 sets)',
-  },
-  {
-    id: 5,
-    donorId: 5,
-    donorName: 'Bayanihan Foundation',
-    date: '2026-02-10',
-    amount: 500000,
-    type: 'Foundation',
-    description: 'Annual shelter operations grant',
-  },
-  {
-    id: 6,
-    donorId: 8,
-    donorName: 'Manila Gives Inc.',
-    date: '2026-03-30',
-    amount: 45000,
-    type: 'Corporate',
-    description: 'Employee matching program - March',
-  },
-  {
-    id: 7,
-    donorId: 6,
-    donorName: 'Ricardo Soriano',
-    date: '2026-03-05',
-    amount: 10000,
-    type: 'Monetary',
-    description: 'Personal donation after volunteer shift',
-  },
-]
+const CHANNEL_LABELS: Record<AcquisitionChannel, string> = {
+  Website: 'Website',
+  SocialMedia: 'Social Media',
+  Event: 'Event',
+  WordOfMouth: 'Word of Mouth',
+  PartnerReferral: 'Partner Referral',
+  Church: 'Church',
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -261,18 +174,22 @@ function formatPHP(amount: number): string {
   }).format(amount)
 }
 
-function typeBadgeClass(type: DonorType): string {
+function typeBadgeClass(type: DonorType | string): string {
   switch (type) {
-    case 'Monetary':
+    case 'MonetaryDonor':
       return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-    case 'In-Kind':
+    case 'InKindDonor':
       return 'border-blue-200 bg-blue-50 text-blue-700'
     case 'Volunteer':
       return 'border-violet-200 bg-violet-50 text-violet-700'
-    case 'Corporate':
+    case 'SkillsContributor':
+      return 'border-cyan-200 bg-cyan-50 text-cyan-700'
+    case 'SocialMediaAdvocate':
+      return 'border-pink-200 bg-pink-50 text-pink-700'
+    case 'PartnerOrganization':
       return 'border-amber-200 bg-amber-50 text-amber-700'
-    case 'Foundation':
-      return 'border-indigo-200 bg-indigo-50 text-indigo-700'
+    default:
+      return 'border-zinc-200 bg-zinc-50 text-zinc-700'
   }
 }
 
@@ -292,14 +209,87 @@ const blankForm = {
 // ---------------------------------------------------------------------------
 
 export function DonorsManagement() {
-  const [donors, setDonors] = useState<Donor[]>(initialDonors)
-  const [donations] = useState<Donation[]>(initialDonations)
+  const [donors, setDonors] = useState<Donor[]>([])
+  const [donations, setDonations] = useState<Donation[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [atRiskDonors, setAtRiskDonors] = useState<DonorChurnResult[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(blankForm)
+  const [saving, setSaving] = useState(false)
+
+  // Fetch supporters and donations
+  async function fetchAll() {
+    try {
+      const [supportersData, donationsData] = await Promise.all([
+        api.get<SupporterResponse[]>('/api/supporters'),
+        api.get<DonationResponse[]>('/api/donations'),
+      ])
+
+      // Build a map of totalAmount per supporter from donations
+      const donationTotals = new Map<number, number>()
+      const latestDonationDate = new Map<number, string>()
+      for (const d of donationsData) {
+        donationTotals.set(d.supporterId, (donationTotals.get(d.supporterId) ?? 0) + d.amount)
+        const existing = latestDonationDate.get(d.supporterId)
+        if (!existing || d.donationDate > existing) {
+          latestDonationDate.set(d.supporterId, d.donationDate)
+        }
+      }
+
+      // Build a map of supporter names for donation display
+      const supporterNames = new Map<number, string>()
+      for (const s of supportersData) {
+        supporterNames.set(s.supporterId, s.displayName || `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim() || 'Unknown')
+      }
+
+      // Map supporters to Donor interface
+      const mappedDonors: Donor[] = supportersData.map((s) => ({
+        id: s.supporterId,
+        name: s.displayName || `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim() || 'Unknown',
+        email: s.email || '',
+        type: (s.supporterType as DonorType) || 'MonetaryDonor',
+        status: (s.status as DonorStatus) || 'Active',
+        acquisitionChannel: (s.acquisitionChannel as AcquisitionChannel) || 'Website',
+        lastDonationDate: latestDonationDate.get(s.supporterId)?.split('T')[0] ?? s.firstDonationDate?.split('T')[0] ?? '-',
+        totalAmount: donationTotals.get(s.supporterId) ?? 0,
+      }))
+
+      setDonors(mappedDonors)
+
+      // Map donations
+      const mappedDonations: Donation[] = donationsData.map((d) => ({
+        id: d.donationId,
+        donorId: d.supporterId,
+        donorName: supporterNames.get(d.supporterId) ?? 'Unknown',
+        date: d.donationDate.split('T')[0],
+        amount: d.amount,
+        type: d.donationType || 'Monetary',
+        description: d.notes || d.campaignName || '',
+      }))
+
+      setDonations(mappedDonations)
+
+      // Fetch ML churn predictions (non-blocking)
+      try {
+        const churnResults = await api.get<DonorChurnResult[]>('/api/pipeline-results/donor-churn')
+        setAtRiskDonors(churnResults.filter((r) => r.label === 'AtRisk'))
+      } catch {
+        console.warn('ML pipeline data unavailable')
+      }
+    } catch (err) {
+      console.error('Failed to load donors data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchAll()
+  }, [])
 
   // Metrics
   const totalDonors = donors.length
@@ -333,42 +323,59 @@ export function DonorsManagement() {
     setDialogOpen(true)
   }
 
-  function handleSave() {
-    if (editingId) {
-      setDonors((prev) =>
-        prev.map((d) =>
-          d.id === editingId
-            ? {
-                ...d,
-                name: form.name,
-                email: form.email,
-                type: (form.type as DonorType) || d.type,
-                acquisitionChannel:
-                  (form.acquisitionChannel as AcquisitionChannel) ||
-                  d.acquisitionChannel,
-              }
-            : d,
-        ),
-      )
-    } else {
-      const newDonor: Donor = {
-        id: Date.now(),
-        name: form.name,
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const payload = {
+        displayName: form.name,
         email: form.email,
-        type: (form.type as DonorType) || 'Monetary',
+        supporterType: form.type || 'MonetaryDonor',
+        acquisitionChannel: form.acquisitionChannel || 'Website',
         status: 'Active',
-        acquisitionChannel:
-          (form.acquisitionChannel as AcquisitionChannel) || 'Website',
-        lastDonationDate: '-',
-        totalAmount: 0,
       }
-      setDonors((prev) => [...prev, newDonor])
+
+      if (editingId) {
+        await api.put(`/api/supporters/${editingId}`, payload)
+      } else {
+        await api.post('/api/supporters', payload)
+      }
+
+      setDialogOpen(false)
+      await fetchAll()
+    } catch (err) {
+      console.error('Failed to save supporter:', err)
+    } finally {
+      setSaving(false)
     }
-    setDialogOpen(false)
   }
 
-  function handleDelete(id: number) {
-    setDonors((prev) => prev.filter((d) => d.id !== id))
+  async function handleDelete(id: number) {
+    try {
+      await api.delete(`/api/supporters/${id}`)
+      await fetchAll()
+    } catch (err) {
+      console.error('Failed to delete supporter:', err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+              Donors & Contributions
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              Manage supporters and track donation activity.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-20 text-zinc-400">
+          Loading donors data...
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -430,6 +437,59 @@ export function DonorsManagement() {
         </Card>
       </div>
 
+      {/* At-Risk Donors (ML) */}
+      {atRiskDonors.length > 0 && (
+        <Card className="border-amber-300 bg-amber-50/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-amber-800">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              At-Risk Donors (ML)
+            </CardTitle>
+            <p className="text-sm text-amber-700">
+              These donors are predicted to be at risk of churning based on ML analysis.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {atRiskDonors.map((d) => {
+                const daysSinceFirst = d.supporter?.firstDonationDate
+                  ? Math.floor(
+                      (Date.now() - new Date(d.supporter.firstDonationDate).getTime()) /
+                        (1000 * 60 * 60 * 24),
+                    )
+                  : null
+                return (
+                  <div
+                    key={d.pipelineResultId}
+                    className="flex items-center justify-between rounded-lg border border-amber-200 bg-white px-4 py-3"
+                  >
+                    <div>
+                      <div className="text-sm font-medium text-zinc-900">
+                        {d.supporter?.displayName || `Donor ${d.entityId}`}
+                      </div>
+                      <div className="text-xs text-zinc-500">{d.supporter?.email}</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {daysSinceFirst !== null && (
+                        <span className="text-xs text-zinc-500">
+                          {daysSinceFirst}d since first donation
+                        </span>
+                      )}
+                      <Badge
+                        variant="outline"
+                        className="border-amber-400 bg-amber-100 text-amber-800"
+                      >
+                        {(d.score * 100).toFixed(0)}% churn risk
+                      </Badge>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabs */}
       <Tabs defaultValue="supporters">
         <TabsList>
@@ -460,7 +520,7 @@ export function DonorsManagement() {
                     <SelectItem value="all">All Types</SelectItem>
                     {DONOR_TYPES.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {t}
+                        {DONOR_TYPE_LABELS[t]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -527,7 +587,7 @@ export function DonorsManagement() {
                           variant="outline"
                           className={typeBadgeClass(donor.type)}
                         >
-                          {donor.type}
+                          {DONOR_TYPE_LABELS[donor.type] ?? donor.type}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -628,34 +688,45 @@ export function DonorsManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {donations.map((donation) => (
-                  <TableRow key={donation.id}>
-                    <TableCell className="text-zinc-600">
-                      {new Date(donation.date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </TableCell>
-                    <TableCell className="font-medium text-zinc-900">
-                      {donation.donorName}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={typeBadgeClass(donation.type)}
-                      >
-                        {donation.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[280px] truncate text-zinc-600">
-                      {donation.description}
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-zinc-900">
-                      {formatPHP(donation.amount)}
+                {donations.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="h-24 text-center text-zinc-400"
+                    >
+                      No donations found.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  donations.map((donation) => (
+                    <TableRow key={donation.id}>
+                      <TableCell className="text-zinc-600">
+                        {new Date(donation.date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </TableCell>
+                      <TableCell className="font-medium text-zinc-900">
+                        {donation.donorName}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={typeBadgeClass(donation.type)}
+                        >
+                          {DONOR_TYPE_LABELS[donation.type as DonorType] ?? donation.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[280px] truncate text-zinc-600">
+                        {donation.description}
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-zinc-900">
+                        {formatPHP(donation.amount)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </Card>
@@ -711,7 +782,7 @@ export function DonorsManagement() {
                   <SelectContent>
                     {DONOR_TYPES.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {t}
+                        {DONOR_TYPE_LABELS[t]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -731,7 +802,7 @@ export function DonorsManagement() {
                   <SelectContent>
                     {ACQUISITION_CHANNELS.map((c) => (
                       <SelectItem key={c} value={c}>
-                        {c}
+                        {CHANNEL_LABELS[c]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -746,9 +817,10 @@ export function DonorsManagement() {
             </Button>
             <Button
               onClick={handleSave}
+              disabled={saving}
               className="bg-violet-700 hover:bg-violet-800"
             >
-              {editingId ? 'Save Changes' : 'Add Supporter'}
+              {saving ? 'Saving...' : editingId ? 'Save Changes' : 'Add Supporter'}
             </Button>
           </div>
         </DialogContent>

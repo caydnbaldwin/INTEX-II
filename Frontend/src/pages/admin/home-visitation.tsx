@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, MapPin, Calendar } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, MapPin, Calendar, Loader2, Brain, ArrowUp, ArrowDown } from 'lucide-react'
 import {
   Table,
   TableHeader,
@@ -26,7 +26,9 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'
+import { api } from '@/lib/api'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,6 +47,53 @@ type CooperationLevel =
   | 'Uncooperative'
   | 'Hostile'
 
+/** Shape returned by the API */
+interface ApiHomeVisitation {
+  visitationId: number
+  residentId: number
+  visitDate: string
+  socialWorker: string
+  visitType: string
+  locationVisited: string
+  familyMembersPresent: string
+  purpose: string
+  observations: string
+  familyCooperationLevel: string
+  safetyConcernsNoted: string
+  followUpNeeded: boolean
+  followUpNotes: string
+  visitOutcome: string
+}
+
+interface ApiResident {
+  residentId: number
+  caseControlNo: string
+  internalCode: string
+  [key: string]: unknown
+}
+
+/** ML prediction request/response */
+interface PredictionRequest {
+  residentId: number
+  visitType: string
+  familyCooperationLevel: string
+  safetyConcerns: boolean
+}
+
+interface PredictionFactor {
+  factor: string
+  impact: string
+  weight: number
+}
+
+interface PredictionResult {
+  favorableProbability: number
+  riskLabel: string
+  confidence: number
+  factors: PredictionFactor[]
+}
+
+/** Local display model */
 interface HomeVisit {
   id: number
   date: string
@@ -59,17 +108,8 @@ interface HomeVisit {
 }
 
 // ---------------------------------------------------------------------------
-// Mock data
+// Constants
 // ---------------------------------------------------------------------------
-
-const RESIDENTS = [
-  { id: 1, name: 'Maria Santos' },
-  { id: 2, name: 'Juan Dela Cruz' },
-  { id: 3, name: 'Ana Reyes' },
-  { id: 4, name: 'Carlo Bautista' },
-  { id: 5, name: 'Liza Manalo' },
-  { id: 6, name: 'Rosa Villanueva' },
-]
 
 const VISIT_TYPES: VisitType[] = [
   'Initial Assessment',
@@ -84,89 +124,6 @@ const COOPERATION_LEVELS: CooperationLevel[] = [
   'Partially Cooperative',
   'Uncooperative',
   'Hostile',
-]
-
-const initialVisits: HomeVisit[] = [
-  {
-    id: 1,
-    date: '2026-04-06',
-    residentId: 1,
-    residentName: 'Maria Santos',
-    visitType: 'Routine Follow-Up',
-    location: 'Brgy. San Isidro, Quezon City',
-    observations:
-      'Home environment is clean and stable. Guardian is employed and attentive. Maria appeared comfortable and well-adjusted during the visit.',
-    cooperationLevel: 'Cooperative',
-    safetyConcerns: 'None observed',
-    followUpNeeded: false,
-  },
-  {
-    id: 2,
-    date: '2026-04-04',
-    residentId: 3,
-    residentName: 'Ana Reyes',
-    visitType: 'Reintegration Assessment',
-    location: 'Brgy. Poblacion, Makati',
-    observations:
-      'Family home is modest but adequate. Mother expressed strong desire for reunification. Ana and her siblings have separate sleeping areas. Neighborhood appears safe.',
-    cooperationLevel: 'Cooperative',
-    safetyConcerns: 'Minor: home needs structural repairs on kitchen roof',
-    followUpNeeded: true,
-  },
-  {
-    id: 3,
-    date: '2026-04-02',
-    residentId: 2,
-    residentName: 'Juan Dela Cruz',
-    visitType: 'Initial Assessment',
-    location: 'Brgy. Bagong Silang, Caloocan',
-    observations:
-      'Assessed the household where Juan was removed from. Multiple adults present, unclear relationship dynamics. Living conditions are below standard with visible signs of neglect.',
-    cooperationLevel: 'Partially Cooperative',
-    safetyConcerns:
-      'Overcrowded living space, inadequate sanitation, presence of unrelated adults',
-    followUpNeeded: true,
-  },
-  {
-    id: 4,
-    date: '2026-03-30',
-    residentId: 5,
-    residentName: 'Liza Manalo',
-    visitType: 'Post-Placement',
-    location: 'Brgy. Commonwealth, Quezon City',
-    observations:
-      'Liza has been placed with her aunt for two weeks. The aunt is providing a stable environment. Liza is enrolled in a nearby school and attending regularly.',
-    cooperationLevel: 'Cooperative',
-    safetyConcerns: 'None',
-    followUpNeeded: false,
-  },
-  {
-    id: 5,
-    date: '2026-03-28',
-    residentId: 6,
-    residentName: 'Rosa Villanueva',
-    visitType: 'Emergency',
-    location: 'Brgy. Tondo, Manila',
-    observations:
-      'Emergency visit after report of guardian leaving the children unattended. Found two minors alone. Neighbor confirmed guardian has been absent for three days.',
-    cooperationLevel: 'Uncooperative',
-    safetyConcerns:
-      'Children left unattended, no food supply, guardian whereabouts unknown',
-    followUpNeeded: true,
-  },
-  {
-    id: 6,
-    date: '2026-03-25',
-    residentId: 4,
-    residentName: 'Carlo Bautista',
-    visitType: 'Routine Follow-Up',
-    location: 'Brgy. Loyola Heights, Quezon City',
-    observations:
-      'Routine check on Carlo\'s foster family. Foster parents are engaged and supportive. Carlo is participating in extracurricular activities at school.',
-    cooperationLevel: 'Cooperative',
-    safetyConcerns: 'None',
-    followUpNeeded: false,
-  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -221,9 +178,65 @@ const blankForm = {
 // ---------------------------------------------------------------------------
 
 export function HomeVisitation() {
-  const [visits, setVisits] = useState<HomeVisit[]>(initialVisits)
+  const [visits, setVisits] = useState<HomeVisit[]>([])
+  const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState(blankForm)
+
+  // ML prediction state
+  const [predForm, setPredForm] = useState({
+    residentId: '',
+    visitType: '',
+    cooperationLevel: '',
+    safetyConcerns: false,
+  })
+  const [predicting, setPredicting] = useState(false)
+  const [prediction, setPrediction] = useState<PredictionResult | null>(null)
+
+  // --- Data fetching ---
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [apiVisits, apiResidents] = await Promise.all([
+        api.get<ApiHomeVisitation[]>('/api/home-visitations'),
+        api.get<ApiResident[]>('/api/residents'),
+      ])
+
+      const residentList = apiResidents.map((r) => ({
+        id: r.residentId,
+        name: r.internalCode || r.caseControlNo || `Resident ${r.residentId}`,
+      }))
+      setResidents(residentList)
+
+      const residentMap = new Map(residentList.map((r) => [r.id, r.name]))
+
+      setVisits(
+        apiVisits.map((v) => ({
+          id: v.visitationId,
+          date: v.visitDate,
+          residentId: v.residentId,
+          residentName: residentMap.get(v.residentId) ?? `Resident ${v.residentId}`,
+          visitType: (v.visitType as VisitType) || 'Routine Follow-Up',
+          location: v.locationVisited ?? '',
+          observations: v.observations ?? '',
+          cooperationLevel: (v.familyCooperationLevel as CooperationLevel) || 'Cooperative',
+          safetyConcerns: v.safetyConcernsNoted ?? '',
+          followUpNeeded: v.followUpNeeded ?? false,
+        })),
+      )
+    } catch (err) {
+      console.error('Failed to load home visitation data', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   // Summary counts
   const totalVisits = visits.length
@@ -232,27 +245,59 @@ export function HomeVisitation() {
     (v) => v.visitType === 'Emergency',
   ).length
 
-  function handleSave() {
-    const resident = RESIDENTS.find((r) => String(r.id) === form.residentId)
+  async function handleSave() {
+    const resident = residents.find((r) => String(r.id) === form.residentId)
     if (!resident) return
 
-    const newVisit: HomeVisit = {
-      id: Date.now(),
-      date: form.date,
-      residentId: resident.id,
-      residentName: resident.name,
-      visitType: (form.visitType as VisitType) || 'Routine Follow-Up',
-      location: form.location,
-      observations: form.observations,
-      cooperationLevel:
-        (form.cooperationLevel as CooperationLevel) || 'Cooperative',
-      safetyConcerns: form.safetyConcerns,
-      followUpNeeded: form.followUpNeeded === 'yes',
-    }
+    setSaving(true)
+    try {
+      await api.post('/api/home-visitations', {
+        residentId: resident.id,
+        visitDate: form.date,
+        visitType: form.visitType || 'Routine Follow-Up',
+        locationVisited: form.location,
+        observations: form.observations,
+        familyCooperationLevel: form.cooperationLevel || 'Cooperative',
+        safetyConcernsNoted: form.safetyConcerns,
+        followUpNeeded: form.followUpNeeded === 'yes',
+      })
 
-    setVisits((prev) => [newVisit, ...prev])
-    setDialogOpen(false)
-    setForm(blankForm)
+      setDialogOpen(false)
+      setForm(blankForm)
+      await fetchData()
+    } catch (err) {
+      console.error('Failed to save visit', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handlePredict() {
+    if (!predForm.residentId || !predForm.visitType || !predForm.cooperationLevel) return
+    setPredicting(true)
+    setPrediction(null)
+    try {
+      const result = await api.post<PredictionResult>('/api/predict/visitation-outcome', {
+        residentId: Number(predForm.residentId),
+        visitType: predForm.visitType,
+        familyCooperationLevel: predForm.cooperationLevel,
+        safetyConcerns: predForm.safetyConcerns,
+      } satisfies PredictionRequest)
+      setPrediction(result)
+    } catch (err) {
+      console.error('Prediction failed', err)
+    } finally {
+      setPredicting(false)
+    }
+  }
+
+  // --- Loading state ---
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-violet-700" />
+      </div>
+    )
   }
 
   return (
@@ -321,6 +366,169 @@ export function HomeVisitation() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pre-Visit Risk Assessment (ML) */}
+      <Card className="border-zinc-200">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-violet-600" />
+            <CardTitle className="text-lg">Pre-Visit Risk Assessment (ML)</CardTitle>
+          </div>
+          <CardDescription>
+            Predict visit outcome before scheduling — powered by our strongest model (AUC 0.84)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Prediction form */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Resident</Label>
+                <Select
+                  value={predForm.residentId}
+                  onValueChange={(v) => setPredForm({ ...predForm, residentId: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select resident" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {residents.map((r) => (
+                      <SelectItem key={r.id} value={String(r.id)}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Visit Type</Label>
+                <Select
+                  value={predForm.visitType}
+                  onValueChange={(v) => setPredForm({ ...predForm, visitType: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select visit type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['Initial Assessment', 'Routine Follow-Up', 'Reintegration Assessment', 'Post-Placement Monitoring', 'Emergency'].map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Cooperation Level</Label>
+                <Select
+                  value={predForm.cooperationLevel}
+                  onValueChange={(v) => setPredForm({ ...predForm, cooperationLevel: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select cooperation level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['Highly Cooperative', 'Cooperative', 'Neutral', 'Uncooperative'].map((cl) => (
+                      <SelectItem key={cl} value={cl}>{cl}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={predForm.safetyConcerns}
+                  onCheckedChange={(checked) =>
+                    setPredForm({ ...predForm, safetyConcerns: checked })
+                  }
+                />
+                <Label>Safety Concerns</Label>
+              </div>
+
+              <Button
+                onClick={handlePredict}
+                disabled={predicting || !predForm.residentId || !predForm.visitType || !predForm.cooperationLevel}
+                className="w-full gap-2 bg-violet-700 hover:bg-violet-800"
+              >
+                {predicting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Brain className="h-4 w-4" />
+                )}
+                Predict Outcome
+              </Button>
+            </div>
+
+            {/* Prediction results */}
+            <div className="flex flex-col items-center justify-center">
+              {prediction ? (
+                <div className="w-full space-y-4">
+                  <div className="flex flex-col items-center gap-2 rounded-lg border border-zinc-200 p-6">
+                    <span className="text-sm font-medium text-zinc-500">Favorable Outcome Probability</span>
+                    <span
+                      className={`text-5xl font-bold ${
+                        prediction.favorableProbability >= 0.7
+                          ? 'text-emerald-600'
+                          : prediction.favorableProbability >= 0.4
+                            ? 'text-amber-600'
+                            : 'text-red-600'
+                      }`}
+                    >
+                      {Math.round(prediction.favorableProbability * 100)}%
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        prediction.favorableProbability >= 0.7
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : prediction.favorableProbability >= 0.4
+                            ? 'border-amber-200 bg-amber-50 text-amber-700'
+                            : 'border-red-200 bg-red-50 text-red-700'
+                      }
+                    >
+                      {prediction.riskLabel}
+                    </Badge>
+                    <Badge variant="outline" className="mt-1 border-violet-200 bg-violet-50 text-violet-700">
+                      Model AUC: 0.84 | Confidence: {Math.round(prediction.confidence * 100)}%
+                    </Badge>
+                  </div>
+
+                  {prediction.factors.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-sm font-medium text-zinc-600">Contributing Factors</span>
+                      <div className="space-y-1">
+                        {prediction.factors.map((f, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between rounded-md border border-zinc-100 px-3 py-2 text-sm"
+                          >
+                            <div className="flex items-center gap-2">
+                              {f.impact === 'positive' ? (
+                                <ArrowUp className="h-3.5 w-3.5 text-emerald-500" />
+                              ) : (
+                                <ArrowDown className="h-3.5 w-3.5 text-red-500" />
+                              )}
+                              <span className="text-zinc-700">{f.factor}</span>
+                            </div>
+                            <span className="text-xs text-zinc-400">
+                              {f.weight > 0 ? '+' : ''}{(f.weight * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center text-sm text-zinc-400">
+                  <Brain className="mx-auto mb-2 h-10 w-10 text-zinc-200" />
+                  Fill out the form and click <strong>Predict Outcome</strong> to see results.
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Table */}
       <Card className="border-zinc-200">
@@ -429,7 +637,7 @@ export function HomeVisitation() {
                     <SelectValue placeholder="Select resident" />
                   </SelectTrigger>
                   <SelectContent>
-                    {RESIDENTS.map((r) => (
+                    {residents.map((r) => (
                       <SelectItem key={r.id} value={String(r.id)}>
                         {r.name}
                       </SelectItem>
@@ -543,8 +751,10 @@ export function HomeVisitation() {
             </Button>
             <Button
               onClick={handleSave}
+              disabled={saving}
               className="bg-violet-700 hover:bg-violet-800"
             >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Visit
             </Button>
           </div>
