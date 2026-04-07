@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Identity;
+// ApplicationUser inherits IdentityUser — no extra columns, but EF must know the concrete type.
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Backend.Models;
 
 namespace Backend.Data;
 
-public class AppDbContext : IdentityDbContext<IdentityUser>
+public class AppDbContext : IdentityDbContext<ApplicationUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
