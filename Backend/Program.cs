@@ -1,0 +1,138 @@
+using Backend.Data;
+using Backend.Infrastructure;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+const string FrontendCorsPolicy = "AllowFrontend";
+const string DefaultFrontendUrl = "http://localhost:4200";
+var frontendUrl = builder.Configuration["FrontendUrl"] ?? DefaultFrontendUrl;
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+
+// ── Database ──────────────────────────────────────────────────────────────────
+// Identity tables live in the same Azure SQL database as the application tables.
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// ── Identity ──────────────────────────────────────────────────────────────────
+// AddIdentityApiEndpoints maps /register, /login, /refresh, etc. under any prefix
+// you choose (see app.MapGroup below). It is designed for SPA / API clients.
+builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+// Password policy — must match what was taught in IS 414 (NOT Microsoft doc defaults).
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.Password.RequireDigit = false;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequiredLength = 14;
+    options.Password.RequiredUniqueChars = 1;
+});
+
+// Cookie configuration for browser clients.
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    options.SlidingExpiration = true;
+});
+
+// ── Google OAuth ──────────────────────────────────────────────────────────────
+// Secrets stored in appsettings.Development.json (dev) and Azure App Settings (prod).
+// The block is skipped entirely if the keys are absent so local dev without Google
+// credentials still starts successfully.
+if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientSecret))
+{
+    builder.Services.AddAuthentication()
+        .AddGoogle(options =>
+        {
+            options.ClientId = googleClientId;
+            options.ClientSecret = googleClientSecret;
+            options.SignInScheme = IdentityConstants.ExternalScheme;
+            options.CallbackPath = "/signin-google";
+        });
+}
+
+// ── Authorization policies ────────────────────────────────────────────────────
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthPolicies.AdminOnly, policy =>
+        policy.RequireRole(AuthRoles.Admin));
+});
+
+// ── HSTS ──────────────────────────────────────────────────────────────────────
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromDays(365);
+    options.IncludeSubDomains = true;
+});
+
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// AllowCredentials() is required for cookie-based auth to work across origins.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+        policy.WithOrigins(
+                frontendUrl,
+                "http://localhost:4200",
+                "https://lunas-project.site",
+                "https://www.lunas-project.site",
+                "https://intex-ii.vercel.app"
+            )
+            .AllowCredentials()
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
+
+builder.Services.AddControllers();
+builder.Services.AddOpenApi();
+
+var app = builder.Build();
+
+// ── Seed roles and default admin user ─────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+
+    var seedPath = Path.Combine(AppContext.BaseDirectory, "Data", "SeedData");
+    await DataSeeder.SeedAsync(db, seedPath);
+
+    await AuthIdentityGenerator.GenerateDefaultIdentityAsync(
+        scope.ServiceProvider, app.Configuration);
+}
+
+// ── Middleware pipeline ────────────────────────────────────────────────────────
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+}
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+// Security headers (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy)
+// must come before UseCors so headers are set on every response.
+app.UseSecurityHeaders();
+
+app.UseCors(FrontendCorsPolicy);
+
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+
+// Maps Identity API minimal endpoints: /register, /login, /refresh, /confirmEmail, etc.
+app.MapGroup("/api/auth").MapIdentityApi<ApplicationUser>();
+
+app.Run();

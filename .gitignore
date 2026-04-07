@@ -44,3 +44,9 @@ env/
 *.key
 *.pem
 credentials.json
+
+# Ai
+.claude/
+
+# Security Best Practices Example
+RootkitIdentityW26/
