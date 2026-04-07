@@ -445,7 +445,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
         policy.WithOrigins(
-            "http://localhost:5173",
+            "http://localhost:4200",
             "https://your-app.vercel.app"   // ← update after Vercel deploy
         )
         .AllowAnyHeader()
@@ -689,7 +689,7 @@ export default App;
 npm run dev
 ```
 
-Open `http://localhost:5173`. You should see both buttons. They will not work yet until the backend is running.
+Open `http://localhost:4200`. You should see both buttons. They will not work yet until the backend is running.
 
 ---
 
@@ -879,7 +879,7 @@ Once Vercel gives you your URL (e.g., `https://intex-teamname.vercel.app`), upda
 
 ```csharp
 .WithOrigins(
-    "http://localhost:5173",
+    "http://localhost:4200",
     "https://intex-teamname.vercel.app"   // ← your real Vercel URL
 )
 ```

@@ -141,7 +141,7 @@ Server=<server>.database.windows.net;Database=intexdb;User Id=sqladmin;Password=
 The backend `Program.cs` must whitelist both frontend origins:
 ```csharp
 .WithOrigins(
-    "http://localhost:5173",        // local dev
+    "http://localhost:4200",        // local dev
     "https://<app>.vercel.app"      // production
 )
 ```
