@@ -34,6 +34,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<SafehouseMonthlyMetric>().Property(e => e.MetricId).ValueGeneratedNever();
         modelBuilder.Entity<SocialMediaPost>().Property(e => e.PostId).ValueGeneratedNever();
         modelBuilder.Entity<Supporter>().Property(e => e.SupporterId).ValueGeneratedNever();
+        modelBuilder.Entity<PipelineResult>().Property(e => e.PipelineResultId).ValueGeneratedNever();
+        modelBuilder.Entity<PipelineResult>().Property(e => e.Score).HasPrecision(18, 6);
 
         // Explicit SQL precision prevents EF Core from falling back to provider defaults
         // that can silently truncate money, ratios, and measurement data.
@@ -104,4 +106,5 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<SafehouseMonthlyMetric> SafehouseMonthlyMetrics { get; set; }
     public DbSet<SocialMediaPost> SocialMediaPosts { get; set; }
     public DbSet<Supporter> Supporters { get; set; }
+    public DbSet<PipelineResult> PipelineResults { get; set; }
 }
