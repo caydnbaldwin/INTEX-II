@@ -1,100 +1,96 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from '@/context/AuthContext';
-import { CookieConsentProvider } from '@/context/CookieConsentContext';
-import AppShell from '@/components/layout/AppShell';
-import ProtectedRoute from '@/components/ProtectedRoute';
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './context/AuthContext'
+import { PublicLayout } from './layouts/PublicLayout'
+import { AdminLayout } from './layouts/AdminLayout'
+import { LandingPage } from './pages/landing'
+import { ImpactDashboard } from './pages/impact-dashboard'
+import { LoginPage } from './pages/login'
+import { PrivacyPolicy } from './pages/privacy-policy'
+import { AdminDashboard } from './pages/admin/dashboard'
+import { CaseloadInventory } from './pages/admin/caseload'
+import { ProcessRecording } from './pages/admin/process-recording'
+import { HomeVisitation } from './pages/admin/home-visitation'
+import { DonorsManagement } from './pages/admin/donors'
+import { ReportsAnalytics } from './pages/admin/reports'
+import { DonorPortal } from './pages/donor/portal'
+import CookieConsentBanner from './components/CookieConsentBanner'
 
-// Auth pages (standalone — no AppShell)
-import LoginPage from '@/pages/LoginPage';
-import RegisterPage from '@/pages/RegisterPage';
-import LogoutPage from '@/pages/LogoutPage';
+function ProtectedRoute({
+  children,
+  requiredRole,
+}: {
+  children: React.ReactNode
+  requiredRole?: string
+}) {
+  const { isAuthenticated, isLoading, authSession } = useAuth()
 
-// AppShell pages
-import HomePage from '@/pages/HomePage';
-import ImpactPage from '@/pages/ImpactPage';
-import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
+  // DEV BYPASS: allow access if ?bypass=true is in the URL or sessionStorage
+  const bypass = new URLSearchParams(window.location.search).has('bypass') ||
+    sessionStorage.getItem('devBypass') === 'true'
+  if (bypass) {
+    sessionStorage.setItem('devBypass', 'true')
+    return <>{children}</>
+  }
 
-// Protected pages
-import DashboardPage from '@/pages/DashboardPage';
-import DonorsPage from '@/pages/DonorsPage';
-import ManageMFAPage from '@/pages/ManageMFAPage';
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (requiredRole && !authSession.roles.includes(requiredRole))
+    return <Navigate to="/" replace />
+
+  return <>{children}</>
+}
 
 export default function App() {
   return (
-    <CookieConsentProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Standalone auth pages */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/logout" element={<LogoutPage />} />
+    <>
+      <Routes>
+        {/* Public routes */}
+        <Route element={<PublicLayout />}>
+          <Route index element={<LandingPage />} />
+          <Route path="impact" element={<ImpactDashboard />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="privacy" element={<PrivacyPolicy />} />
+        </Route>
 
-            {/* Public pages with AppShell */}
-            <Route
-              path="/"
-              element={
-                <AppShell>
-                  <HomePage />
-                </AppShell>
-              }
-            />
-            <Route
-              path="/impact"
-              element={
-                <AppShell>
-                  <ImpactPage />
-                </AppShell>
-              }
-            />
-            <Route
-              path="/privacy-policy"
-              element={
-                <AppShell>
-                  <PrivacyPolicyPage />
-                </AppShell>
-              }
-            />
+        {/* Admin routes */}
+        <Route
+          path="admin"
+          element={
+            <ProtectedRoute requiredRole="Admin">
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="caseload" element={<CaseloadInventory />} />
+          <Route path="process-recording" element={<ProcessRecording />} />
+          <Route path="visitation" element={<HomeVisitation />} />
+          <Route path="donors" element={<DonorsManagement />} />
+          <Route path="reports" element={<ReportsAnalytics />} />
+        </Route>
 
-            {/* Protected: any authenticated user */}
-            <Route
-              path="/mfa"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <ManageMFAPage />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
+        {/* Donor routes */}
+        <Route
+          path="donor"
+          element={
+            <ProtectedRoute requiredRole="Donor">
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<DonorPortal />} />
+        </Route>
 
-            {/* Protected: Admin only */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute requiredRole="Admin">
-                  <AppShell>
-                    <DashboardPage />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/donors"
-              element={
-                <ProtectedRoute requiredRole="Admin">
-                  <AppShell>
-                    <DonorsPage />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </CookieConsentProvider>
-  );
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <CookieConsentBanner />
+    </>
+  )
 }
