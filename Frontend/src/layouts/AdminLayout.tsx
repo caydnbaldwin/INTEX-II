@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import {
   LayoutDashboard,
   Users,
@@ -7,9 +8,12 @@ import {
   Heart,
   BarChart3,
   Shield,
+  ShieldAlert,
+  ShieldCheck,
   LogOut,
   ChevronLeft,
   Gift,
+  X,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -28,7 +32,7 @@ import {
 } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/context/AuthContext'
-import { logout } from '@/lib/authApi'
+import { logout, getMfaStatus } from '@/lib/authApi'
 
 const adminNav = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -43,6 +47,10 @@ const donorNav = [
   { name: 'My Portal', href: '/donor', icon: Gift },
 ]
 
+const securityNav = [
+  { name: 'Manage MFA', href: '/mfa', icon: ShieldCheck },
+]
+
 export function AdminLayout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -51,6 +59,15 @@ export function AdminLayout() {
   const devBypass = sessionStorage.getItem('devBypass') === 'true'
   const isAdmin = devBypass || authSession.roles.includes('Admin')
   const navItems = isAdmin ? adminNav : donorNav
+
+  const [showMfaBanner, setShowMfaBanner] = useState(false)
+
+  useEffect(() => {
+    if (devBypass) return
+    getMfaStatus()
+      .then(enabled => { if (!enabled) setShowMfaBanner(true) })
+      .catch(() => {})
+  }, [devBypass])
 
   async function handleLogout() {
     await logout()
@@ -102,6 +119,27 @@ export function AdminLayout() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupLabel>Security</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {securityNav.map((item) => {
+                  const isActive = location.pathname === item.href
+                  return (
+                    <SidebarMenuItem key={item.name}>
+                      <SidebarMenuButton asChild isActive={isActive}>
+                        <Link to={item.href}>
+                          <item.icon className="size-4" />
+                          <span>{item.name}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         </SidebarContent>
 
         <SidebarFooter>
@@ -132,9 +170,31 @@ export function AdminLayout() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <span className="text-sm font-medium text-muted-foreground">
-            {navItems.find((item) => item.href === location.pathname)?.name ?? 'Dashboard'}
+            {[...navItems, ...securityNav].find((item) => item.href === location.pathname)?.name ?? 'Dashboard'}
           </span>
         </header>
+
+        {showMfaBanner && (
+          <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
+            <ShieldAlert className="h-4 w-4 flex-shrink-0" />
+            <span className="flex-1">
+              Your account is not protected with two-factor authentication.{' '}
+              <Link to="/mfa" className="font-medium underline hover:no-underline">
+                Set up MFA
+              </Link>{' '}
+              to secure your account.
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowMfaBanner(false)}
+              className="flex-shrink-0 text-amber-600 hover:text-amber-800 dark:text-amber-400"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         <main className="flex-1 p-6">
           <Outlet />
         </main>

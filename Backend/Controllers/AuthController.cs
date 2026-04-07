@@ -118,10 +118,18 @@ public class AuthController(
             return Redirect(BuildFrontendErrorUrl("External login information was unavailable."));
 
         var signInResult = await signInManager.ExternalLoginSignInAsync(
-            info.LoginProvider, info.ProviderKey, isPersistent: false, bypassTwoFactor: true);
+            info.LoginProvider, info.ProviderKey, isPersistent: false, bypassTwoFactor: false);
 
         if (signInResult.Succeeded)
             return Redirect(BuildFrontendSuccessUrl(returnPath));
+
+        if (signInResult.RequiresTwoFactor)
+        {
+            var frontendUrl = configuration["FrontendUrl"] ?? DefaultFrontendUrl;
+            var challengeUrl = $"{frontendUrl.TrimEnd('/')}/mfa-challenge" +
+                               $"?returnPath={Uri.EscapeDataString(NormalizeReturnPath(returnPath))}";
+            return Redirect(challengeUrl);
+        }
 
         var email = info.Principal.FindFirstValue(ClaimTypes.Email)
                     ?? info.Principal.FindFirstValue("email");
@@ -154,6 +162,27 @@ public class AuthController(
 
         await signInManager.SignInAsync(user, isPersistent: false, info.LoginProvider);
         return Redirect(BuildFrontendSuccessUrl(returnPath));
+    }
+
+    /// <summary>
+    /// Completes a pending two-factor sign-in (used after Google OAuth when MFA is enabled).
+    /// The pending external login state is held in an Identity cookie set during the OAuth callback.
+    /// </summary>
+    [HttpPost("mfa-challenge")]
+    public async Task<IActionResult> MfaChallenge([FromBody] MfaChallengeRequest request)
+    {
+        var result = await signInManager.TwoFactorAuthenticatorSignInAsync(
+            request.Code.Replace(" ", "").Replace("-", ""),
+            isPersistent: false,
+            rememberClient: false);
+
+        if (result.Succeeded)
+            return Ok(new { message = "Sign-in complete." });
+
+        if (result.IsLockedOut)
+            return BadRequest(new { message = "Account is locked. Please try again later." });
+
+        return BadRequest(new { message = "Invalid verification code. Please try again." });
     }
 
     /// <summary>
@@ -190,3 +219,5 @@ public class AuthController(
         return QueryHelpers.AddQueryString(loginUrl, "externalError", errorMessage);
     }
 }
+
+public record MfaChallengeRequest(string Code);
