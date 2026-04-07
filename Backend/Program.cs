@@ -13,8 +13,20 @@ var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecr
 
 // ── Database ──────────────────────────────────────────────────────────────────
 // Identity tables live in the same Azure SQL database as the application tables.
+// In the Testing environment (WebApplicationFactory), InMemory is used so that
+// integration tests run without a real database connection.
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (builder.Environment.IsEnvironment("Testing"))
+    {
+        // Each WebApplicationFactory instance passes a unique name via configuration
+        // so test classes don't share the same InMemory store.
+        var dbName = builder.Configuration["Testing:DatabaseName"] ?? "TestDb";
+        options.UseInMemoryDatabase(dbName);
+    }
+    else
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 
 // ── Identity ──────────────────────────────────────────────────────────────────
 // AddIdentityApiEndpoints maps /register, /login, /refresh, etc. under any prefix
@@ -107,10 +119,20 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
 
-    var seedPath = Path.Combine(AppContext.BaseDirectory, "Data", "SeedData");
-    await DataSeeder.SeedAsync(db, seedPath);
+    if (app.Environment.IsEnvironment("Testing"))
+        db.Database.EnsureCreated();
+    else
+        db.Database.Migrate();
+
+    // Skip CSV seeding in the Testing environment: tests don't need production
+    // data, and the InMemory provider rejects duplicate PKs that SQL Server
+    // would catch at the constraint level.
+    if (!app.Environment.IsEnvironment("Testing"))
+    {
+        var seedPath = Path.Combine(AppContext.BaseDirectory, "Data", "SeedData");
+        await DataSeeder.SeedAsync(db, seedPath);
+    }
 
     await AuthIdentityGenerator.GenerateDefaultIdentityAsync(
         scope.ServiceProvider, app.Configuration);
@@ -142,3 +164,6 @@ app.MapControllers();
 app.MapGroup("/api/auth").MapIdentityApi<ApplicationUser>();
 
 app.Run();
+
+// Exposes the generated Program class to the test assembly via WebApplicationFactory<Program>.
+public partial class Program { }
