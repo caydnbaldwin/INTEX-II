@@ -1,192 +1,96 @@
-import { useState } from 'react';
-import axios from 'axios';
-import './App.css';
-import { AuthProvider } from './context/AuthContext';
-import { CookieConsentProvider } from './context/CookieConsentContext';
-import CookieConsentBanner from './components/CookieConsentBanner';
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './context/AuthContext'
+import { PublicLayout } from './layouts/PublicLayout'
+import { AdminLayout } from './layouts/AdminLayout'
+import { LandingPage } from './pages/landing'
+import { ImpactDashboard } from './pages/impact-dashboard'
+import { LoginPage } from './pages/login'
+import { PrivacyPolicy } from './pages/privacy-policy'
+import { AdminDashboard } from './pages/admin/dashboard'
+import { CaseloadInventory } from './pages/admin/caseload'
+import { ProcessRecording } from './pages/admin/process-recording'
+import { HomeVisitation } from './pages/admin/home-visitation'
+import { DonorsManagement } from './pages/admin/donors'
+import { ReportsAnalytics } from './pages/admin/reports'
+import { DonorPortal } from './pages/donor/portal'
+import CookieConsentBanner from './components/CookieConsentBanner'
 
-// NOTE on DOMPurify: installed for IS 414 data sanitization requirement.
-// Any place user-supplied content is rendered with dangerouslySetInnerHTML,
-// wrap it: <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }} />
-// React escapes all JSX string output by default — no dangerouslySetInnerHTML
-// means no XSS risk from normal rendering.
+function ProtectedRoute({
+  children,
+  requiredRole,
+}: {
+  children: React.ReactNode
+  requiredRole?: string
+}) {
+  const { isAuthenticated, isLoading, authSession } = useAuth()
 
-const API = import.meta.env.VITE_API_BASE_URL as string;
-
-type DbCheckResult = Record<string, unknown>;
-
-function App() {
-  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
-  const [connectionError, setConnectionError] = useState(false);
-  const [dbResults, setDbResults] = useState<DbCheckResult | null>(null);
-  const [dbLoading, setDbLoading] = useState(false);
-
-  async function verifyConnection() {
-    setConnectionMessage(null);
-    setConnectionError(false);
-    try {
-      const res = await axios.get<{ message: string }>(`${API}/api/health`);
-      setConnectionMessage(res.data.message);
-    } catch {
-      setConnectionMessage('Failed to connect to backend.');
-      setConnectionError(true);
-    }
+  // DEV BYPASS: allow access if ?bypass=true is in the URL or sessionStorage
+  const bypass = new URLSearchParams(window.location.search).has('bypass') ||
+    sessionStorage.getItem('devBypass') === 'true'
+  if (bypass) {
+    sessionStorage.setItem('devBypass', 'true')
+    return <>{children}</>
   }
 
-  async function verifyDatabase() {
-    setDbResults(null);
-    setDbLoading(true);
-    try {
-      const res = await axios.get<DbCheckResult>(`${API}/api/dbcheck`);
-      setDbResults(res.data);
-    } catch {
-      setDbResults({ error: 'Failed to reach backend.' });
-    } finally {
-      setDbLoading(false);
-    }
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
   }
 
-  const tableCount = dbResults
-    ? Object.values(dbResults).filter(
-        (v) => typeof v !== 'string' || !v.startsWith('error')
-      ).length
-    : 0;
-  const totalTables = 17;
-  const allGreen = tableCount === totalTables;
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (requiredRole && !authSession.roles.includes(requiredRole))
+    return <Navigate to="/" replace />
 
-  return (
-    <CookieConsentProvider>
-      <AuthProvider>
-        <div
-          style={{
-            maxWidth: 900,
-            margin: '40px auto',
-            fontFamily: 'sans-serif',
-            padding: '0 20px',
-          }}
-        >
-          <h1>INTEX II — Pipeline Verification</h1>
-
-          <section style={{ marginBottom: 32 }}>
-            <button onClick={verifyConnection} style={btnStyle}>
-              Verify Connection to Backend
-            </button>
-            {connectionMessage && (
-              <p
-                style={{
-                  color: connectionError ? 'red' : 'green',
-                  marginTop: 8,
-                  fontWeight: 'bold',
-                }}
-              >
-                {connectionMessage}
-              </p>
-            )}
-          </section>
-
-          <section>
-            <button
-              onClick={verifyDatabase}
-              disabled={dbLoading}
-              style={btnStyle}
-            >
-              {dbLoading ? 'Checking...' : 'Verify Database Connection'}
-            </button>
-
-            {dbResults && (
-              <>
-                <p
-                  style={{
-                    marginTop: 16,
-                    fontSize: 20,
-                    fontWeight: 'bold',
-                    color: allGreen ? 'green' : 'red',
-                  }}
-                >
-                  {tableCount}/{totalTables} tables connected
-                </p>
-
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                    gap: 12,
-                    marginTop: 16,
-                  }}
-                >
-                  {Object.entries(dbResults).map(([table, row]) => {
-                    const isError =
-                      typeof row === 'string' && row.startsWith('error');
-                    const isEmpty = row === 'empty table';
-                    return (
-                      <div
-                        key={table}
-                        style={{
-                          border: `2px solid ${isError ? 'red' : 'green'}`,
-                          borderRadius: 8,
-                          padding: 12,
-                          background: isError
-                            ? '#fff5f5'
-                            : isEmpty
-                              ? '#fffbe6'
-                              : '#f0fff4',
-                        }}
-                      >
-                        <strong
-                          style={{
-                            textTransform: 'uppercase',
-                            fontSize: 12,
-                            letterSpacing: 1,
-                          }}
-                        >
-                          {table.replace(/_/g, ' ')}
-                        </strong>
-                        {isError || isEmpty ? (
-                          <p
-                            style={{
-                              color: isError ? 'red' : '#aaa',
-                              fontSize: 13,
-                              marginTop: 4,
-                            }}
-                          >
-                            {String(row)}
-                          </p>
-                        ) : (
-                          <pre
-                            style={{
-                              fontSize: 10,
-                              marginTop: 8,
-                              overflow: 'auto',
-                              maxHeight: 120,
-                            }}
-                          >
-                            {JSON.stringify(row, null, 2)}
-                          </pre>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </section>
-        </div>
-
-        {/* GDPR cookie consent banner — shows on first visit, persists accept/reject choice */}
-        <CookieConsentBanner />
-      </AuthProvider>
-    </CookieConsentProvider>
-  );
+  return <>{children}</>
 }
 
-const btnStyle: React.CSSProperties = {
-  padding: '10px 24px',
-  fontSize: 15,
-  cursor: 'pointer',
-  borderRadius: 6,
-  border: '1px solid #333',
-  background: '#1a1a1a',
-  color: 'white',
-};
+export default function App() {
+  return (
+    <>
+      <Routes>
+        {/* Public routes */}
+        <Route element={<PublicLayout />}>
+          <Route index element={<LandingPage />} />
+          <Route path="impact" element={<ImpactDashboard />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="privacy" element={<PrivacyPolicy />} />
+        </Route>
 
-export default App;
+        {/* Admin routes */}
+        <Route
+          path="admin"
+          element={
+            <ProtectedRoute requiredRole="Admin">
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="caseload" element={<CaseloadInventory />} />
+          <Route path="process-recording" element={<ProcessRecording />} />
+          <Route path="visitation" element={<HomeVisitation />} />
+          <Route path="donors" element={<DonorsManagement />} />
+          <Route path="reports" element={<ReportsAnalytics />} />
+        </Route>
+
+        {/* Donor routes */}
+        <Route
+          path="donor"
+          element={
+            <ProtectedRoute requiredRole="Donor">
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<DonorPortal />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <CookieConsentBanner />
+    </>
+  )
+}
