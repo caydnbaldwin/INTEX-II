@@ -34,6 +34,57 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<SafehouseMonthlyMetric>().Property(e => e.MetricId).ValueGeneratedNever();
         modelBuilder.Entity<SocialMediaPost>().Property(e => e.PostId).ValueGeneratedNever();
         modelBuilder.Entity<Supporter>().Property(e => e.SupporterId).ValueGeneratedNever();
+
+        // Explicit SQL precision prevents EF Core from falling back to provider defaults
+        // that can silently truncate money, ratios, and measurement data.
+        modelBuilder.Entity<Donation>(entity =>
+        {
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
+            entity.Property(e => e.EstimatedValue).HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<DonationAllocation>(entity =>
+        {
+            entity.Property(e => e.AmountAllocated).HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<EducationRecord>(entity =>
+        {
+            entity.Property(e => e.AttendanceRate).HasPrecision(9, 4);
+            entity.Property(e => e.ProgressPercent).HasPrecision(9, 4);
+        });
+
+        modelBuilder.Entity<HealthWellbeingRecord>(entity =>
+        {
+            entity.Property(e => e.GeneralHealthScore).HasPrecision(9, 2);
+            entity.Property(e => e.NutritionScore).HasPrecision(9, 2);
+            entity.Property(e => e.SleepQualityScore).HasPrecision(9, 2);
+            entity.Property(e => e.EnergyLevelScore).HasPrecision(9, 2);
+            entity.Property(e => e.HeightCm).HasPrecision(9, 2);
+            entity.Property(e => e.WeightKg).HasPrecision(9, 2);
+            entity.Property(e => e.Bmi).HasPrecision(9, 2);
+        });
+
+        modelBuilder.Entity<InKindDonationItem>(entity =>
+        {
+            entity.Property(e => e.Quantity).HasPrecision(18, 2);
+            entity.Property(e => e.EstimatedUnitValue).HasPrecision(18, 2);
+        });
+
+        modelBuilder.Entity<SafehouseMonthlyMetric>(entity =>
+        {
+            entity.Property(e => e.AvgEducationProgress).HasPrecision(9, 4);
+            entity.Property(e => e.AvgHealthScore).HasPrecision(9, 2);
+        });
+
+        modelBuilder.Entity<SocialMediaPost>(entity =>
+        {
+            entity.Property(e => e.BoostBudgetPhp).HasPrecision(18, 2);
+            entity.Property(e => e.EngagementRate).HasPrecision(9, 4);
+            entity.Property(e => e.EstimatedDonationValuePhp).HasPrecision(18, 2);
+            entity.Property(e => e.WatchTimeSeconds).HasPrecision(18, 2);
+            entity.Property(e => e.AvgViewDurationSeconds).HasPrecision(18, 2);
+        });
     }
 
     public DbSet<Safehouse> Safehouses { get; set; }
