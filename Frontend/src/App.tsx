@@ -13,6 +13,8 @@ import { HomeVisitation } from './pages/admin/home-visitation'
 import { DonorsManagement } from './pages/admin/donors'
 import { ReportsAnalytics } from './pages/admin/reports'
 import { DonorPortal } from './pages/donor/portal'
+import ManageMFAPage from './pages/ManageMFAPage'
+import MfaChallengePage from './pages/MfaChallengePage'
 import CookieConsentBanner from './components/CookieConsentBanner'
 
 function ProtectedRoute({
@@ -87,6 +89,21 @@ export default function App() {
         >
           <Route index element={<DonorPortal />} />
         </Route>
+
+        {/* MFA management — accessible to any authenticated user */}
+        <Route
+          path="mfa"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<ManageMFAPage />} />
+        </Route>
+
+        {/* MFA challenge — public, shown after Google OAuth when MFA is required */}
+        <Route path="mfa-challenge" element={<MfaChallengePage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -33,8 +33,14 @@ public class MfaController(UserManager<ApplicationUser> userManager) : Controlle
         var user = await userManager.GetUserAsync(User);
         if (user is null) return Unauthorized();
 
-        await userManager.ResetAuthenticatorKeyAsync(user);
+        // Only generate a new key if one doesn't already exist.
+        // Resetting on every request would invalidate an existing authenticator app.
         var key = await userManager.GetAuthenticatorKeyAsync(user);
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            await userManager.ResetAuthenticatorKeyAsync(user);
+            key = await userManager.GetAuthenticatorKeyAsync(user);
+        }
 
         if (string.IsNullOrWhiteSpace(key))
             return Problem("Unable to generate authenticator key.");

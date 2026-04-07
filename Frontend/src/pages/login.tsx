@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Shield, Eye, EyeOff, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react'
+import { Shield, Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
-import { login, register, getGoogleLoginUrl } from '@/lib/authApi'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { login, loginWithTwoFactor, register, getGoogleLoginUrl } from '@/lib/authApi'
 import { useAuth } from '@/context/AuthContext'
 
 export function LoginPage() {
@@ -19,6 +20,12 @@ export function LoginPage() {
   const [activeTab, setActiveTab] = useState('login')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  // Step: 'credentials' shows the normal form; 'totp' shows the MFA code input
+  const [step, setStep] = useState<'credentials' | 'totp'>('credentials')
+  const [pendingEmail, setPendingEmail] = useState('')
+  const [pendingPassword, setPendingPassword] = useState('')
+  const [totpCode, setTotpCode] = useState('')
 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -32,22 +39,52 @@ export function LoginPage() {
   const externalError = searchParams.get('externalError')
   const [error, setError] = useState(externalError ?? '')
 
+  function navigateAfterLogin(roles: string[]) {
+    if (roles.includes('Admin')) {
+      navigate('/admin')
+    } else {
+      navigate('/donor')
+    }
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setIsLoading(true)
 
     try {
-      await login(loginEmail, loginPassword)
-      const session = await refreshAuthState()
-      // Navigate based on role
-      if (session?.roles?.includes('Admin')) {
-        navigate('/admin')
-      } else {
-        navigate('/donor')
+      const result = await login(loginEmail, loginPassword)
+
+      if (result.status === 'ok') {
+        const session = await refreshAuthState()
+        navigateAfterLogin(session?.roles ?? [])
+      } else if (result.status === 'requiresTwoFactor') {
+        setPendingEmail(loginEmail)
+        setPendingPassword(loginPassword)
+        setStep('totp')
+      } else if (result.status === 'error') {
+        setError(result.message)
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleTotpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setIsLoading(true)
+
+    try {
+      const result = await loginWithTwoFactor(pendingEmail, pendingPassword, totpCode)
+
+      if (result.status === 'ok') {
+        const session = await refreshAuthState()
+        navigateAfterLogin(session?.roles ?? [])
+      } else if (result.status === 'error') {
+        setError(result.message)
+        setTotpCode('')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -90,6 +127,79 @@ export function LoginPage() {
     window.location.href = getGoogleLoginUrl()
   }
 
+  // ── MFA TOTP step ─────────────────────────────────────────────────────────
+  if (step === 'totp') {
+    return (
+      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center py-12 px-6">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center">
+            <Link to="/" className="inline-flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
+                <ShieldCheck className="h-7 w-7 text-primary-foreground" />
+              </div>
+              <span className="text-2xl font-semibold tracking-tight text-foreground">Lunas</span>
+            </Link>
+            <p className="mt-4 text-muted-foreground">Two-factor authentication required</p>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Enter verification code</CardTitle>
+              <CardDescription>
+                Open your authenticator app and enter the 6-digit code for your account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {error && (
+                <div className="mb-4 rounded-md bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleTotpSubmit} className="space-y-6">
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={6}
+                    value={totpCode}
+                    onChange={setTotpCode}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isLoading || totpCode.length !== 6}>
+                  {isLoading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying...</>
+                  ) : (
+                    <>Verify<ArrowRight className="ml-2 h-4 w-4" /></>
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => { setStep('credentials'); setError(''); setTotpCode('') }}
+                  className="text-sm text-muted-foreground hover:text-foreground underline"
+                >
+                  Back to sign in
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Normal credentials step ───────────────────────────────────────────────
   return (
     <div className="min-h-[calc(100vh-200px)] flex items-center justify-center py-12 px-6">
       <div className="w-full max-w-md">

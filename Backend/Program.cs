@@ -12,11 +12,19 @@ var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
 var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
 
 // ── Database ──────────────────────────────────────────────────────────────────
-// Identity tables live in the same Azure SQL database as the application tables.
-// In the Testing environment (WebApplicationFactory), InMemory is used so that
-// integration tests run without a real database connection.
+// In the Testing environment (WebApplicationFactory) the InMemory provider is used
+// so integration tests run without a real database connection. The factory passes
+// a unique database name via configuration to keep test classes isolated.
+// All other environments use SQL Server.
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (builder.Environment.IsEnvironment("Testing"))
+        options.UseInMemoryDatabase(
+            builder.Configuration["TestDatabaseName"] ?? "TestDb");
+    else
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 
 // ── Identity ──────────────────────────────────────────────────────────────────
 // AddIdentityApiEndpoints maps /register, /login, /refresh, etc. under any prefix
