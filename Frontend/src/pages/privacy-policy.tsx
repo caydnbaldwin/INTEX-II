@@ -1,195 +1,303 @@
-import { Link } from 'react-router-dom'
-import { Shield, Mail, MapPin, Phone } from 'lucide-react'
+import { useEffect } from 'react'
+import { Shield } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
+const sections = [
+  {
+    id: 'who-we-are',
+    title: 'Who We Are',
+    content: `Lunas is a nonprofit organization dedicated to protecting and rehabilitating girls who are survivors of sexual abuse, trafficking, and exploitation. We operate safe homes across multiple regions and provide holistic care including shelter, education, counseling, and reintegration support.
+
+**Data Controller:**
+Lunas
+contact@lunas.org
+
+As the data controller, Lunas determines the purposes and means of processing personal data collected through this website and our operational systems.`,
+  },
+  {
+    id: 'data-we-collect',
+    title: 'Data We Collect',
+    content: `We collect different categories of personal data depending on how you interact with our platform:
+
+**Visitors (public site)**
+- Browser cookies and session identifiers (see Cookie Policy below)
+- Anonymized usage analytics (page views, referral sources)
+
+**Donors & Supporters**
+- Name, email address, phone number, and mailing address
+- Donation history, amounts, and campaign participation
+- Communication preferences and correspondence with our team
+- Acquisition source (how you first connected with Lunas)
+
+**Authenticated Users (Admin & Staff)**
+- Login credentials (email/username, hashed password)
+- Role and access level
+- Activity logs for security and audit purposes
+
+**Residents (Internal Use Only — Never Public)**
+- Case records, health and wellbeing data, education progress, and counseling notes are collected and held strictly for operational case management purposes. This data is never shared publicly, is accessible only to authorized staff, and is protected with the highest level of security controls we apply.`,
+  },
+  {
+    id: 'how-we-use',
+    title: 'How We Use Your Data',
+    content: `We use personal data only for the purposes for which it was collected:
+
+**To operate our donor programs**
+Managing donation records, issuing acknowledgments, attributing donations to campaigns and safehouses, and communicating impact updates to supporters.
+
+**To provide authenticated access**
+Verifying identity, managing sessions, and enforcing role-based access to administrative features.
+
+**To improve our outreach**
+Analyzing which communications and social media activity lead to donor engagement, so we can be more effective with limited resources.
+
+**To protect our residents**
+Case management data is used solely to deliver care, track progress, plan interventions, and ensure the safety of the girls in our programs.
+
+**To comply with legal obligations**
+We may process data as required by applicable law, including nonprofit reporting requirements and child protection regulations.`,
+  },
+  {
+    id: 'legal-basis',
+    title: 'Legal Basis for Processing',
+    content: `Under GDPR Article 6, we rely on the following legal bases:
+
+**Consent** — For non-essential cookies and marketing communications. You may withdraw consent at any time.
+
+**Contract** — To process donations and fulfill commitments made to donors and supporters.
+
+**Legitimate Interests** — To analyze our social media effectiveness and improve donor outreach, where this does not override your rights and freedoms.
+
+**Legal Obligation** — Where processing is required to comply with applicable laws and regulations.
+
+**Vital Interests** — For processing related to the safety and care of residents, which may include special category data (health information) processed under GDPR Article 9(2)(c).`,
+  },
+  {
+    id: 'data-sharing',
+    title: 'Who We Share Data With',
+    content: `We do not sell personal data. We share data only in the following limited circumstances:
+
+**Service Providers**
+We use Microsoft Azure to host our application and databases, and Vercel to serve our frontend. These providers process data on our behalf under data processing agreements and are obligated to protect your information.
+
+**Payment Processing**
+If you make a donation online, payment information is handled by our payment processor (Stripe) and is not stored on our servers. Stripe's privacy policy governs that transaction.
+
+**In-Country Partners**
+Operational partners who deliver services at our safehouses may have access to resident case data strictly necessary for delivering care. All partners are bound by confidentiality obligations.
+
+**Legal Requirements**
+We may disclose data to law enforcement or regulatory authorities where required by law, particularly in connection with child protection obligations.
+
+We do not transfer personal data to third parties for their own marketing purposes.`,
+  },
+  {
+    id: 'international-transfers',
+    title: 'International Data Transfers',
+    content: `Lunas operates in the Philippines. Our website and administrative platform are hosted on Microsoft Azure and Vercel infrastructure, which may be located in the United States or other jurisdictions outside the Philippines and the European Economic Area.
+
+Where personal data is transferred internationally, we ensure appropriate safeguards are in place, including reliance on Standard Contractual Clauses (SCCs) approved by the European Commission and equivalent data protection frameworks.
+
+If you have questions about the specific safeguards applied to your data, please contact us at contact@lunas.org.`,
+  },
+  {
+    id: 'retention',
+    title: 'How Long We Keep Your Data',
+    content: `We retain personal data only as long as necessary for the purposes described in this policy:
+
+**Donor records** — Retained for 7 years following the last donation for accounting and legal compliance purposes.
+
+**Account credentials** — Retained for the duration of the account. Inactive accounts are reviewed annually.
+
+**Website cookies** — Session cookies expire when you close your browser. Preference cookies (e.g., dark/light mode) are retained for up to 12 months.
+
+**Resident case records** — Retained in accordance with applicable child welfare regulations and the organization's data governance policy. Records are archived securely after case closure.
+
+**Audit logs** — Retained for 2 years.
+
+After the applicable retention period, data is securely deleted or irreversibly anonymized.`,
+  },
+  {
+    id: 'your-rights',
+    title: 'Your Rights',
+    content: `If you are located in the European Union or a jurisdiction with equivalent privacy rights, you have the following rights regarding your personal data:
+
+**Right to Access** — You may request a copy of the personal data we hold about you.
+
+**Right to Rectification** — You may ask us to correct inaccurate or incomplete data.
+
+**Right to Erasure** — You may request that we delete your personal data, subject to legal retention requirements.
+
+**Right to Restrict Processing** — You may ask us to limit how we use your data in certain circumstances.
+
+**Right to Data Portability** — You may request your data in a structured, machine-readable format.
+
+**Right to Object** — You may object to processing based on legitimate interests, including profiling.
+
+**Right to Withdraw Consent** — Where processing is based on consent, you may withdraw it at any time without affecting the lawfulness of prior processing.
+
+To exercise any of these rights, contact us at contact@lunas.org. We will respond within 30 days. You also have the right to lodge a complaint with your local data protection supervisory authority.`,
+  },
+  {
+    id: 'cookies',
+    title: 'Cookie Policy',
+    content: `We use cookies and similar technologies on our website. When you first visit, a consent banner will ask for your permission before non-essential cookies are set.
+
+**Essential Cookies**
+Required for the site to function. These include authentication session tokens and security cookies. They cannot be disabled.
+
+**Preference Cookies**
+Used to remember your settings, such as light or dark mode. These are set only with your consent.
+
+**Analytics Cookies**
+Used to understand how visitors use our site (pages visited, session duration, referral source). We use anonymized, aggregated data only. Set only with your consent.
+
+You may update your cookie preferences at any time by clearing your browser cookies or using the preference controls in your browser settings. Withdrawing consent for non-essential cookies will not affect your ability to use the site.`,
+  },
+  {
+    id: 'children',
+    title: 'A Note on Minors',
+    content: `This public website is not directed at children under the age of 13, and we do not knowingly collect personal data directly from minors through our public-facing pages.
+
+The individuals we serve — girls who are survivors of abuse and trafficking — are minors whose case data is handled entirely within our internal case management system. That data is never exposed through the public website, is protected with strict access controls, and is handled in accordance with applicable child protection laws and our organizational safeguarding policies.
+
+If you believe a minor's data has been submitted to this site in error, please contact us immediately at contact@lunas.org.`,
+  },
+  {
+    id: 'security',
+    title: 'How We Protect Your Data',
+    content: `We take data security seriously, particularly given the sensitive nature of the individuals we serve. Our security measures include:
+
+- HTTPS encryption on all connections (TLS via Azure and Vercel)
+- Passwords hashed using industry-standard algorithms; never stored in plaintext
+- Role-based access control limiting data visibility to authorized users only
+- Separate databases for operational data and identity/authentication data
+- Automated backups and access logging
+- Regular review of security configurations and access permissions
+
+No system is completely immune to security risks. If you believe your data has been compromised, contact us immediately at contact@lunas.org.`,
+  },
+  {
+    id: 'changes',
+    title: 'Changes to This Policy',
+    content: `We may update this privacy policy from time to time to reflect changes in our practices, technology, or legal requirements. When we make material changes, we will update the "Last Updated" date at the top of this page.
+
+We encourage you to review this policy periodically. Continued use of our website after changes are posted constitutes your acceptance of the updated policy.`,
+  },
+  {
+    id: 'contact',
+    title: 'Contact Us',
+    content: `If you have any questions, concerns, or requests related to this privacy policy or how we handle your data, please contact us:
+
+**Lunas**
+Email: contact@lunas.org
+
+We are committed to resolving privacy concerns promptly and transparently. If you are not satisfied with our response, you have the right to escalate your complaint to the relevant data protection authority in your jurisdiction.`,
+  },
+]
+
+function renderContent(text: string) {
+  const lines = text.split('\n')
+  return lines.map((line, i) => {
+    if (line.startsWith('**') && line.endsWith('**')) {
+      return (
+        <p key={i} className="mt-5 mb-1 font-semibold text-foreground">
+          {line.replace(/\*\*/g, '')}
+        </p>
+      )
+    }
+    if (line.trim() === '') return <br key={i} />
+    const parts = line.split(/\*\*(.*?)\*\*/g)
+    return (
+      <p key={i} className="my-1.5 leading-relaxed text-muted-foreground">
+        {parts.map((part, j) =>
+          j % 2 === 1 ? (
+            <strong key={j} className="font-semibold text-foreground">
+              {part}
+            </strong>
+          ) : (
+            part
+          )
+        )}
+      </p>
+    )
+  })
+}
+
 export function PrivacyPolicy() {
-  const lastUpdated = 'April 1, 2026'
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
+  const lastUpdated = 'April 7, 2026'
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b bg-muted/30">
-        <div className="mx-auto max-w-4xl px-6 py-12 lg:px-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Privacy Policy</h1>
+    <div className="mx-auto max-w-4xl px-6 py-10 lg:px-8">
+      <header className="border-b border-border pb-10">
+        <div className="mb-4 flex items-center gap-3">
+          <Shield className="h-8 w-8 shrink-0 text-primary" aria-hidden />
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Lunas — Legal</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Privacy Policy</h1>
           </div>
-          <p className="text-muted-foreground">Last updated: {lastUpdated}</p>
         </div>
-      </div>
+        <p className="text-sm text-muted-foreground">Last updated: {lastUpdated}</p>
+      </header>
 
-      <div className="mx-auto max-w-4xl px-6 py-12 lg:px-8">
-        <div className="prose prose-neutral dark:prose-invert max-w-none">
-          <section className="mb-12">
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              Lunas (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to protecting your privacy and ensuring the security of any personal information you provide to us. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website, use our services, or interact with us in any way.
-            </p>
-            <p className="text-lg text-muted-foreground leading-relaxed mt-4">
-              As a nonprofit organization serving vulnerable populations, we take data protection extremely seriously and comply with applicable data protection laws, including the Philippine Data Privacy Act of 2012 (Republic Act No. 10173) and the General Data Protection Regulation (GDPR) for our European visitors and donors.
-            </p>
-          </section>
+      <section className="border-b border-border py-10">
+        <p className="text-lg leading-relaxed text-muted-foreground">
+          Lunas is a nonprofit organization. We believe that the girls and families we serve, and the donors who make our work possible, deserve complete transparency about how their information is collected, used, and protected. This policy explains our data practices in plain language.
+        </p>
+      </section>
 
-          <Separator className="my-8" />
-
-          <Card className="mb-12 bg-muted/30">
-            <CardHeader><CardTitle className="text-lg">Table of Contents</CardTitle></CardHeader>
-            <CardContent>
-              <nav className="space-y-2">
-                {[
-                  { id: 'information-collection', title: '1. Information We Collect' },
-                  { id: 'use-of-information', title: '2. How We Use Your Information' },
-                  { id: 'information-sharing', title: '3. Information Sharing and Disclosure' },
-                  { id: 'data-security', title: '4. Data Security' },
-                  { id: 'cookies', title: '5. Cookies and Tracking Technologies' },
-                  { id: 'your-rights', title: '6. Your Rights and Choices' },
-                  { id: 'children-privacy', title: "7. Children's Privacy" },
-                  { id: 'international-transfers', title: '8. International Data Transfers' },
-                  { id: 'data-retention', title: '9. Data Retention' },
-                  { id: 'changes', title: '10. Changes to This Policy' },
-                  { id: 'contact', title: '11. Contact Us' },
-                ].map((item) => (
-                  <a key={item.id} href={`#${item.id}`} className="block text-sm text-muted-foreground hover:text-primary transition-colors">{item.title}</a>
+      <section className="py-10">
+        <Card className="border bg-muted/30">
+          <CardHeader>
+            <CardTitle className="text-lg">Table of Contents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <nav aria-label="Policy sections">
+              <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+                {sections.map((s) => (
+                  <li key={s.id} className="pl-1 marker:text-muted-foreground">
+                    <a href={`#${s.id}`} className="text-primary hover:underline">
+                      {s.title}
+                    </a>
+                  </li>
                 ))}
-              </nav>
-            </CardContent>
-          </Card>
+              </ol>
+            </nav>
+          </CardContent>
+        </Card>
+      </section>
 
-          <section id="information-collection" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">1. Information We Collect</h2>
-            <h3 className="text-lg font-semibold text-foreground mt-6 mb-3">1.1 Information You Provide Directly</h3>
-            <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-              <li><strong className="text-foreground">Account Information:</strong> When you create an account, we collect your name, email address, and password.</li>
-              <li><strong className="text-foreground">Donation Information:</strong> When you make a donation, we collect your name, contact information, payment details (processed securely through third-party payment processors), and donation amount.</li>
-              <li><strong className="text-foreground">Communication Data:</strong> When you contact us, we collect the information you provide in your messages.</li>
-              <li><strong className="text-foreground">Volunteer Information:</strong> If you volunteer with us, we may collect additional information such as skills, availability, and background check data.</li>
-            </ul>
-            <h3 className="text-lg font-semibold text-foreground mt-6 mb-3">1.2 Information Collected Automatically</h3>
-            <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-              <li><strong className="text-foreground">Device Information:</strong> Browser type, operating system, device identifiers, and IP address.</li>
-              <li><strong className="text-foreground">Usage Data:</strong> Pages visited, time spent on pages, links clicked, and other browsing behavior.</li>
-              <li><strong className="text-foreground">Cookies:</strong> We use cookies and similar technologies as described in Section 5.</li>
-            </ul>
-            <h3 className="text-lg font-semibold text-foreground mt-6 mb-3">1.3 Sensitive Information</h3>
-            <p className="text-muted-foreground">We do NOT collect sensitive personal information from website visitors or donors. Information about our program beneficiaries (residents) is handled under separate, more stringent privacy protocols and is never shared publicly or with donors in any identifiable form.</p>
-          </section>
+      <Separator className="mb-2" />
 
-          <section id="use-of-information" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">2. How We Use Your Information</h2>
-            <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-              <li>To process and acknowledge your donations</li>
-              <li>To provide you with donation receipts for tax purposes</li>
-              <li>To communicate with you about our programs, impact, and opportunities to support our mission</li>
-              <li>To create and manage your account</li>
-              <li>To improve our website and services</li>
-              <li>To analyze donation patterns and campaign effectiveness (using aggregated, anonymized data)</li>
-              <li>To comply with legal obligations</li>
-              <li>To prevent fraud and protect the security of our systems</li>
-            </ul>
-          </section>
-
-          <section id="information-sharing" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">3. Information Sharing and Disclosure</h2>
-            <p className="text-muted-foreground mb-4">We do NOT sell, rent, or trade your personal information. We may share your information only in the following circumstances:</p>
-            <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-              <li><strong className="text-foreground">Service Providers:</strong> With trusted third-party service providers who assist us in operating our website or processing payments.</li>
-              <li><strong className="text-foreground">Legal Requirements:</strong> When required by law, court order, or governmental regulation.</li>
-              <li><strong className="text-foreground">Protection of Rights:</strong> To protect the rights, property, or safety of Lunas, our beneficiaries, or others.</li>
-              <li><strong className="text-foreground">With Your Consent:</strong> In any other circumstances where you have given explicit consent.</li>
-            </ul>
-          </section>
-
-          <section id="data-security" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">4. Data Security</h2>
-            <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-              <li>Encryption of data in transit using TLS/SSL</li>
-              <li>Secure password hashing and storage</li>
-              <li>Role-based access controls for staff</li>
-              <li>Regular security assessments and updates</li>
-              <li>Secure cloud hosting with reputable providers</li>
-              <li>Multi-factor authentication options for accounts</li>
-            </ul>
-          </section>
-
-          <section id="cookies" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">5. Cookies and Tracking Technologies</h2>
-            <h3 className="text-lg font-semibold text-foreground mt-6 mb-3">5.1 Essential Cookies</h3>
-            <p className="text-muted-foreground">Required for the website to function properly. These cannot be disabled.</p>
-            <h3 className="text-lg font-semibold text-foreground mt-6 mb-3">5.2 Analytics Cookies</h3>
-            <p className="text-muted-foreground">Help us understand how visitors interact with our website. You can opt out of these through our cookie consent banner.</p>
-            <h3 className="text-lg font-semibold text-foreground mt-6 mb-3">5.3 Preference Cookies</h3>
-            <p className="text-muted-foreground">Remember your preferences (such as language or display settings). These are optional.</p>
-          </section>
-
-          <section id="your-rights" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">6. Your Rights and Choices</h2>
-            <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-              <li><strong className="text-foreground">Access:</strong> Request a copy of the personal information we hold about you.</li>
-              <li><strong className="text-foreground">Correction:</strong> Request correction of inaccurate or incomplete information.</li>
-              <li><strong className="text-foreground">Deletion:</strong> Request deletion of your personal information.</li>
-              <li><strong className="text-foreground">Portability:</strong> Request transfer of your data to another organization.</li>
-              <li><strong className="text-foreground">Objection:</strong> Object to certain processing of your information.</li>
-              <li><strong className="text-foreground">Withdraw Consent:</strong> Where processing is based on consent, you may withdraw it at any time.</li>
-            </ul>
-          </section>
-
-          <section id="children-privacy" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">7. Children&apos;s Privacy</h2>
-            <p className="text-muted-foreground">Our website and services are not directed at children under 18. We do not knowingly collect personal information from children through our website.</p>
-            <p className="text-muted-foreground mt-4"><strong className="text-foreground">Note:</strong> Information about program beneficiaries (minors in our care) is handled under entirely separate protocols, never collected through this website, and protected under the strictest confidentiality standards.</p>
-          </section>
-
-          <section id="international-transfers" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">8. International Data Transfers</h2>
-            <p className="text-muted-foreground">Your information may be transferred to and processed in countries other than the Philippines. We ensure appropriate safeguards are in place for such transfers.</p>
-          </section>
-
-          <section id="data-retention" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">9. Data Retention</h2>
-            <p className="text-muted-foreground">We retain your personal information for as long as necessary to fulfill the purposes described in this policy. Donation records are retained for at least 7 years for tax and regulatory compliance.</p>
-          </section>
-
-          <section id="changes" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">10. Changes to This Policy</h2>
-            <p className="text-muted-foreground">We may update this Privacy Policy from time to time. When we make significant changes, we will notify you by posting a prominent notice on our website.</p>
-          </section>
-
-          <section id="contact" className="mb-12 scroll-mt-24">
-            <h2 className="text-2xl font-bold text-foreground mb-4">11. Contact Us</h2>
-            <Card className="bg-muted/30">
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Shield className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-foreground">Lunas</p>
-                      <p className="text-sm text-muted-foreground">Data Protection Officer</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-primary" />
-                    <a href="mailto:privacy@lunas-project.site" className="text-primary hover:underline">privacy@lunas-project.site</a>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-5 w-5 text-primary" />
-                    <span className="text-muted-foreground">+63 2 1234 5678</span>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <MapPin className="h-5 w-5 text-primary mt-0.5" />
-                    <span className="text-muted-foreground">Manila, Philippines</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          <Separator className="my-8" />
-
-          <div className="text-center text-sm text-muted-foreground">
-            <p>By using our website or services, you acknowledge that you have read and understood this Privacy Policy.</p>
-            <p className="mt-4"><Link to="/" className="text-primary hover:underline">Return to Home</Link></p>
+      {sections.map((section, i) => (
+        <section
+          key={section.id}
+          id={section.id}
+          className="scroll-mt-24 border-b border-border py-10 last:border-b-0"
+          aria-labelledby={`heading-${section.id}`}
+        >
+          <div className="mb-6 flex items-baseline gap-4">
+            <span className="min-w-[1.75rem] font-mono text-xs tabular-nums text-muted-foreground">
+              {String(i + 1).padStart(2, '0')}
+            </span>
+            <h2 id={`heading-${section.id}`} className="text-xl font-semibold tracking-tight text-foreground">
+              {section.title}
+            </h2>
           </div>
-        </div>
-      </div>
+          <div className="border-l-2 border-border pl-6 sm:pl-8">{renderContent(section.content)}</div>
+        </section>
+      ))}
+
+      <footer className="border-t border-border pt-10 pb-8">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          This privacy policy was last reviewed on {lastUpdated}. Lunas is committed to transparency and will notify users of material changes via this page. This policy does not constitute legal advice. For questions, contact contact@lunas.org.
+        </p>
+      </footer>
     </div>
   )
 }

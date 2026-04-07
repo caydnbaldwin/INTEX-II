@@ -7,7 +7,7 @@ const pages = [
   { to: '/register', label: 'Register' },
   { to: '/logout', label: 'Logout' },
   { to: '/impact', label: 'Impact Dashboard' },
-  { to: '/privacy-policy', label: 'Privacy Policy' },
+  { to: '/privacy', label: 'Privacy Policy' },
   { to: '/dashboard', label: 'Dashboard (Admin)' },
   { to: '/donors', label: 'Donors (Admin)' },
   { to: '/mfa', label: 'Manage MFA (Authenticated)' },
