@@ -16,17 +16,7 @@ var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecr
 // In the Testing environment (WebApplicationFactory), InMemory is used so that
 // integration tests run without a real database connection.
 builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    if (builder.Environment.IsEnvironment("Testing"))
-    {
-        // Each WebApplicationFactory instance passes a unique name via configuration
-        // so test classes don't share the same InMemory store.
-        var dbName = builder.Configuration["Testing:DatabaseName"] ?? "TestDb";
-        options.UseInMemoryDatabase(dbName);
-    }
-    else
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ── Identity ──────────────────────────────────────────────────────────────────
 // AddIdentityApiEndpoints maps /register, /login, /refresh, etc. under any prefix

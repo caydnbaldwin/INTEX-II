@@ -9,12 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="CsvHelper" Version="33.1.0" />
-    <!-- InMemory provider is used only in the Testing environment (WebApplicationFactory).
-         PrivateAssets=all keeps it out of the published dependency graph.
-         ExcludeAssets=runtime keeps the DLL out of the publish output. -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.5">
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.4" />
