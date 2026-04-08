@@ -36,4 +36,17 @@ export const api = {
     fetchApi<T>(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
   delete: <T>(endpoint: string) =>
     fetchApi<T>(endpoint, { method: 'DELETE' }),
+  async postForm<T>(endpoint: string, formData: FormData): Promise<T> {
+    const res = await fetch(`${API}${endpoint}`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new ApiError(res.status, body || `API error: ${res.status}`);
+    }
+    if (res.status === 204) return undefined as T;
+    return res.json() as Promise<T>;
+  },
 };

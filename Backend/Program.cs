@@ -1,5 +1,6 @@
 using Backend.Data;
 using Backend.Infrastructure;
+using Backend.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -126,6 +127,8 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
+// ── Gemini Audio Autofill ─────────────────────────────────────────────────────
+builder.Services.AddHttpClient<IAudioAutofillService, AudioAutofillService>();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
