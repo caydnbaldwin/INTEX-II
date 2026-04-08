@@ -364,9 +364,13 @@ export function ReportsAnalytics() {
                       <Tooltip
                         contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
                         formatter={(value, _name, item) => {
-                          const numericValue = typeof value === 'number' ? value : Number(value ?? 0)
-                          const label = String((item?.payload as { label?: string } | undefined)?.label ?? 'Unknown')
-                          return [`${numericValue.toFixed(2)} (${label})`, 'ROI Score']
+                          const num = typeof value === 'number' ? value : Number(value)
+                          if (Number.isNaN(num)) return ['—', 'ROI Score']
+                          const label =
+                            item?.payload && typeof item.payload === 'object' && 'label' in item.payload
+                              ? String((item.payload as { label: string }).label)
+                              : ''
+                          return [`${num.toFixed(2)}${label ? ` (${label})` : ''}`, 'ROI Score']
                         }}
                       />
                       <Bar dataKey="score" name="ROI Score" radius={[0, 4, 4, 0]}>
