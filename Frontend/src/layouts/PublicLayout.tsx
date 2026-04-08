@@ -21,9 +21,13 @@ export function PublicLayout() {
     setMobileMenuOpen(false)
   }, [location])
 
-  const dashboardPath = authSession.roles.includes('Admin')
+  const isAdmin = authSession.roles.includes('Admin')
+  const isDonor = authSession.roles.includes('Donor')
+  const dashboardPath = isAdmin
     ? '/admin'
-    : '/donor'
+    : isDonor
+      ? '/donor'
+      : null
 
   async function handleLogout() {
     await logout()
@@ -73,9 +77,11 @@ export function PublicLayout() {
           <div className="hidden md:flex md:items-center md:gap-3">
             {isAuthenticated ? (
               <>
-                <Button variant="ghost" asChild>
-                  <Link to={dashboardPath} className="text-base">Dashboard</Link>
-                </Button>
+                {dashboardPath && (
+                  <Button variant="ghost" asChild>
+                    <Link to={dashboardPath} className="text-base">Dashboard</Link>
+                  </Button>
+                )}
                 <Button variant="outline" onClick={handleLogout} className="text-base">
                   Sign Out
                 </Button>
@@ -128,9 +134,11 @@ export function PublicLayout() {
               <div className="flex flex-col gap-2">
                 {isAuthenticated ? (
                   <>
-                    <Button variant="outline" size="sm" asChild className="w-full">
-                      <Link to={dashboardPath}>Dashboard</Link>
-                    </Button>
+                    {dashboardPath && (
+                      <Button variant="outline" size="sm" asChild className="w-full">
+                        <Link to={dashboardPath}>Dashboard</Link>
+                      </Button>
+                    )}
                     <Button size="sm" onClick={handleLogout} className="w-full">
                       Sign Out
                     </Button>

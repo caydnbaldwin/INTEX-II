@@ -1,6 +1,6 @@
 # INTEX-II
 
-Safe Haven platform for nonprofit safehouse operations, donor management, impact communication, and machine learning decision support.
+Lunas platform for nonprofit safehouse operations, donor management, impact communication, and machine learning decision support.
 
 This repository is the active implementation for the BYU IS INTEX II project and tracks progress against the official checklist in `BusinessContext/REQUIREMENTS.md`.
 

@@ -82,6 +82,8 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(AuthPolicies.AdminOnly, policy =>
         policy.RequireRole(AuthRoles.Admin));
+    options.AddPolicy(AuthPolicies.StaffOrAdmin, policy =>
+        policy.RequireRole(AuthRoles.Admin, AuthRoles.Staff));
 });
 
 // ── HSTS ──────────────────────────────────────────────────────────────────────

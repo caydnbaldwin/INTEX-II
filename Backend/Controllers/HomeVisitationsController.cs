@@ -8,7 +8,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/home-visitations")]
-[Authorize(Policy = AuthPolicies.AdminOnly)]
+[Authorize(Policy = AuthPolicies.StaffOrAdmin)]
 public class HomeVisitationsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
@@ -32,6 +32,7 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] HomeVisitation visitation)
     {
         if (visitation.VisitationId == 0)
@@ -42,6 +43,7 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] HomeVisitation visitation)
     {
         var existing = await db.HomeVisitations.FindAsync(id);
@@ -53,6 +55,7 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var visitation = await db.HomeVisitations.FindAsync(id);

@@ -345,47 +345,24 @@ export function LoginPage() {
           </Tabs>
         </Card>
 
-        {/* Dev Preview */}
-        <Card className="mt-6 bg-primary/5 border-primary/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Preview Mode</CardTitle>
-            <CardDescription className="text-xs">Skip login and preview the admin dashboard with mock data</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button
-              variant="outline"
-              className="w-full border-primary/30 hover:bg-primary/10"
-              onClick={() => {
-                sessionStorage.setItem('devBypass', 'true')
-                navigate('/admin?bypass=true')
-              }}
-            >
-              <Shield className="mr-2 h-4 w-4" />
-              Preview as Admin
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full text-xs"
-              onClick={() => {
-                sessionStorage.setItem('devBypass', 'true')
-                navigate('/donor?bypass=true')
-              }}
-            >
-              Preview as Donor
-            </Button>
-          </CardContent>
-        </Card>
-
         {/* Test Accounts */}
-        <Card className="mt-4 bg-muted/30 border-dashed">
+        <Card className="mt-6 bg-muted/30 border-dashed">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Test Accounts</CardTitle>
-            <CardDescription className="text-xs">For when backend is running</CardDescription>
+            <CardDescription className="text-xs">For grader use</CardDescription>
           </CardHeader>
           <CardContent className="text-xs space-y-2">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Admin:</span>
-              <span className="font-mono">admin@lunas-project.site / AdminPassword14!</span>
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground shrink-0">Admin (no MFA):</span>
+              <span className="font-mono">testadmin@lunas-project.site / super secure p@ssw0rd</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground shrink-0">Donor (no MFA):</span>
+              <span className="font-mono">testdonor@lunas-project.site / super secure p@ssw0rd</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground shrink-0">Staff (MFA enabled):</span>
+              <span className="font-mono">teststaff@lunas-project.site / super secure p@ssw0rd</span>
             </div>
           </CardContent>
         </Card>

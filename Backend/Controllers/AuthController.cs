@@ -171,8 +171,17 @@ public class AuthController(
     [HttpPost("mfa-challenge")]
     public async Task<IActionResult> MfaChallenge([FromBody] MfaChallengeRequest request)
     {
+        // Guard against null/missing Code before calling Replace — a null Code
+        // would otherwise throw NullReferenceException and return 500.
+        if (string.IsNullOrWhiteSpace(request?.Code))
+            return BadRequest(new { message = "Verification code is required." });
+
+        var code = request.Code.Replace(" ", "").Replace("-", "");
+        if (string.IsNullOrEmpty(code))
+            return BadRequest(new { message = "Verification code is required." });
+
         var result = await signInManager.TwoFactorAuthenticatorSignInAsync(
-            request.Code.Replace(" ", "").Replace("-", ""),
+            code,
             isPersistent: false,
             rememberClient: false);
 

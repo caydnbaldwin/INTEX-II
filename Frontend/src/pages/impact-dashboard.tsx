@@ -26,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { api } from '@/lib/api'
+import { listPublicImpactJourneyStories } from '@/lib/publicResidentStories'
 
 const CHART_COLORS = [
   'oklch(0.45 0.18 280)',
@@ -307,6 +308,28 @@ export function ImpactDashboard() {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Representative journeys</CardTitle>
+                <CardDescription>
+                  Progress snapshots identified by privacy-safe labels only. Labels are pseudonyms, not real
+                  names.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                {listPublicImpactJourneyStories().map((story) => (
+                  <div
+                    key={story.residentId}
+                    className="rounded-lg border border-border bg-card/50 p-4"
+                  >
+                    <div className="font-mono text-sm font-semibold text-primary">{story.pseudonym}</div>
+                    <div className="mt-2 text-sm font-medium text-foreground">{story.headline}</div>
+                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{story.description}</p>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </TabsContent>

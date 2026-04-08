@@ -91,6 +91,7 @@ public class DonationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] Donation donation)
     {
         if (donation.DonationId == 0)
@@ -101,6 +102,7 @@ public class DonationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] Donation donation)
     {
         var existing = await db.Donations.FindAsync(id);
@@ -112,6 +114,7 @@ public class DonationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var donation = await db.Donations.FindAsync(id);

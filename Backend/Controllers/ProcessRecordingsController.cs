@@ -8,7 +8,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/process-recordings")]
-[Authorize(Policy = AuthPolicies.AdminOnly)]
+[Authorize(Policy = AuthPolicies.StaffOrAdmin)]
 public class ProcessRecordingsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
@@ -27,6 +27,7 @@ public class ProcessRecordingsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] ProcessRecording recording)
     {
         recording.RecordingId = await db.ProcessRecordings.AnyAsync()
