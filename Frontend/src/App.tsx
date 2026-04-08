@@ -42,6 +42,9 @@ const ReportsAnalytics = lazy(() =>
 const DonorPortal = lazy(() =>
   import('./pages/donor/portal').then((m) => ({ default: m.DonorPortal })),
 )
+const SafehouseDetail = lazy(() =>
+  import('./pages/safehouse-detail').then((m) => ({ default: m.SafehouseDetail })),
+)
 const ManageMFAPage = lazy(() => import('./pages/ManageMFAPage'))
 const MfaChallengePage = lazy(() => import('./pages/MfaChallengePage'))
 
@@ -89,6 +92,7 @@ export default function App() {
           <Route element={<PublicLayout />}>
             <Route index element={<LandingPage />} />
             <Route path="impact" element={<ImpactDashboard />} />
+            <Route path="impact/safehouse/:id" element={<SafehouseDetail />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="privacy" element={<PrivacyPolicy />} />
           </Route>

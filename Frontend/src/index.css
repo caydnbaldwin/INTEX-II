@@ -1,5 +1,25 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import 'leaflet/dist/leaflet.css';
+
+/* Leaflet popup styling to match site theme */
+.leaflet-popup-content-wrapper {
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1);
+  padding: 0;
+  overflow: hidden;
+}
+.leaflet-popup-content {
+  margin: 0;
+  min-width: 220px;
+}
+.leaflet-popup-tip {
+  box-shadow: none;
+}
+/* Keep map below sticky navbar (z-50 = z-index: 50) */
+.leaflet-container {
+  z-index: 0;
+}
 
 @custom-variant dark (&:is(.dark *));
 

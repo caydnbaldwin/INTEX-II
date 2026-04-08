@@ -9,7 +9,6 @@ import { logout } from '@/lib/authApi'
 const navigation = [
   { name: 'Home', href: '/' },
   { name: 'Our Impact', href: '/impact' },
-  { name: 'Privacy Policy', href: '/privacy' },
 ]
 
 export function PublicLayout() {
@@ -38,42 +37,45 @@ export function PublicLayout() {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-sm border-b border-border">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-8">
-          <Link to="/" className="flex items-center gap-3">
-            <img
-              src="/images/PinwheelLogo-cropped.png"
-              alt=""
-              className="h-14 self-center"
-            />
-            <span className="font-serif text-2xl font-bold text-foreground tracking-tight leading-none">
-              Lunas
-            </span>
-          </Link>
+        <nav className="flex items-center justify-between pl-4 pr-6 py-3 lg:pl-6 lg:pr-8">
+          {/* Left group: logo + nav links */}
+          <div className="flex items-center gap-8">
+            <Link to="/" className="flex items-center gap-3">
+              <img
+                src="/images/PinwheelLogo-cropped.png"
+                alt=""
+                className="h-14 self-center"
+              />
+              <span className="font-serif text-2xl font-bold text-foreground tracking-tight leading-none">
+                Lunas
+              </span>
+            </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex md:items-center md:gap-8">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`relative text-base font-medium transition-colors ${
-                    isActive
-                      ? 'text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {isActive && (
-                    <span className="absolute -bottom-4 left-0 right-0 h-0.5 bg-foreground rounded-full" />
-                  )}
-                  {item.name}
-                </Link>
-              )
-            })}
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex md:items-center md:gap-6">
+              {navigation.map((item) => {
+                const isActive = location.pathname === item.href
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`relative text-base font-medium transition-colors ${
+                      isActive
+                        ? 'text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {isActive && (
+                      <span className="absolute -bottom-4 left-0 right-0 h-0.5 bg-foreground rounded-full" />
+                    )}
+                    {item.name}
+                  </Link>
+                )
+              })}
+            </div>
           </div>
 
-          {/* Desktop CTA */}
+          {/* Right group: CTA buttons */}
           <div className="hidden md:flex md:items-center md:gap-3">
             {isAuthenticated ? (
               <>
@@ -189,6 +191,9 @@ export function PublicLayout() {
                   {item.name}
                 </Link>
               ))}
+              <Link to="/privacy" className="hover:text-foreground transition-colors">
+                Privacy Policy
+              </Link>
               <span className="text-border">|</span>
               <span>contact@lunas-project.site</span>
             </div>
