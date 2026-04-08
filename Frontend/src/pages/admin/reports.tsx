@@ -35,6 +35,7 @@ import {
   TableCell,
 } from '@/components/ui/table'
 import { api } from '@/lib/api'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const CHART_COLORS = [
   'oklch(0.45 0.18 280)',
@@ -108,6 +109,7 @@ function formatCurrency(amount: number): string {
 }
 
 export function ReportsAnalytics() {
+  usePageTitle('Reports')
   const [summary, setSummary] = useState<DonationSummary | null>(null)
   const [trends, setTrends] = useState<DonationTrend[]>([])
   const [channels, setChannels] = useState<DonationChannel[]>([])

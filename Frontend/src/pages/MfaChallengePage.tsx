@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { completeMfaChallenge } from '@/lib/authApi'
 import { useAuth } from '@/context/AuthContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 export default function MfaChallengePage() {
+  usePageTitle('Verify Identity')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { refreshAuthState } = useAuth()

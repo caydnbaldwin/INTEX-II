@@ -29,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { api } from '@/lib/api'
 import { listPublicImpactJourneyStories } from '@/lib/publicResidentStories'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const CHART_COLORS = [
   'oklch(0.45 0.18 280)',
@@ -108,6 +109,7 @@ const fallbackHealthMetrics = [
 ]
 
 export function ImpactDashboard() {
+  usePageTitle('Our Impact')
   const [snapshots, setSnapshots] = useState<ImpactSnapshot[]>([])
   const [stats, setStats] = useState<ImpactStats | null>(null)
   const [safehouses, setSafehouses] = useState<SafehouseOccupancy[]>([])

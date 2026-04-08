@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { logout } from '@/lib/authApi';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function LogoutPage() {
+  usePageTitle('Signed Out');
   const navigate = useNavigate();
   const { refreshAuthState } = useAuth();
 

@@ -35,6 +35,12 @@ export function PublicLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:text-sm focus:font-medium"
+      >
+        Skip to main content
+      </a>
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-sm border-b border-border">
         <nav className="flex items-center justify-between pl-4 pr-6 py-3 lg:pl-6 lg:pr-8">
@@ -94,7 +100,7 @@ export function PublicLayout() {
                   <Link to="/login" className="text-base">Sign In</Link>
                 </Button>
                 <Button asChild className="rounded-full px-7 text-base">
-                  <Link to="/impact">Donate</Link>
+                  <Link to="/donate">Donate</Link>
                 </Button>
               </>
             )}
@@ -151,7 +157,7 @@ export function PublicLayout() {
                       <Link to="/login">Sign In</Link>
                     </Button>
                     <Button size="sm" asChild className="w-full rounded-full">
-                      <Link to="/impact">Donate</Link>
+                      <Link to="/donate">Donate</Link>
                     </Button>
                   </>
                 )}
@@ -162,7 +168,7 @@ export function PublicLayout() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <Outlet />
       </main>
 

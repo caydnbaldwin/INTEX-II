@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { ArrowRight, ChevronDown, Heart, CheckCircle2, Pill, Utensils, Stethoscope, Users, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const donationTiers = [
   { amount: 15, label: '$15', description: 'Provides essential vitamins for a child', icon: Pill, iconLabel: 'Vitamins' },
@@ -13,6 +14,7 @@ const donationTiers = [
 ]
 
 export function LandingPage() {
+  usePageTitle('Home')
   const API = import.meta.env.VITE_API_BASE_URL as string
   const [backendStatus, setBackendStatus] = useState('')
   const [dbStatus, setDbStatus] = useState('')
@@ -73,30 +75,6 @@ export function LandingPage() {
 
         <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 py-24 w-full flex justify-end">
           <div className="max-w-2xl text-right">
-            <div className="mb-4 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={verifyBackend}
-                disabled={isCheckingBackend}
-                className="h-8 px-3 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-white/90 text-xs hover:bg-white/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isCheckingBackend ? 'Verifying...' : 'Verify Backend Connection'}
-              </button>
-              <button
-                type="button"
-                onClick={verifyDatabase}
-                disabled={isCheckingDb}
-                className="h-8 px-3 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-white/90 text-xs hover:bg-white/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isCheckingDb ? 'Verifying...' : 'Verify Database Connection'}
-              </button>
-            </div>
-            {(backendStatus || dbStatus) && (
-              <div className="mb-4 flex flex-col items-end gap-1">
-                {backendStatus && <p className="text-xs text-white/70">Backend: {backendStatus}</p>}
-                {dbStatus && <p className="text-xs text-white/70">Database: {dbStatus}</p>}
-              </div>
-            )}
             <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-2 text-sm text-white/90">
               <span>Restoring Hope in the Philippines</span>
             </div>
@@ -125,7 +103,7 @@ export function LandingPage() {
                 asChild
                 className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white hover:border-white/60"
               >
-                <Link to="/login">
+                <Link to="/donate">
                   <Heart className="mr-2 h-4 w-4" />
                   Contribute / Donate
                 </Link>
@@ -284,7 +262,7 @@ export function LandingPage() {
 
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <Button size="lg" asChild className="rounded-full px-8 font-medium">
-                  <Link to="/impact">
+                  <Link to="/donate">
                     Donate Now
                     <Heart className="ml-2 h-4 w-4" />
                   </Link>
@@ -517,6 +495,33 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Connection verification links */}
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-4 flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
+        <button
+          type="button"
+          onClick={verifyBackend}
+          disabled={isCheckingBackend}
+          className="hover:text-foreground transition-colors disabled:opacity-60"
+        >
+          {isCheckingBackend ? 'Verifying...' : 'Verify Backend'}
+        </button>
+        <span className="text-border">|</span>
+        <button
+          type="button"
+          onClick={verifyDatabase}
+          disabled={isCheckingDb}
+          className="hover:text-foreground transition-colors disabled:opacity-60"
+        >
+          {isCheckingDb ? 'Verifying...' : 'Verify Database'}
+        </button>
+        {(backendStatus || dbStatus) && (
+          <>
+            <span className="text-border">|</span>
+            <span>{backendStatus && `Backend: ${backendStatus}`}{backendStatus && dbStatus && ' · '}{dbStatus && `DB: ${dbStatus}`}</span>
+          </>
+        )}
+      </div>
     </div>
   )
 }

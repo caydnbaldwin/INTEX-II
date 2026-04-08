@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 const API = import.meta.env.VITE_API_BASE_URL as string;
 
@@ -12,6 +13,7 @@ interface RegisterError {
 }
 
 export default function RegisterPage() {
+  usePageTitle('Register');
   const navigate = useNavigate();
   const { refreshAuthState } = useAuth();
 

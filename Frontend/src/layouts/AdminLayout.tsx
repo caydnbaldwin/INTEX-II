@@ -14,6 +14,8 @@ import {
   ChevronLeft,
   Gift,
   X,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -32,7 +34,10 @@ import {
 } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/context/AuthContext'
+import { useTheme } from '@/components/theme-provider'
 import { logout, getMfaStatus } from '@/lib/authApi'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const adminNav = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -56,6 +61,7 @@ export function AdminLayout() {
   const navigate = useNavigate()
   const { authSession, refreshAuthState } = useAuth()
 
+  const { theme, setTheme, canSetTheme } = useTheme()
   const isAdmin = authSession.roles.includes('Admin')
   const navItems = isAdmin ? adminNav : donorNav
 
@@ -164,12 +170,38 @@ export function AdminLayout() {
       </Sidebar>
 
       <SidebarInset>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:text-sm focus:font-medium"
+        >
+          Skip to main content
+        </a>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
-          <span className="text-sm font-medium text-muted-foreground">
+          <span className="text-sm font-medium text-muted-foreground flex-1">
             {[...navItems, ...securityNav].find((item) => item.href === location.pathname)?.name ?? 'Dashboard'}
           </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={!canSetTheme}
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                >
+                  {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {canSetTheme
+                  ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`
+                  : 'Accept cookies to enable theme preferences'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </header>
 
         {showMfaBanner && (
@@ -193,7 +225,7 @@ export function AdminLayout() {
           </div>
         )}
 
-        <main className="flex-1 p-6">
+        <main id="main-content" className="flex-1 p-6">
           <Outlet />
         </main>
       </SidebarInset>

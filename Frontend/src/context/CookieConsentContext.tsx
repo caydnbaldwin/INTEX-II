@@ -35,8 +35,9 @@ export function CookieConsentProvider({ children }: { children: ReactNode }) {
       rejectConsent() {
         window.localStorage.setItem(STORAGE_KEY, 'rejected');
         setConsentStatus('rejected');
-        // When rejected, remove any analytics/tracking cookies here.
-        // Example: document.cookie = 'ga=; Max-Age=0; path=/';
+        // Remove non-essential cookies when consent is rejected
+        document.cookie = 'user-theme=; Max-Age=0; path=/; Secure';
+        document.cookie = 'sidebar_state=; Max-Age=0; path=/; Secure';
       },
     }),
     [consentStatus]
