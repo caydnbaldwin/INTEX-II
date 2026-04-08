@@ -8,7 +8,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/process-recordings")]
-[Authorize(Policy = AuthPolicies.AdminOnly)]
+[Authorize(Policy = AuthPolicies.StaffOrAdmin)]
 public class ProcessRecordingsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]

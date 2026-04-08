@@ -8,7 +8,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/home-visitations")]
-[Authorize(Policy = AuthPolicies.AdminOnly)]
+[Authorize(Policy = AuthPolicies.StaffOrAdmin)]
 public class HomeVisitationsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
