@@ -39,7 +39,7 @@ export function LoginPage() {
   const [error, setError] = useState(externalError ?? '')
 
   function navigateAfterLogin(roles: string[]) {
-    if (roles.includes('Admin')) {
+    if (roles.includes('Admin') || roles.includes('Staff')) {
       navigate('/admin')
     } else {
       navigate('/donor')

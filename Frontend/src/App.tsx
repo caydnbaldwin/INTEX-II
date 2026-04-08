@@ -50,7 +50,7 @@ function ProtectedRoute({
   requiredRole,
 }: {
   children: ReactNode
-  requiredRole?: string
+  requiredRole?: string | string[]
 }) {
   const { isAuthenticated, isLoading, authSession } = useAuth()
 
@@ -63,8 +63,13 @@ function ProtectedRoute({
   }
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (requiredRole && !authSession.roles.includes(requiredRole))
-    return <Navigate to="/" replace />
+
+  const allowed = !requiredRole || (
+    Array.isArray(requiredRole)
+      ? requiredRole.some((r) => authSession.roles.includes(r))
+      : authSession.roles.includes(requiredRole)
+  )
+  if (!allowed) return <Navigate to="/" replace />
 
   return <>{children}</>
 }
@@ -92,7 +97,7 @@ export default function App() {
           <Route
             path="admin"
             element={
-              <ProtectedRoute requiredRole="Admin">
+              <ProtectedRoute requiredRole={['Admin', 'Staff']}>
                 <AdminLayout />
               </ProtectedRoute>
             }
