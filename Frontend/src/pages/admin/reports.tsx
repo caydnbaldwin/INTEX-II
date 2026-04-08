@@ -363,9 +363,10 @@ export function ReportsAnalytics() {
                       <YAxis type="category" dataKey="name" width={140} className="text-xs fill-muted-foreground" />
                       <Tooltip
                         contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
-                        formatter={(value: number, _name: string, props: { payload: { label: string } }) => {
-                          const label = props.payload.label
-                          return [`${value.toFixed(2)} (${label})`, 'ROI Score']
+                        formatter={(value, _name, item) => {
+                          const numericValue = typeof value === 'number' ? value : Number(value ?? 0)
+                          const label = String((item?.payload as { label?: string } | undefined)?.label ?? 'Unknown')
+                          return [`${numericValue.toFixed(2)} (${label})`, 'ROI Score']
                         }}
                       />
                       <Bar dataKey="score" name="ROI Score" radius={[0, 4, 4, 0]}>
@@ -525,8 +526,6 @@ export function ReportsAnalytics() {
           {safehousePerfData.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {safehousePerfData.map((sh, i) => {
-                let details: Record<string, unknown> = {}
-                try { details = JSON.parse(sh.detailsJson || '{}') } catch { /* ignore */ }
                 const occupancyPct = sh.safehouse.capacityGirls > 0
                   ? Math.round((sh.safehouse.currentOccupancy / sh.safehouse.capacityGirls) * 100)
                   : 0

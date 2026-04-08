@@ -56,18 +56,16 @@ export function AdminLayout() {
   const navigate = useNavigate()
   const { authSession, refreshAuthState } = useAuth()
 
-  const devBypass = sessionStorage.getItem('devBypass') === 'true'
-  const isAdmin = devBypass || authSession.roles.includes('Admin')
+  const isAdmin = authSession.roles.includes('Admin')
   const navItems = isAdmin ? adminNav : donorNav
 
   const [showMfaBanner, setShowMfaBanner] = useState(false)
 
   useEffect(() => {
-    if (devBypass) return
     getMfaStatus()
       .then(enabled => { if (!enabled) setShowMfaBanner(true) })
       .catch(() => {})
-  }, [devBypass])
+  }, [])
 
   async function handleLogout() {
     await logout()
@@ -160,7 +158,7 @@ export function AdminLayout() {
             </SidebarMenuItem>
           </SidebarMenu>
           <div className="px-2 py-2 text-xs text-muted-foreground">
-            Signed in as {devBypass ? 'Admin (Preview)' : (authSession.email ?? authSession.userName)}
+            Signed in as {authSession.email ?? authSession.userName}
           </div>
         </SidebarFooter>
       </Sidebar>
