@@ -19,13 +19,21 @@ export default function LoginPage() {
 
   const externalError = searchParams.get('externalError');
 
+  function navigateAfterLogin(roles: string[]) {
+    if (roles.includes('Admin')) {
+      navigate('/admin');
+    } else {
+      navigate('/donor');
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API}/api/auth/login`, {
+      const res = await fetch(`${API}/api/auth/login?useCookies=true`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -38,8 +46,8 @@ export default function LoginPage() {
         return;
       }
 
-      await refreshAuthState();
-      navigate('/dashboard');
+      const session = await refreshAuthState();
+      navigateAfterLogin(session.roles);
     } catch {
       setError('Unable to reach the server. Please try again.');
     } finally {
@@ -48,7 +56,7 @@ export default function LoginPage() {
   }
 
   function handleGoogleLogin() {
-    window.location.href = `${API}/api/auth/external-login?provider=Google&returnPath=/dashboard`;
+    window.location.href = `${API}/api/auth/external-login?provider=Google&returnPath=/admin`;
   }
 
   return (

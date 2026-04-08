@@ -23,6 +23,14 @@ export default function RegisterPage() {
 
   const passwordStrong = password.length >= 14;
 
+  function navigateAfterLogin(roles: string[]) {
+    if (roles.includes('Admin')) {
+      navigate('/admin');
+    } else {
+      navigate('/donor');
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setErrors([]);
@@ -54,7 +62,7 @@ export default function RegisterPage() {
       }
 
       // Auto-login after registration
-      const loginRes = await fetch(`${API}/api/auth/login`, {
+      const loginRes = await fetch(`${API}/api/auth/login?useCookies=true`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -62,8 +70,8 @@ export default function RegisterPage() {
       });
 
       if (loginRes.ok) {
-        await refreshAuthState();
-        navigate('/dashboard');
+        const session = await refreshAuthState();
+        navigateAfterLogin(session.roles);
       } else {
         // Registration succeeded but auto-login failed — send to login
         navigate('/login');
