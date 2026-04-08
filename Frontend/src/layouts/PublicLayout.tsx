@@ -9,6 +9,7 @@ import { logout } from '@/lib/authApi'
 const navigation = [
   { name: 'Home', href: '/' },
   { name: 'Our Impact', href: '/impact' },
+  { name: 'Contact Us', href: '/contact' },
 ]
 
 export function PublicLayout() {
