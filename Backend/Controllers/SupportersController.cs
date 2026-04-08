@@ -36,6 +36,7 @@ public class SupportersController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] Supporter supporter)
     {
         if (supporter.SupporterId == 0)
@@ -47,6 +48,7 @@ public class SupportersController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] Supporter supporter)
     {
         var existing = await db.Supporters.FindAsync(id);
@@ -58,6 +60,7 @@ public class SupportersController(AppDbContext db) : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var supporter = await db.Supporters.FindAsync(id);

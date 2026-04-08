@@ -37,6 +37,7 @@ public class ResidentsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] Resident resident)
     {
         // Auto-assign ID if not provided
@@ -49,6 +50,7 @@ public class ResidentsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] Resident resident)
     {
         var existing = await db.Residents.FindAsync(id);
@@ -60,6 +62,7 @@ public class ResidentsController(AppDbContext db) : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var resident = await db.Residents.FindAsync(id);

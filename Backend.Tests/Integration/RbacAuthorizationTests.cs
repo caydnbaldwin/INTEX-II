@@ -227,95 +227,164 @@ public class RbacAuthorizationTests(CustomWebApplicationFactory factory)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    // ── PENDING: Admin-only CRUD routes ──────────────────────────────────────
-    // These tests document the IS 414 requirement before the routes are built.
-    // Activate each block by removing the /* */ comment wrappers once the
-    // corresponding controller + [Authorize(Policy = AuthPolicies.AdminOnly)]
-    // decoration exist.
-    //
-    // Per REQUIREMENTS.md (IS 414 RBAC):
-    //   "Only admin role can Create, Update, Delete data (including API endpoints)."
-    //   "Done when: A donor user cannot access admin endpoints."
-    //
-    // ── Residents (Caseload Inventory) ────────────────────────────────────────
-    //
-    // [Fact]
-    // public async Task Donor_Cannot_Create_Resident()
-    // {
-    //     var client = await TestAuthHelper.CreateDonorClientAsync(factory);
-    //     var response = await client.PostAsync("/api/residents", /* resident payload */);
-    //     Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    // }
-    //
-    // [Fact]
-    // public async Task Donor_Cannot_Update_Resident()
-    // {
-    //     var client = await TestAuthHelper.CreateDonorClientAsync(factory);
-    //     var response = await client.PutAsync("/api/residents/1", /* payload */);
-    //     Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    // }
-    //
-    // [Fact]
-    // public async Task Donor_Cannot_Delete_Resident()
-    // {
-    //     var client = await TestAuthHelper.CreateDonorClientAsync(factory);
-    //     var response = await client.DeleteAsync("/api/residents/1");
-    //     Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    // }
-    //
-    // [Fact]
-    // public async Task Admin_Can_Create_Resident()
-    // {
-    //     var client = await TestAuthHelper.CreateAdminClientAsync(factory);
-    //     var response = await client.PostAsync("/api/residents", /* resident payload */);
-    //     Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-    // }
-    //
-    // ── Donations / Supporters ────────────────────────────────────────────────
-    //
-    // [Fact]
-    // public async Task Donor_Cannot_Create_Donation()
-    // {
-    //     var client = await TestAuthHelper.CreateDonorClientAsync(factory);
-    //     var response = await client.PostAsync("/api/donations", /* payload */);
-    //     Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    // }
-    //
-    // [Fact]
-    // public async Task Admin_Can_Create_Donation()
-    // {
-    //     var client = await TestAuthHelper.CreateAdminClientAsync(factory);
-    //     var response = await client.PostAsync("/api/donations", /* payload */);
-    //     Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-    // }
-    //
-    // ── Process Recordings ────────────────────────────────────────────────────
-    //
-    // [Fact]
-    // public async Task Donor_Cannot_Create_ProcessRecording()
-    // {
-    //     var client = await TestAuthHelper.CreateDonorClientAsync(factory);
-    //     var response = await client.PostAsync("/api/process-recordings", /* payload */);
-    //     Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    // }
-    //
-    // ── Home Visitations ──────────────────────────────────────────────────────
-    //
-    // [Fact]
-    // public async Task Donor_Cannot_Create_HomeVisitation()
-    // {
-    //     var client = await TestAuthHelper.CreateDonorClientAsync(factory);
-    //     var response = await client.PostAsync("/api/home-visitations", /* payload */);
-    //     Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    // }
-    //
-    // ── Visitor blocked from ALL auth-required routes ─────────────────────────
-    //
-    // [Fact]
-    // public async Task Visitor_Cannot_Create_Resident()
-    // {
-    //     var client = factory.CreateClient();
-    //     var response = await client.PostAsync("/api/residents", /* payload */);
-    //     Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    // }
+    // ── Admin-only CRUD routes (IS 414 RBAC) ─────────────────────────────────
+
+    [Fact]
+    public async Task Visitor_Cannot_Create_Resident()
+    {
+        var client = factory.CreateClient();
+        var response = await client.PostAsync("/api/residents", JsonContent(MinimalResidentPayload));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Donor_Cannot_Create_Resident()
+    {
+        var client = await TestAuthHelper.CreateDonorClientAsync(factory);
+        var response = await client.PostAsync("/api/residents", JsonContent(MinimalResidentPayload));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_Can_Create_Resident()
+    {
+        var client = await TestAuthHelper.CreateAdminClientAsync(factory);
+        var response = await client.PostAsync("/api/residents", JsonContent(MinimalResidentPayload));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Donor_Cannot_Update_Resident()
+    {
+        var admin = await TestAuthHelper.CreateAdminClientAsync(factory);
+        var create = await admin.PostAsync("/api/residents", JsonContent(MinimalResidentPayload));
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+        var created = JsonDocument.Parse(await create.Content.ReadAsStringAsync()).RootElement;
+        var residentId = created.GetProperty("residentId").GetInt32();
+
+        var donor = await TestAuthHelper.CreateDonorClientAsync(factory);
+        var response = await donor.PutAsync($"/api/residents/{residentId}", JsonContent(new
+        {
+            residentId,
+            caseControlNo = "RBAC-UPD-001",
+            caseStatus = "Active",
+            currentRiskLevel = "Medium"
+        }));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Donor_Cannot_Delete_Resident()
+    {
+        var admin = await TestAuthHelper.CreateAdminClientAsync(factory);
+        var create = await admin.PostAsync("/api/residents", JsonContent(MinimalResidentPayload));
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+
+        var created = JsonDocument.Parse(await create.Content.ReadAsStringAsync()).RootElement;
+        var residentId = created.GetProperty("residentId").GetInt32();
+
+        var donor = await TestAuthHelper.CreateDonorClientAsync(factory);
+        var response = await donor.DeleteAsync($"/api/residents/{residentId}");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Donor_Cannot_Create_Donation()
+    {
+        var client = await TestAuthHelper.CreateDonorClientAsync(factory);
+        var response = await client.PostAsync("/api/donations", JsonContent(MinimalDonationPayload));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_Can_Create_Donation()
+    {
+        var client = await TestAuthHelper.CreateAdminClientAsync(factory);
+        var response = await client.PostAsync("/api/donations", JsonContent(MinimalDonationPayload));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Donor_Cannot_Create_ProcessRecording()
+    {
+        var client = await TestAuthHelper.CreateDonorClientAsync(factory);
+        var response = await client.PostAsync("/api/process-recordings", JsonContent(MinimalProcessRecordingPayload));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_Can_Create_ProcessRecording()
+    {
+        var client = await TestAuthHelper.CreateAdminClientAsync(factory);
+        var response = await client.PostAsync("/api/process-recordings", JsonContent(MinimalProcessRecordingPayload));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Donor_Cannot_Create_HomeVisitation()
+    {
+        var client = await TestAuthHelper.CreateDonorClientAsync(factory);
+        var response = await client.PostAsync("/api/home-visitations", JsonContent(MinimalHomeVisitationPayload));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_Can_Create_HomeVisitation()
+    {
+        var client = await TestAuthHelper.CreateAdminClientAsync(factory);
+        var response = await client.PostAsync("/api/home-visitations", JsonContent(MinimalHomeVisitationPayload));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    private static readonly object MinimalResidentPayload = new
+    {
+        caseControlNo = "RBAC-RES-001",
+        internalCode = "INT-RBAC-RES-001",
+        caseStatus = "Active",
+        caseCategory = "Neglected",
+        currentRiskLevel = "Medium",
+        assignedSocialWorker = "RBAC Test Worker"
+    };
+
+    private static readonly object MinimalDonationPayload = new
+    {
+        donationType = "Monetary",
+        donationDate = "2026-04-07",
+        channelSource = "Direct",
+        currencyCode = "PHP",
+        amount = 1000,
+        estimatedValue = 1000,
+        impactUnit = "pesos",
+        isRecurring = false,
+        campaignName = "RBAC Test Campaign"
+    };
+
+    private static readonly object MinimalProcessRecordingPayload = new
+    {
+        residentId = 1,
+        sessionDate = "2026-04-07",
+        socialWorker = "RBAC Test Worker",
+        sessionType = "Individual",
+        emotionalStateObserved = "Calm",
+        sessionNarrative = "RBAC integration test",
+        interventionsApplied = "Supportive counseling",
+        followUpActions = "Continue monitoring"
+    };
+
+    private static readonly object MinimalHomeVisitationPayload = new
+    {
+        residentId = 1,
+        visitDate = "2026-04-07",
+        socialWorker = "RBAC Test Worker",
+        visitType = "RoutineFollowUp",
+        observations = "RBAC integration test",
+        familyCooperationLevel = "Cooperative",
+        followUpNeeded = false,
+        visitOutcome = "Favorable"
+    };
+
+    private static StringContent JsonContent(object payload) =>
+        new(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
 }
