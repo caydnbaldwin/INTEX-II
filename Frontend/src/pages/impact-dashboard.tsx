@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   Users,
   Heart,
   Home,
   TrendingUp,
-  Calendar,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
+import { HeroStatsBar } from '@/components/impact/HeroStatsBar'
+import { InteractiveMap } from '@/components/impact/InteractiveMap'
+import { ImpactTimeline } from '@/components/impact/ImpactTimeline'
+import { ResidentStoryCard } from '@/components/impact/ResidentStoryCard'
 import {
   LineChart,
   Line,
@@ -206,36 +211,37 @@ export function ImpactDashboard() {
     )
   }
 
+  const impactStories = listPublicImpactJourneyStories()
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="border-b bg-muted/30">
-        <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                Impact Dashboard
-              </h1>
-              <p className="mt-2 text-lg text-muted-foreground">
-                Transparent, anonymized data showing how your support transforms lives.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span>Last updated: {lastUpdated}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Hero Stats Bar */}
+      <HeroStatsBar stats={stats} />
 
+      {/* Interactive Map Section */}
+      <InteractiveMap />
+
+      {/* Resident Stories Carousel */}
+      <StoriesCarousel stories={impactStories} />
+
+      {/* Impact Timeline */}
+      <ImpactTimeline />
+
+      {/* Detailed Dashboard */}
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Total Residents Served" value={girlsServed} description="Since founding" icon={Users} trend="+12% from last year" />
-          <MetricCard title="Active Residents" value={activeResidents} description="Currently in care" icon={Home} trend={`Across ${stats?.safehousesOperating ?? '—'} safehouses`} />
-          <MetricCard title="Counseling Sessions" value={counselingSessions} description="Total sessions" icon={Heart} trend="Individual & group therapy" />
-          <MetricCard title="Average Health Score" value={avgHealthScore} description="Out of 100" icon={TrendingUp} trend="+8 points this year" />
+        <div className="text-center mb-10">
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary mb-3">
+            Deep Dive
+          </p>
+          <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+            Detailed Metrics
+          </h2>
+          <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
+            Explore our education, health, and safehouse data in detail.
+          </p>
         </div>
 
-        <Tabs defaultValue="overview" className="mt-12">
+        <Tabs defaultValue="overview" className="mt-8">
           <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="education">Education</TabsTrigger>
@@ -519,6 +525,82 @@ export function ImpactDashboard() {
         </Card>
       </div>
     </div>
+  )
+}
+
+function StoriesCarousel({ stories }: { stories: ReturnType<typeof listPublicImpactJourneyStories> }) {
+  const perPage = 3
+  const totalPages = Math.ceil(stories.length / perPage)
+  const [page, setPage] = useState(0)
+
+  const goTo = useCallback((p: number) => {
+    setPage(Math.max(0, Math.min(p, totalPages - 1)))
+  }, [totalPages])
+
+  const visible = stories.slice(page * perPage, page * perPage + perPage)
+
+  return (
+    <section className="pt-16 pb-10 sm:pt-20 sm:pb-12 bg-muted/30">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="flex items-end justify-between mb-10">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary mb-3">
+              Real Progress
+            </p>
+            <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+              Stories of Transformation
+            </h2>
+            <p className="mt-3 text-muted-foreground max-w-2xl">
+              Each name is a privacy-safe pseudonym. Each milestone is real.
+            </p>
+          </div>
+
+          {/* Arrow buttons */}
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => goTo(page - 1)}
+              disabled={page === 0}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              aria-label="Previous stories"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => goTo(page + 1)}
+              disabled={page >= totalPages - 1}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              aria-label="Next stories"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* 3-card grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {visible.map((story) => (
+            <ResidentStoryCard key={story.residentId} story={story} />
+          ))}
+        </div>
+
+        {/* Dot indicators */}
+        <div className="flex justify-center gap-2 mt-8">
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => goTo(i)}
+              className={`h-2 rounded-full transition-all duration-200 ${
+                i === page ? 'w-6 bg-primary' : 'w-2 bg-border hover:bg-muted-foreground/40'
+              }`}
+              aria-label={`Page ${i + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   )
 }
 
