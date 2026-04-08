@@ -1,8 +1,35 @@
 import { Link } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
-import { ArrowRight, ChevronDown, Heart, CheckCircle2, Pill, Utensils, Stethoscope, Users, Home } from 'lucide-react'
+import { ArrowRight, ChevronDown, Heart, CheckCircle2, Pill, Utensils, Stethoscope, Users, Home, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
+
+const AREA_COLORS: Record<string, string> = {
+  'Education':   'oklch(0.45 0.18 280)',
+  'Operations':  'oklch(0.55 0.15 280)',
+  'Wellbeing':   'oklch(0.35 0.12 280)',
+  'Maintenance': 'oklch(0.65 0.10 280)',
+  'Transport':   'oklch(0.70 0.08 280)',
+  'Outreach':    'oklch(0.75 0.06 280)',
+}
+const AREA_LABELS: Record<string, string> = {
+  Education:   'Education',
+  Operations:  'Operations',
+  Wellbeing:   'Counseling',
+  Maintenance: 'Maintenance',
+  Transport:   'Transport',
+  Outreach:    'Outreach',
+}
+
+interface AnnualPayload {
+  type: string
+  year: number
+  funding_coverage_pct: number
+  funding_gap_php: number
+  allocation_breakdown: Record<string, number>
+  challenge: string
+  months_below_50pct_funding: number
+}
 
 const donationTiers = [
   { amount: 15, label: '$15', description: 'Provides essential vitamins for a child', icon: Pill, iconLabel: 'Vitamins' },
@@ -19,6 +46,21 @@ export function LandingPage() {
   const [isCheckingBackend, setIsCheckingBackend] = useState(false)
   const [isCheckingDb, setIsCheckingDb] = useState(false)
   const [donationTier, setDonationTier] = useState(0)
+  const [latestAnnual, setLatestAnnual] = useState<AnnualPayload | null>(null)
+
+  useEffect(() => {
+    fetch(`${API}/api/public/impact-snapshots`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then((snapshots: Array<{ metricPayloadJson: string }> | null) => {
+        if (!snapshots) return
+        const annual = snapshots
+          .map(s => { try { return JSON.parse(s.metricPayloadJson) as AnnualPayload } catch { return null } })
+          .filter((p): p is AnnualPayload => p?.type === 'annual_summary')
+          .sort((a, b) => b.year - a.year)
+        if (annual.length > 0) setLatestAnnual(annual[0])
+      })
+      .catch(() => { /* non-critical — transparency strip stays hidden */ })
+  }, [API])
 
   async function verifyBackend() {
     setBackendStatus('Checking backend...')
@@ -369,6 +411,105 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ───────────────── Transparency Strip ───────────────── */}
+      {latestAnnual && (
+        <section className="py-16 sm:py-20 bg-foreground text-background">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            <div className="grid lg:grid-cols-2 gap-12 items-start">
+
+              {/* Left: heading + allocation bar */}
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-background/50 mb-4">
+                  Financial Transparency
+                </p>
+                <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-background tracking-tight">
+                  Every peso, accounted for
+                </h2>
+                <p className="mt-4 text-base text-background/70 leading-relaxed">
+                  In {latestAnnual.year} we raised{' '}
+                  <span className="font-semibold text-background">{latestAnnual.funding_coverage_pct.toFixed(0)}%</span>{' '}
+                  of our annual operating budget.{' '}
+                  Here is exactly where every donated peso went.
+                </p>
+
+                {/* Segmented allocation bar */}
+                <div className="mt-8 space-y-3">
+                  <div className="flex h-6 w-full rounded-full overflow-hidden gap-px">
+                    {Object.entries(latestAnnual.allocation_breakdown)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([key, value]) => {
+                        const total = Object.values(latestAnnual.allocation_breakdown).reduce((s, v) => s + v, 0)
+                        const pct = (value / total) * 100
+                        return (
+                          <div
+                            key={key}
+                            title={`${AREA_LABELS[key] ?? key}: ${pct.toFixed(0)}%`}
+                            style={{ width: `${pct}%`, backgroundColor: AREA_COLORS[key] ?? 'oklch(0.5 0.1 280)' }}
+                          />
+                        )
+                      })}
+                  </div>
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
+                    {Object.entries(latestAnnual.allocation_breakdown)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([key, value]) => {
+                        const total = Object.values(latestAnnual.allocation_breakdown).reduce((s, v) => s + v, 0)
+                        return (
+                          <div key={key} className="flex items-center gap-1.5 text-xs text-background/70">
+                            <span
+                              className="inline-block h-2 w-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: AREA_COLORS[key] ?? 'oklch(0.5 0.1 280)' }}
+                            />
+                            {AREA_LABELS[key] ?? key}{' '}
+                            <span className="text-background/50">{((value / total) * 100).toFixed(0)}%</span>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: challenge callout + CTA */}
+              <div className="flex flex-col gap-6">
+                <div className="rounded-2xl border border-background/10 bg-background/5 p-6">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-background/40 mb-3">
+                    {latestAnnual.year} — What the gap cost us
+                  </p>
+                  <blockquote className="text-base leading-relaxed text-background/80 italic">
+                    "{latestAnnual.challenge}"
+                  </blockquote>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    size="lg"
+                    asChild
+                    className="bg-background text-foreground hover:bg-background/90 font-medium rounded-full"
+                  >
+                    <Link to="/impact?tab=funding">
+                      See Full Financial Report
+                      <ExternalLink className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    asChild
+                    className="border-background/30 text-background bg-transparent hover:bg-background/10 hover:text-background rounded-full"
+                  >
+                    <Link to="/login">
+                      <Heart className="mr-2 h-4 w-4" />
+                      Close the Gap
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ───────────────── Education: Text + Overlapping Images ───────────────── */}
       <section className="py-20 sm:py-28 bg-background">
