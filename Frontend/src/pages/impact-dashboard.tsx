@@ -1,9 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
-  Users,
   Heart,
-  Home,
-  TrendingUp,
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -192,16 +189,6 @@ export function ImpactDashboard() {
   if (regionData.length === 0 && stats) {
     regionData.push({ name: 'All Regions', value: stats.safehousesOperating })
   }
-
-  // Metric card values from stats
-  const girlsServed = stats?.girlsServed ?? latestParsed?.metrics.totalResidentsServed ?? 0
-  const activeResidents = stats?.activeResidents ?? latestParsed?.metrics.activeResidents ?? 0
-  const counselingSessions = stats?.totalCounselingSessions ?? latestParsed?.metrics.counselingSessions ?? 0
-  const avgHealthScore = latestParsed?.metrics.avgHealthScore ?? 0
-
-  const lastUpdated = parsedSnapshots.length > 0
-    ? new Date(parsedSnapshots[parsedSnapshots.length - 1].snapshotDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    : 'N/A'
 
   if (loading) {
     return (
@@ -604,21 +591,3 @@ function StoriesCarousel({ stories }: { stories: ReturnType<typeof listPublicImp
   )
 }
 
-function MetricCard({ title, value, description, icon: Icon, trend }: { title: string; value: number; description: string; icon: React.ElementType; trend: string }) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardDescription className="text-xs uppercase tracking-wider">{title}</CardDescription>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold text-foreground">{value.toLocaleString()}</div>
-        <p className="text-xs text-muted-foreground">{description}</p>
-        <div className="mt-2 flex items-center gap-1 text-xs text-primary">
-          <TrendingUp className="h-3 w-3" />
-          <span>{trend}</span>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
