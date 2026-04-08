@@ -21,6 +21,9 @@ const LoginPage = lazy(() =>
 const PrivacyPolicy = lazy(() =>
   import('./pages/privacy-policy').then((m) => ({ default: m.PrivacyPolicy })),
 )
+const ContactPage = lazy(() =>
+  import('./pages/contact').then((m) => ({ default: m.ContactPage })),
+)
 const AdminDashboard = lazy(() =>
   import('./pages/admin/dashboard').then((m) => ({ default: m.AdminDashboard })),
 )
@@ -97,6 +100,7 @@ export default function App() {
             <Route path="impact" element={<ImpactDashboard />} />
             <Route path="impact/safehouse/:id" element={<SafehouseDetail />} />
             <Route path="donate" element={<DonatePage />} />
+            <Route path="contact" element={<ContactPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="privacy" element={<PrivacyPolicy />} />
           </Route>

@@ -80,6 +80,9 @@ export function InteractiveMap() {
           <span><span className="font-semibold text-foreground">Visayas</span> — 4 shelters</span>
           <span><span className="font-semibold text-foreground">Mindanao</span> — 3 shelters</span>
         </div>
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Click on a dot to view shelter details.
+        </p>
       </div>
     </section>
   )
