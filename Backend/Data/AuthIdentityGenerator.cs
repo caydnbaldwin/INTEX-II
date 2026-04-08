@@ -8,7 +8,7 @@ public static class AuthIdentityGenerator
         IServiceProvider serviceProvider,
         IConfiguration configuration)
     {
-        const string defaultAdminEmail = "admin@lunas-project.site";
+        const string defaultAdminEmail = "testadmin@lunas-project.site";
 
         var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
