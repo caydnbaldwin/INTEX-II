@@ -1,0 +1,54 @@
+{
+  "templates": [
+    {
+      "id": "loyal",
+      "name": "Loyal Donors",
+      "description": "3+ gifts — partner-level tone",
+      "trigger": "frequency >= 3",
+      "subject": "You're making a difference, {{first_name}}",
+      "body": "{{first_name}},\n\nYou are making a difference. We are so grateful for your commitment to these girls. You are one of our best supporters — your {{frequency}} heartfelt donations have helped fund {{program_area}}, supported girls through some of their hardest moments, and kept our doors open for those who need us most.\n\nWe are growing more than ever and working to reach more girls across the Philippines. Right now we are in need of funding for {{program_area}}, and even a donation of {{suggested_amount}} would help us get closer to our goal. Anything you give goes a long way to protecting our girls.\n\n{{donate_button}}\n\n— Lunas Project",
+      "placeholders": [
+        "first_name",
+        "frequency",
+        "program_area",
+        "suggested_amount",
+        "donate_button"
+      ],
+      "last_edited": "2026-04-08T00:00:00",
+      "last_edited_by": "EthanAutomationWednesday"
+    },
+    {
+      "id": "first_time",
+      "name": "First-Time Donors",
+      "description": "1-2 gifts — welcome tone",
+      "trigger": "frequency <= 2",
+      "subject": "{{first_name}}, your gift is already making an impact",
+      "body": "{{first_name}},\n\nYou are making a difference. Thank you for your generous gift to Lunas Foundation — it means more than you know. Your donation has gone toward {{program_area}}, directly supporting girls who had nowhere else to turn.\n\nWe are growing and working hard to reach even more girls who need us. A donation of {{suggested_amount}} would help us continue that work. Every contribution, no matter the size, goes directly to protecting and empowering the girls in our care.\n\n{{donate_button}}\n\n— Lunas Project",
+      "placeholders": [
+        "first_name",
+        "program_area",
+        "suggested_amount",
+        "donate_button"
+      ],
+      "last_edited": "2026-04-08T00:00:00",
+      "last_edited_by": "EthanAutomationWednesday"
+    },
+    {
+      "id": "win_back",
+      "name": "Win-Back",
+      "description": "90+ days since last gift — reactivation tone",
+      "trigger": "recency > 90",
+      "note": "Win-back overrides other templates if recency > 90",
+      "subject": "We miss you, {{first_name}}",
+      "body": "{{first_name}},\n\nYou made a difference — and we haven't forgotten it. Your past generosity helped fund {{program_area}} and supported girls during some of their most vulnerable moments. That gift mattered then, and it still matters now.\n\nA lot has happened since your last donation. We are reaching more girls than ever and growing every month — but we need supporters like you to keep going. Even a gift of {{suggested_amount}} would help us continue the work you helped start.\n\n{{donate_button}}\n\n— Lunas Project",
+      "placeholders": [
+        "first_name",
+        "program_area",
+        "suggested_amount",
+        "donate_button"
+      ],
+      "last_edited": "2026-04-08T00:00:00",
+      "last_edited_by": "EthanAutomationWednesday"
+    }
+  ]
+}
