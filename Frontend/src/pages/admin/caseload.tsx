@@ -7,6 +7,7 @@ import {
   Users,
   ShieldAlert,
   Loader2,
+  ChevronDown,
 } from 'lucide-react'
 import {
   Table,
@@ -47,7 +48,12 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
+import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
+import { TablePagination } from '@/components/TablePagination'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -121,15 +127,17 @@ interface Resident {
 
 const RISK_LEVELS: RiskLevel[] = ['Critical', 'High', 'Medium', 'Low']
 const CASE_STATUSES: CaseStatus[] = ['Active', 'Closed', 'Pending Review']
-const CASE_CATEGORIES = ['Trafficking', 'Abuse', 'Neglect', 'Abandonment']
-const _REINTEGRATION_STATUSES: ReintegrationStatus[] = [
+const CASE_CATEGORIES = ['Abandoned', 'Foundling', 'Surrendered', 'Neglected']
+const REINTEGRATION_STATUSES: ReintegrationStatus[] = [
   'Not Started',
   'In Progress',
   'Family Reunification',
   'Independent Living',
   'Completed',
 ]
-void _REINTEGRATION_STATUSES
+const REINTEGRATION_TYPES = ['Family Reunification', 'Foster Care', 'Adoption (Domestic)', 'Adoption (Inter-Country)', 'Independent Living']
+const REFERRAL_SOURCES = ['Government Agency', 'NGO', 'Police', 'Self-Referral', 'Community', 'Court Order']
+const RELIGIONS = ['Roman Catholic', 'Islam', 'Protestant', 'INC', 'Iglesia ni Cristo', 'Other']
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -171,6 +179,41 @@ const blankForm = {
   riskLevel: '' as string,
   caseStatus: '' as string,
   caseCategory: '',
+  // Demographics
+  sex: 'F',
+  religion: '',
+  dateOfAdmission: '',
+  // Sub-categories
+  subcatTrafficked: false,
+  subcatPhysicalAbuse: false,
+  subcatSexualAbuse: false,
+  subcatOrphaned: false,
+  subcatChildLabor: false,
+  subcatOsaec: false,
+  subcatCicl: false,
+  subcatAtRisk: false,
+  subcatStreetChild: false,
+  subcatChildWithHiv: false,
+  // Disability
+  isPwd: false,
+  pwdType: '',
+  hasSpecialNeeds: false,
+  specialNeedsDiagnosis: '',
+  // Family profile
+  familyIs4ps: false,
+  familySoloParent: false,
+  familyIndigenous: false,
+  familyParentPwd: false,
+  familyInformalSettler: false,
+  // Referral & Assignment
+  referralSource: '',
+  referringAgencyPerson: '',
+  assignedSocialWorker: '',
+  initialRiskLevel: '' as string,
+  initialCaseAssessment: '',
+  // Reintegration
+  reintegrationType: '',
+  reintegrationStatus: '' as string,
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +221,7 @@ const blankForm = {
 // ---------------------------------------------------------------------------
 
 export function CaseloadInventory() {
+  usePageTitle('Caseload')
   const [residents, setResidents] = useState<Resident[]>([])
   const [safehouses, setSafehouses] = useState<ApiSafehouse[]>([])
   const [mlRiskMap, setMlRiskMap] = useState<Map<number, { score: number; label: string }>>(new Map())
@@ -188,6 +232,9 @@ export function CaseloadInventory() {
   const [filterSafehouse, setFilterSafehouse] = useState('all')
   const [filterRisk, setFilterRisk] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -258,6 +305,12 @@ export function CaseloadInventory() {
     return matchesSearch && matchesSafehouse && matchesRisk && matchesStatus
   })
 
+  // Reset page when filters change
+  useEffect(() => { setCurrentPage(1) }, [search, filterSafehouse, filterRisk, filterStatus])
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage)
+  const paginatedResidents = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
   // --- Dialog helpers ---
   function openAdd() {
     setEditingId(null)
@@ -265,17 +318,60 @@ export function CaseloadInventory() {
     setDialogOpen(true)
   }
 
-  function openEdit(r: Resident) {
+  async function openEdit(r: Resident) {
     setEditingId(r.id)
-    setForm({
-      caseControlNo: '',
-      internalCode: r.name,
-      dateOfBirth: '',
-      safehouseId: String(r.safehouseId),
-      riskLevel: r.riskLevel,
-      caseStatus: r.caseStatus,
-      caseCategory: r.caseCategory,
-    })
+    // Fetch full resident data for all fields
+    try {
+      const full = await api.get<ApiResident>(`/api/residents/${r.id}`)
+      setForm({
+        caseControlNo: (full.caseControlNo as string) ?? '',
+        internalCode: (full.internalCode as string) ?? r.name,
+        dateOfBirth: full.dateOfBirth ? String(full.dateOfBirth).split('T')[0] : '',
+        safehouseId: String(full.safehouseId ?? r.safehouseId),
+        riskLevel: (full.currentRiskLevel as string) ?? r.riskLevel,
+        caseStatus: (full.caseStatus as string) ?? r.caseStatus,
+        caseCategory: (full.caseCategory as string) ?? r.caseCategory,
+        sex: (full.sex as string) ?? 'F',
+        religion: (full.religion as string) ?? '',
+        dateOfAdmission: full.dateOfAdmission ? String(full.dateOfAdmission).split('T')[0] : '',
+        subcatTrafficked: (full.subCatTrafficked as boolean) ?? false,
+        subcatPhysicalAbuse: (full.subCatPhysicalAbuse as boolean) ?? false,
+        subcatSexualAbuse: (full.subCatSexualAbuse as boolean) ?? false,
+        subcatOrphaned: (full.subCatOrphaned as boolean) ?? false,
+        subcatChildLabor: (full.subCatChildLabor as boolean) ?? false,
+        subcatOsaec: (full.subCatOsaec as boolean) ?? false,
+        subcatCicl: (full.subCatCicl as boolean) ?? false,
+        subcatAtRisk: (full.subCatAtRisk as boolean) ?? false,
+        subcatStreetChild: (full.subCatStreetChild as boolean) ?? false,
+        subcatChildWithHiv: (full.subCatChildWithHiv as boolean) ?? false,
+        isPwd: (full.isPwd as boolean) ?? false,
+        pwdType: (full.pwdType as string) ?? '',
+        hasSpecialNeeds: (full.hasSpecialNeeds as boolean) ?? false,
+        specialNeedsDiagnosis: (full.specialNeedsDiagnosis as string) ?? '',
+        familyIs4ps: (full.familyIs4ps as boolean) ?? false,
+        familySoloParent: (full.familySoloParent as boolean) ?? false,
+        familyIndigenous: (full.familyIndigenous as boolean) ?? false,
+        familyParentPwd: (full.familyParentPwd as boolean) ?? false,
+        familyInformalSettler: (full.familyInformalSettler as boolean) ?? false,
+        referralSource: (full.referralSource as string) ?? '',
+        referringAgencyPerson: (full.referringAgencyPerson as string) ?? '',
+        assignedSocialWorker: (full.assignedSocialWorker as string) ?? '',
+        initialRiskLevel: (full.initialRiskLevel as string) ?? '',
+        initialCaseAssessment: (full.initialCaseAssessment as string) ?? '',
+        reintegrationType: (full.reintegrationType as string) ?? '',
+        reintegrationStatus: (full.reintegrationStatus as string) ?? '',
+      })
+    } catch {
+      // Fallback to basic data if full fetch fails
+      setForm({
+        ...blankForm,
+        internalCode: r.name,
+        safehouseId: String(r.safehouseId),
+        riskLevel: r.riskLevel,
+        caseStatus: r.caseStatus,
+        caseCategory: r.caseCategory,
+      })
+    }
     setDialogOpen(true)
   }
 
@@ -290,6 +386,35 @@ export function CaseloadInventory() {
         currentRiskLevel: form.riskLevel || 'Low',
         caseStatus: form.caseStatus || 'Active',
         caseCategory: form.caseCategory,
+        sex: form.sex || 'F',
+        religion: form.religion || undefined,
+        dateOfAdmission: form.dateOfAdmission || undefined,
+        subCatTrafficked: form.subcatTrafficked,
+        subCatPhysicalAbuse: form.subcatPhysicalAbuse,
+        subCatSexualAbuse: form.subcatSexualAbuse,
+        subCatOrphaned: form.subcatOrphaned,
+        subCatChildLabor: form.subcatChildLabor,
+        subCatOsaec: form.subcatOsaec,
+        subCatCicl: form.subcatCicl,
+        subCatAtRisk: form.subcatAtRisk,
+        subCatStreetChild: form.subcatStreetChild,
+        subCatChildWithHiv: form.subcatChildWithHiv,
+        isPwd: form.isPwd,
+        pwdType: form.pwdType || undefined,
+        hasSpecialNeeds: form.hasSpecialNeeds,
+        specialNeedsDiagnosis: form.specialNeedsDiagnosis || undefined,
+        familyIs4ps: form.familyIs4ps,
+        familySoloParent: form.familySoloParent,
+        familyIndigenous: form.familyIndigenous,
+        familyParentPwd: form.familyParentPwd,
+        familyInformalSettler: form.familyInformalSettler,
+        referralSource: form.referralSource || undefined,
+        referringAgencyPerson: form.referringAgencyPerson || undefined,
+        assignedSocialWorker: form.assignedSocialWorker || undefined,
+        initialRiskLevel: form.initialRiskLevel || undefined,
+        initialCaseAssessment: form.initialCaseAssessment || undefined,
+        reintegrationType: form.reintegrationType || undefined,
+        reintegrationStatus: form.reintegrationStatus || undefined,
       }
 
       if (editingId) {
@@ -352,7 +477,7 @@ export function CaseloadInventory() {
             </Button>
           </DialogTrigger>
 
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingId ? 'Edit Resident' : 'Add New Resident'}
@@ -477,6 +602,206 @@ export function CaseloadInventory() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Demographics */}
+              <Collapsible>
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                  Demographics
+                  <ChevronDown className="h-4 w-4" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Sex</Label>
+                      <Select value={form.sex} onValueChange={(v) => setForm({ ...form, sex: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="F">Female</SelectItem>
+                          <SelectItem value="M">Male</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Religion</Label>
+                      <Select value={form.religion} onValueChange={(v) => setForm({ ...form, religion: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          {RELIGIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Date of Admission</Label>
+                      <Input type="date" value={form.dateOfAdmission} onChange={(e) => setForm({ ...form, dateOfAdmission: e.target.value })} />
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Case Sub-Categories */}
+              <Collapsible>
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                  Case Sub-Categories
+                  <ChevronDown className="h-4 w-4" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      ['subcatTrafficked', 'Trafficked'],
+                      ['subcatPhysicalAbuse', 'Physical Abuse'],
+                      ['subcatSexualAbuse', 'Sexual Abuse'],
+                      ['subcatOrphaned', 'Orphaned'],
+                      ['subcatChildLabor', 'Child Labor'],
+                      ['subcatOsaec', 'OSAEC/CSAEM'],
+                      ['subcatCicl', 'Conflict with Law (CICL)'],
+                      ['subcatAtRisk', 'Child at Risk (CAR)'],
+                      ['subcatStreetChild', 'Street Child'],
+                      ['subcatChildWithHiv', 'Child with HIV'],
+                    ] as const).map(([key, label]) => (
+                      <div key={key} className="flex items-center gap-2">
+                        <Checkbox
+                          id={key}
+                          checked={form[key]}
+                          onCheckedChange={(v) => setForm({ ...form, [key]: !!v })}
+                        />
+                        <Label htmlFor={key} className="text-sm font-normal">{label}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Disability & Special Needs */}
+              <Collapsible>
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                  Disability & Special Needs
+                  <ChevronDown className="h-4 w-4" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="isPwd" checked={form.isPwd} onCheckedChange={(v) => setForm({ ...form, isPwd: !!v })} />
+                    <Label htmlFor="isPwd" className="text-sm font-normal">Person with Disability (PWD)</Label>
+                  </div>
+                  {form.isPwd && (
+                    <div className="space-y-2 pl-6">
+                      <Label>Disability Type</Label>
+                      <Input value={form.pwdType} onChange={(e) => setForm({ ...form, pwdType: e.target.value })} placeholder="e.g., Visual, Physical, Intellectual" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="hasSpecialNeeds" checked={form.hasSpecialNeeds} onCheckedChange={(v) => setForm({ ...form, hasSpecialNeeds: !!v })} />
+                    <Label htmlFor="hasSpecialNeeds" className="text-sm font-normal">Has Special Needs</Label>
+                  </div>
+                  {form.hasSpecialNeeds && (
+                    <div className="space-y-2 pl-6">
+                      <Label>Diagnosis</Label>
+                      <Input value={form.specialNeedsDiagnosis} onChange={(e) => setForm({ ...form, specialNeedsDiagnosis: e.target.value })} placeholder="Diagnosis details" />
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Family Profile */}
+              <Collapsible>
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                  Family Socio-Demographic Profile
+                  <ChevronDown className="h-4 w-4" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      ['familyIs4ps', '4Ps Beneficiary'],
+                      ['familySoloParent', 'Solo Parent'],
+                      ['familyIndigenous', 'Indigenous Group'],
+                      ['familyParentPwd', 'Parent is PWD'],
+                      ['familyInformalSettler', 'Informal Settler / Homeless'],
+                    ] as const).map(([key, label]) => (
+                      <div key={key} className="flex items-center gap-2">
+                        <Checkbox
+                          id={key}
+                          checked={form[key]}
+                          onCheckedChange={(v) => setForm({ ...form, [key]: !!v })}
+                        />
+                        <Label htmlFor={key} className="text-sm font-normal">{label}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Referral & Assignment */}
+              <Collapsible>
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                  Referral & Assignment
+                  <ChevronDown className="h-4 w-4" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Referral Source</Label>
+                      <Select value={form.referralSource} onValueChange={(v) => setForm({ ...form, referralSource: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          {REFERRAL_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Referring Agency/Person</Label>
+                      <Input value={form.referringAgencyPerson} onChange={(e) => setForm({ ...form, referringAgencyPerson: e.target.value })} placeholder="Name of agency or person" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Assigned Social Worker</Label>
+                      <Input value={form.assignedSocialWorker} onChange={(e) => setForm({ ...form, assignedSocialWorker: e.target.value })} placeholder="Social worker name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Initial Risk Level</Label>
+                      <Select value={form.initialRiskLevel} onValueChange={(v) => setForm({ ...form, initialRiskLevel: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          {RISK_LEVELS.map((rl) => <SelectItem key={rl} value={rl}>{rl}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Initial Case Assessment</Label>
+                    <Textarea rows={2} value={form.initialCaseAssessment} onChange={(e) => setForm({ ...form, initialCaseAssessment: e.target.value })} placeholder="e.g., For Reunification, For Foster Care" />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Reintegration */}
+              <Collapsible>
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                  Reintegration
+                  <ChevronDown className="h-4 w-4" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Reintegration Type</Label>
+                      <Select value={form.reintegrationType} onValueChange={(v) => setForm({ ...form, reintegrationType: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          {REINTEGRATION_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Reintegration Status</Label>
+                      <Select value={form.reintegrationStatus} onValueChange={(v) => setForm({ ...form, reintegrationStatus: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>
+                          {REINTEGRATION_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
@@ -550,6 +875,7 @@ export function CaseloadInventory() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
               <Input
                 placeholder="Search residents..."
+                aria-label="Search residents"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -615,7 +941,7 @@ export function CaseloadInventory() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {paginatedResidents.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={7}
@@ -625,7 +951,7 @@ export function CaseloadInventory() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((r) => (
+              paginatedResidents.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium text-zinc-900">
                     {r.name}
@@ -727,6 +1053,7 @@ export function CaseloadInventory() {
           </TableBody>
         </Table>
       </Card>
+      <TablePagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
     </div>
   )
 }

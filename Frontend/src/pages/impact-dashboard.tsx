@@ -30,6 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { api } from '@/lib/api'
 import { listPublicImpactJourneyStories } from '@/lib/publicResidentStories'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const CHART_COLORS = [
   'oklch(0.45 0.18 280)',
@@ -145,6 +146,7 @@ const VALID_TABS = ['overview', 'education', 'health', 'safehouses', 'funding'] 
 type TabValue = typeof VALID_TABS[number]
 
 export function ImpactDashboard() {
+  usePageTitle('Our Impact')
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
   const activeTab: TabValue = (VALID_TABS as readonly string[]).includes(tabParam ?? '') ? tabParam as TabValue : 'overview'

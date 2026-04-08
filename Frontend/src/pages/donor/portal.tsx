@@ -1,4 +1,5 @@
-import { Heart, Calendar, TrendingUp, Gift } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Heart, Calendar, TrendingUp, Gift, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -11,20 +12,55 @@ import {
 } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
 import { donorSpotlightResidentIds, listDonorSpotlightStories } from '@/lib/publicResidentStories'
+import { api } from '@/lib/api'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
-const donorDonations = [
-  { id: 1, date: '2026-03-15', amount: 5000, type: 'Monetary', campaign: 'Year-End Hope', recurring: true },
-  { id: 2, date: '2026-02-15', amount: 5000, type: 'Monetary', campaign: null, recurring: true },
-  { id: 3, date: '2026-01-15', amount: 5000, type: 'Monetary', campaign: null, recurring: true },
-  { id: 4, date: '2025-12-20', amount: 10000, type: 'Monetary', campaign: 'Year-End Hope', recurring: false },
-  { id: 5, date: '2025-11-15', amount: 5000, type: 'Monetary', campaign: null, recurring: true },
-  { id: 6, date: '2025-10-05', amount: 0, type: 'InKind', campaign: 'Back to School', recurring: false },
-]
+interface ApiDonation {
+  donationId: number
+  supporterId: number | null
+  donationType: string | null
+  donationDate: string | null
+  isRecurring: boolean | null
+  campaignName: string | null
+  amount: number | null
+  estimatedValue: number | null
+}
 
 export function DonorPortal() {
-  const totalDonated = donorDonations.filter(d => d.type === 'Monetary').reduce((sum, d) => sum + d.amount, 0)
-  const donationCount = donorDonations.length
-  const recurringCount = donorDonations.filter(d => d.recurring).length
+  usePageTitle('My Donor Portal')
+
+  const [donations, setDonations] = useState<ApiDonation[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchDonations = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await api.get<ApiDonation[]>('/api/donor/my-donations')
+      setDonations(data)
+    } catch (err) {
+      console.error('Failed to load donor donations', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchDonations()
+  }, [fetchDonations])
+
+  const totalDonated = donations
+    .filter(d => d.donationType === 'Monetary')
+    .reduce((sum, d) => sum + (d.amount ?? 0), 0)
+  const donationCount = donations.length
+  const recurringCount = donations.filter(d => d.isRecurring).length
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -123,36 +159,46 @@ export function DonorPortal() {
           <CardDescription>All your past contributions</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Campaign</TableHead>
-                <TableHead className="text-right">Amount (PHP)</TableHead>
-                <TableHead>Recurring</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {donorDonations.map((donation) => (
-                <TableRow key={donation.id}>
-                  <TableCell className="font-mono text-sm">{donation.date}</TableCell>
-                  <TableCell>
-                    <Badge variant={donation.type === 'Monetary' ? 'default' : 'secondary'}>{donation.type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {donation.campaign ?? '—'}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {donation.amount > 0 ? donation.amount.toLocaleString() : 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    {donation.recurring && <Badge variant="outline" className="text-xs">Monthly</Badge>}
-                  </TableCell>
+          {donations.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">No donations found for your account.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead className="text-right">Amount (PHP)</TableHead>
+                  <TableHead>Recurring</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {donations.map((donation) => (
+                  <TableRow key={donation.donationId}>
+                    <TableCell className="font-mono text-sm">
+                      {donation.donationDate
+                        ? new Date(donation.donationDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                        : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={donation.donationType === 'Monetary' ? 'default' : 'secondary'}>
+                        {donation.donationType ?? 'Unknown'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {donation.campaignName ?? '—'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {donation.amount != null && donation.amount > 0 ? donation.amount.toLocaleString() : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {donation.isRecurring && <Badge variant="outline" className="text-xs">Monthly</Badge>}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

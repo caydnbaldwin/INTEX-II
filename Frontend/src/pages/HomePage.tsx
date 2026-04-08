@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 const pages = [
   { to: '/', label: 'Home' },
@@ -14,6 +15,7 @@ const pages = [
 ];
 
 export default function HomePage() {
+  usePageTitle('Home');
   const API = import.meta.env.VITE_API_BASE_URL as string;
   const [backendStatus, setBackendStatus] = useState('');
   const [dbStatus, setDbStatus] = useState('');

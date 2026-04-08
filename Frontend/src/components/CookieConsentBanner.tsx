@@ -12,6 +12,7 @@ export default function CookieConsentBanner() {
       role="dialog"
       aria-live="polite"
       aria-label="Cookie consent"
+      aria-modal="true"
       className="fixed bottom-0 left-0 right-0 z-[9999] border-t border-border bg-background/95 backdrop-blur-sm px-6 py-4 shadow-lg"
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -26,7 +27,7 @@ export default function CookieConsentBanner() {
           <Button variant="outline" size="sm" onClick={rejectConsent}>
             Reject
           </Button>
-          <Button size="sm" onClick={acceptConsent}>
+          <Button size="sm" onClick={acceptConsent} autoFocus>
             Accept
           </Button>
         </div>

@@ -52,6 +52,29 @@ public class ProcessRecordingsController(
         return CreatedAtAction(nameof(GetById), new { id = recording.RecordingId }, recording);
     }
 
+    [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
+    public async Task<IActionResult> Update(int id, [FromBody] ProcessRecording recording)
+    {
+        var existing = await db.ProcessRecordings.FindAsync(id);
+        if (existing is null) return NotFound();
+        db.Entry(existing).CurrentValues.SetValues(recording);
+        existing.RecordingId = id;
+        await db.SaveChangesAsync();
+        return Ok(existing);
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var recording = await db.ProcessRecordings.FindAsync(id);
+        if (recording is null) return NotFound();
+        db.ProcessRecordings.Remove(recording);
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
     [HttpPost("autofill-from-audio")]
     [RequestSizeLimit(25 * 1024 * 1024)]
     public async Task<IActionResult> AutofillFromAudio(
