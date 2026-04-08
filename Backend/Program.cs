@@ -1,5 +1,6 @@
 using Backend.Data;
 using Backend.Infrastructure;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -60,6 +61,20 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.SlidingExpiration = true;
 });
+
+// The two-factor partial sign-in cookie (Identity.TwoFactorUserId) is a separate scheme
+// and must also be set to SameSite=None in dev, otherwise Chrome blocks it cross-origin
+// and TwoFactorAuthenticatorSignInAsync can't find the pending sign-in state.
+builder.Services.Configure<CookieAuthenticationOptions>(
+    IdentityConstants.TwoFactorUserIdScheme,
+    options =>
+    {
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = builder.Environment.IsDevelopment()
+            ? SameSiteMode.None
+            : SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    });
 
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 // Secrets stored in appsettings.Development.json (dev) and Azure App Settings (prod).
