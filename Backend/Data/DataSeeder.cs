@@ -32,7 +32,6 @@ public static class DataSeeder
         await SeedTable(db.InterventionPlans, "intervention_plans.csv", seedDataPath, config, db);
         await SeedTable(db.PartnerAssignments, "partner_assignments.csv", seedDataPath, config, db);
         await SeedTable(db.ProcessRecordings, "process_recordings.csv", seedDataPath, config, db);
-        await SeedTable(db.PublicImpactSnapshots, "public_impact_snapshots.csv", seedDataPath, config, db);
         await SeedTable(db.SafehouseMonthlyMetrics, "safehouse_monthly_metrics.csv", seedDataPath, config, db);
         await SeedTable(db.SocialMediaPosts, "social_media_posts.csv", seedDataPath, config, db);
         await SeedTable(db.PipelineResults, "pipeline_results.csv", seedDataPath, config, db);
@@ -54,12 +53,33 @@ public static class DataSeeder
             return;
         }
 
-        using var reader = new StreamReader(filePath);
+        using var reader = new StreamReader(filePath, System.Text.Encoding.UTF8);
         using var csv = new CsvReader(reader, config);
 
-        var records = csv.GetRecords<T>().ToList();
-        await dbSet.AddRangeAsync(records);
-        await db.SaveChangesAsync();
-        Console.WriteLine($"[Seeder] Seeded {records.Count} rows into {typeof(T).Name}.");
+        List<T> records;
+        try
+        {
+            records = csv.GetRecords<T>().ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Seeder] ERROR parsing {fileName}: {ex.Message}");
+            return;
+        }
+
+        Console.WriteLine($"[Seeder] Parsed {records.Count} records from {fileName}. Saving...");
+
+        try
+        {
+            await dbSet.AddRangeAsync(records);
+            await db.SaveChangesAsync();
+            Console.WriteLine($"[Seeder] Seeded {records.Count} rows into {typeof(T).Name}.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Seeder] ERROR saving {fileName}: {ex.Message}");
+            if (ex.InnerException != null)
+                Console.WriteLine($"[Seeder]   Inner: {ex.InnerException.Message}");
+        }
     }
 }
