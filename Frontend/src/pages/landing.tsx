@@ -637,7 +637,8 @@ const safehouses = [
   { name: 'General Santos', x: 225, y: 445, region: 'Mindanao' },
 ]
 
-function PhilippinesMap() {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function PhilippinesMap() {
   const [hovered, setHovered] = useState<number | null>(null)
 
   return (
