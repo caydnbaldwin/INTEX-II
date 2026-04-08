@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { getMfaStatus, getMfaSetup, enableMfa, disableMfa } from '@/lib/authApi'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 type View = 'loading' | 'enabled' | 'disabled' | 'setup'
 
 export default function ManageMFAPage() {
+  usePageTitle('Manage MFA')
   const [view, setView] = useState<View>('loading')
   const [sharedKey, setSharedKey] = useState('')
   const [qrDataUrl, setQrDataUrl] = useState('')

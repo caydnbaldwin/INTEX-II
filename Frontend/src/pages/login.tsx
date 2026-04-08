@@ -11,8 +11,10 @@ import { Separator } from '@/components/ui/separator'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { login, completeMfaChallenge, register, getGoogleLoginUrl } from '@/lib/authApi'
 import { useAuth } from '@/context/AuthContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 export function LoginPage() {
+  usePageTitle('Sign In')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { refreshAuthState } = useAuth()
@@ -27,7 +29,7 @@ export function LoginPage() {
 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(false)
+
 
   const [registerEmail, setRegisterEmail] = useState('')
   const [registerPassword, setRegisterPassword] = useState('')
@@ -261,11 +263,6 @@ export function LoginPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="remember-me" checked={rememberMe} onCheckedChange={(checked) => setRememberMe(checked as boolean)} />
-                    <Label htmlFor="remember-me" className="text-sm text-muted-foreground cursor-pointer">Remember me</Label>
-                  </div>
-
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</>
@@ -332,7 +329,7 @@ export function LoginPage() {
                   <div className="flex items-start gap-2">
                     <Checkbox id="accept-terms" checked={acceptTerms} onCheckedChange={(checked) => setAcceptTerms(checked as boolean)} className="mt-1" />
                     <Label htmlFor="accept-terms" className="text-sm text-muted-foreground cursor-pointer leading-relaxed">
-                      I agree to the <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link> and Terms of Service
+                      I agree to the <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link> and <Link to="/privacy#terms-of-use" className="text-primary hover:underline">Terms of Service</Link>
                     </Label>
                   </div>
 

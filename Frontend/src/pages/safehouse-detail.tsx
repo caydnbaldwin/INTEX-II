@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getSafehouseById } from '@/lib/safehouseData'
 import { getStoriesBySafehouseId } from '@/lib/publicResidentStories'
 import 'leaflet/dist/leaflet.css'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const markerIcon = L.divIcon({
   className: '',
@@ -23,6 +24,7 @@ const PROGRAM_ICONS: Record<string, React.ElementType> = {
 }
 
 export function SafehouseDetail() {
+  usePageTitle('Safehouse Details')
   const { id } = useParams<{ id: string }>()
   const safehouse = getSafehouseById(Number(id))
   const stories = safehouse ? getStoriesBySafehouseId(safehouse.id) : []
@@ -193,7 +195,7 @@ export function SafehouseDetail() {
                     <div className="h-[200px] lg:h-auto">
                       <img
                         src={safehouse.photoPath}
-                        alt=""
+                        alt={`Photo of ${safehouse.name}`}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -289,7 +291,7 @@ export function SafehouseDetail() {
             Your gift directly supports the {safehouse.occupancy} girls living at {safehouse.name} in {safehouse.city}, providing shelter, education, counseling, and a path toward independence.
           </p>
           <Button asChild className="mt-6 rounded-full px-8 text-base">
-            <Link to="/login">Donate Now</Link>
+            <Link to="/donate">Donate Now</Link>
           </Button>
         </div>
       </div>

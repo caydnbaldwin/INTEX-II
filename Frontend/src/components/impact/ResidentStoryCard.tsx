@@ -42,7 +42,7 @@ export function ResidentStoryCard({ story, compact }: ResidentStoryCardProps) {
         <div className="flex-1 min-h-0">
           <img
             src={photoPath}
-            alt=""
+            alt={story.headline}
             className="w-full h-full object-cover"
           />
         </div>

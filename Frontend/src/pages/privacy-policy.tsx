@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Shield } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const sections = [
   {
@@ -186,6 +187,25 @@ No system is completely immune to security risks. If you believe your data has b
 We encourage you to review this policy periodically. Continued use of our website after changes are posted constitutes your acceptance of the updated policy.`,
   },
   {
+    id: 'terms-of-use',
+    title: 'Terms of Use',
+    content: `By accessing or using the Lunas website, you agree to the following terms:
+
+**Acceptable Use** — You may use this website only for lawful purposes and in accordance with these terms. You must not misuse the platform, attempt to gain unauthorized access to restricted areas, or interfere with the operation of the site.
+
+**Intellectual Property** — All content on this site, including text, graphics, logos, and software, is the property of Lunas or its licensors and is protected by applicable intellectual property laws. You may not reproduce, distribute, or create derivative works without prior written consent.
+
+**User Accounts** — If you create an account, you are responsible for maintaining the confidentiality of your credentials and for all activity under your account. You agree to notify us immediately of any unauthorized use.
+
+**Limitation of Liability** — Lunas provides this website on an "as is" basis. To the fullest extent permitted by law, Lunas shall not be liable for any indirect, incidental, or consequential damages arising from your use of the site.
+
+**Modifications** — We reserve the right to update these terms at any time. Continued use of the website after changes are posted constitutes acceptance of the revised terms.
+
+**Governing Law** — These terms are governed by and construed in accordance with the laws of the State of Utah, United States.
+
+For questions about these terms, contact us at contact@lunas.org.`,
+  },
+  {
     id: 'contact',
     title: 'Contact Us',
     content: `If you have any questions, concerns, or requests related to this privacy policy or how we handle your data, please contact us:
@@ -226,6 +246,7 @@ function renderContent(text: string) {
 }
 
 export function PrivacyPolicy() {
+  usePageTitle('Privacy Policy')
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [])

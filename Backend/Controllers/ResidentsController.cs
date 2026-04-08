@@ -29,6 +29,16 @@ public class ResidentsController(AppDbContext db) : ControllerBase
         return Ok(await query.OrderBy(r => r.ResidentId).ToListAsync());
     }
 
+    [HttpGet("case-conferences")]
+    public async Task<IActionResult> GetCaseConferences()
+    {
+        var plans = await db.InterventionPlans
+            .Where(p => p.CaseConferenceDate.HasValue)
+            .OrderByDescending(p => p.CaseConferenceDate)
+            .ToListAsync();
+        return Ok(plans);
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {

@@ -1,8 +1,36 @@
 import { Link } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
-import { ArrowRight, ChevronDown, Heart, CheckCircle2, Pill, Utensils, Stethoscope, Users, Home } from 'lucide-react'
+import { ArrowRight, ChevronDown, Heart, CheckCircle2, Pill, Utensils, Stethoscope, Users, Home, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
+import { usePageTitle } from '@/hooks/usePageTitle'
+
+const AREA_COLORS: Record<string, string> = {
+  'Education':   'oklch(0.45 0.18 280)',
+  'Operations':  'oklch(0.55 0.15 280)',
+  'Wellbeing':   'oklch(0.35 0.12 280)',
+  'Maintenance': 'oklch(0.65 0.10 280)',
+  'Transport':   'oklch(0.70 0.08 280)',
+  'Outreach':    'oklch(0.75 0.06 280)',
+}
+const AREA_LABELS: Record<string, string> = {
+  Education:   'Education',
+  Operations:  'Operations',
+  Wellbeing:   'Counseling',
+  Maintenance: 'Maintenance',
+  Transport:   'Transport',
+  Outreach:    'Outreach',
+}
+
+interface AnnualPayload {
+  type: string
+  year: number
+  funding_coverage_pct: number
+  funding_gap_php: number
+  allocation_breakdown: Record<string, number>
+  challenge: string
+  months_below_50pct_funding: number
+}
 
 const donationTiers = [
   { amount: 15, label: '$15', description: 'Provides essential vitamins for a child', icon: Pill, iconLabel: 'Vitamins' },
@@ -13,12 +41,28 @@ const donationTiers = [
 ]
 
 export function LandingPage() {
+  usePageTitle('Home')
   const API = import.meta.env.VITE_API_BASE_URL as string
   const [backendStatus, setBackendStatus] = useState('')
   const [dbStatus, setDbStatus] = useState('')
   const [isCheckingBackend, setIsCheckingBackend] = useState(false)
   const [isCheckingDb, setIsCheckingDb] = useState(false)
   const [donationTier, setDonationTier] = useState(0)
+  const [latestAnnual, setLatestAnnual] = useState<AnnualPayload | null>(null)
+
+  useEffect(() => {
+    fetch(`${API}/api/public/impact-snapshots`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then((snapshots: Array<{ metricPayloadJson: string }> | null) => {
+        if (!snapshots) return
+        const annual = snapshots
+          .map(s => { try { return JSON.parse(s.metricPayloadJson) as AnnualPayload } catch { return null } })
+          .filter((p): p is AnnualPayload => p?.type === 'annual_summary')
+          .sort((a, b) => b.year - a.year)
+        if (annual.length > 0) setLatestAnnual(annual[0])
+      })
+      .catch(() => { /* non-critical — transparency strip stays hidden */ })
+  }, [API])
 
   async function verifyBackend() {
     setBackendStatus('Checking backend...')
@@ -73,30 +117,6 @@ export function LandingPage() {
 
         <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 py-24 w-full flex justify-end">
           <div className="max-w-2xl text-right">
-            <div className="mb-4 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={verifyBackend}
-                disabled={isCheckingBackend}
-                className="h-8 px-3 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-white/90 text-xs hover:bg-white/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isCheckingBackend ? 'Verifying...' : 'Verify Backend Connection'}
-              </button>
-              <button
-                type="button"
-                onClick={verifyDatabase}
-                disabled={isCheckingDb}
-                className="h-8 px-3 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm text-white/90 text-xs hover:bg-white/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isCheckingDb ? 'Verifying...' : 'Verify Database Connection'}
-              </button>
-            </div>
-            {(backendStatus || dbStatus) && (
-              <div className="mb-4 flex flex-col items-end gap-1">
-                {backendStatus && <p className="text-xs text-white/70">Backend: {backendStatus}</p>}
-                {dbStatus && <p className="text-xs text-white/70">Database: {dbStatus}</p>}
-              </div>
-            )}
             <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm px-4 py-2 text-sm text-white/90">
               <span>Restoring Hope in the Philippines</span>
             </div>
@@ -125,7 +145,7 @@ export function LandingPage() {
                 asChild
                 className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white hover:border-white/60"
               >
-                <Link to="/login">
+                <Link to="/donate">
                   <Heart className="mr-2 h-4 w-4" />
                   Contribute / Donate
                 </Link>
@@ -284,7 +304,7 @@ export function LandingPage() {
 
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <Button size="lg" asChild className="rounded-full px-8 font-medium">
-                  <Link to="/impact">
+                  <Link to="/donate">
                     Donate Now
                     <Heart className="ml-2 h-4 w-4" />
                   </Link>
@@ -369,6 +389,105 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ───────────────── Transparency Strip ───────────────── */}
+      {latestAnnual && (
+        <section className="py-16 sm:py-20 bg-foreground text-background">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            <div className="grid lg:grid-cols-2 gap-12 items-start">
+
+              {/* Left: heading + allocation bar */}
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-background/50 mb-4">
+                  Financial Transparency
+                </p>
+                <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-background tracking-tight">
+                  Every peso, accounted for
+                </h2>
+                <p className="mt-4 text-base text-background/70 leading-relaxed">
+                  In {latestAnnual.year} we raised{' '}
+                  <span className="font-semibold text-background">{latestAnnual.funding_coverage_pct.toFixed(0)}%</span>{' '}
+                  of our annual operating budget.{' '}
+                  Here is exactly where every donated peso went.
+                </p>
+
+                {/* Segmented allocation bar */}
+                <div className="mt-8 space-y-3">
+                  <div className="flex h-6 w-full rounded-full overflow-hidden gap-px">
+                    {Object.entries(latestAnnual.allocation_breakdown)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([key, value]) => {
+                        const total = Object.values(latestAnnual.allocation_breakdown).reduce((s, v) => s + v, 0)
+                        const pct = (value / total) * 100
+                        return (
+                          <div
+                            key={key}
+                            title={`${AREA_LABELS[key] ?? key}: ${pct.toFixed(0)}%`}
+                            style={{ width: `${pct}%`, backgroundColor: AREA_COLORS[key] ?? 'oklch(0.5 0.1 280)' }}
+                          />
+                        )
+                      })}
+                  </div>
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
+                    {Object.entries(latestAnnual.allocation_breakdown)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([key, value]) => {
+                        const total = Object.values(latestAnnual.allocation_breakdown).reduce((s, v) => s + v, 0)
+                        return (
+                          <div key={key} className="flex items-center gap-1.5 text-xs text-background/70">
+                            <span
+                              className="inline-block h-2 w-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: AREA_COLORS[key] ?? 'oklch(0.5 0.1 280)' }}
+                            />
+                            {AREA_LABELS[key] ?? key}{' '}
+                            <span className="text-background/50">{((value / total) * 100).toFixed(0)}%</span>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: challenge callout + CTA */}
+              <div className="flex flex-col gap-6">
+                <div className="rounded-2xl border border-background/10 bg-background/5 p-6">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-background/40 mb-3">
+                    {latestAnnual.year} — What the gap cost us
+                  </p>
+                  <blockquote className="text-base leading-relaxed text-background/80 italic">
+                    "{latestAnnual.challenge}"
+                  </blockquote>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    size="lg"
+                    asChild
+                    className="bg-background text-foreground hover:bg-background/90 font-medium rounded-full"
+                  >
+                    <Link to="/impact?tab=funding">
+                      See Full Financial Report
+                      <ExternalLink className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    asChild
+                    className="border-background/30 text-background bg-transparent hover:bg-background/10 hover:text-background rounded-full"
+                  >
+                    <Link to="/login">
+                      <Heart className="mr-2 h-4 w-4" />
+                      Close the Gap
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ───────────────── Education: Text + Overlapping Images ───────────────── */}
       <section className="py-20 sm:py-28 bg-background">
@@ -517,6 +636,33 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Connection verification links */}
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 py-4 flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
+        <button
+          type="button"
+          onClick={verifyBackend}
+          disabled={isCheckingBackend}
+          className="hover:text-foreground transition-colors disabled:opacity-60"
+        >
+          {isCheckingBackend ? 'Verifying...' : 'Verify Backend'}
+        </button>
+        <span className="text-border">|</span>
+        <button
+          type="button"
+          onClick={verifyDatabase}
+          disabled={isCheckingDb}
+          className="hover:text-foreground transition-colors disabled:opacity-60"
+        >
+          {isCheckingDb ? 'Verifying...' : 'Verify Database'}
+        </button>
+        {(backendStatus || dbStatus) && (
+          <>
+            <span className="text-border">|</span>
+            <span>{backendStatus && `Backend: ${backendStatus}`}{backendStatus && dbStatus && ' · '}{dbStatus && `DB: ${dbStatus}`}</span>
+          </>
+        )}
+      </div>
     </div>
   )
 }

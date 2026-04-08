@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
@@ -6,6 +7,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = AuthRoles.Admin)]
 public class DbCheckController : ControllerBase
 {
     private readonly AppDbContext _db;
