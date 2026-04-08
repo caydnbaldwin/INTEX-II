@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Calendar, Brain, ArrowRight, Loader2 } from 'lucide-react'
+import { Plus, Calendar, Brain, ArrowRight, Loader2, Mic } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -26,7 +26,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,6 +67,18 @@ interface ApiResident {
   [key: string]: unknown
 }
 
+interface ProcessRecordingAutofillResponse {
+  sessionDate: string | null
+  sessionType: string | null
+  emotionalStateObserved: string | null
+  emotionalStateEnd: string | null
+  sessionNarrative: string | null
+  interventionsApplied: string | null
+  followUpActions: string | null
+  confidence: number | null
+  missingFields: string[]
+}
+
 /** Local display model */
 interface Session {
   id: number
@@ -99,6 +111,20 @@ const EMOTIONAL_STATES: EmotionalState[] = [
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+const MISSING_FIELD_LABELS: Record<string, string> = {
+  sessionDate: 'Date',
+  sessionType: 'Session Type',
+  emotionalStateObserved: 'Emotional State (Start)',
+  emotionalStateEnd: 'Emotional State (End)',
+  sessionNarrative: 'Session Narrative',
+  interventionsApplied: 'Interventions Used',
+  followUpActions: 'Follow-up Actions',
+}
+
+function formatMissingField(field: string): string {
+  return MISSING_FIELD_LABELS[field] ?? field
+}
 
 function emotionBadgeClass(state: EmotionalState): string {
   switch (state) {
@@ -144,6 +170,12 @@ export function ProcessRecording() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState(blankForm)
   const [formResident, setFormResident] = useState('')
+
+  const [audioFile, setAudioFile] = useState<File | null>(null)
+  const [autoFillLoading, setAutoFillLoading] = useState(false)
+  const [autoFillError, setAutoFillError] = useState('')
+  const [autoFillMissingFields, setAutoFillMissingFields] = useState<string[]>([])
+  const [autoFillConfidence, setAutoFillConfidence] = useState<number | null>(null)
 
   // --- Data fetching ---
   const fetchData = useCallback(async () => {
@@ -191,6 +223,70 @@ export function ProcessRecording() {
     selectedResident === 'all'
       ? sessions
       : sessions.filter((s) => String(s.residentId) === selectedResident)
+
+  async function handleAutofillFromAudio() {
+    if (!audioFile) {
+      setAutoFillError('Please select an audio file first.')
+      return
+    }
+
+    setAutoFillLoading(true)
+    setAutoFillError('')
+    setAutoFillMissingFields([])
+    setAutoFillConfidence(null)
+
+    try {
+      const payload = new FormData()
+      payload.append('audio', audioFile)
+
+      const result = await api.postForm<ProcessRecordingAutofillResponse>(
+        '/api/process-recordings/autofill-from-audio',
+        payload,
+      )
+
+      const normalizedSessionType = SESSION_TYPES.includes(
+        result.sessionType as SessionType,
+      )
+        ? result.sessionType
+        : ''
+
+      const normalizedStateStart = EMOTIONAL_STATES.includes(
+        result.emotionalStateObserved as EmotionalState,
+      )
+        ? result.emotionalStateObserved
+        : ''
+
+      const normalizedStateEnd = EMOTIONAL_STATES.includes(
+        result.emotionalStateEnd as EmotionalState,
+      )
+        ? result.emotionalStateEnd
+        : ''
+
+      setForm((prev) => ({
+        ...prev,
+        date: result.sessionDate || prev.date,
+        sessionType: normalizedSessionType || prev.sessionType,
+        emotionalStateStart: normalizedStateStart || prev.emotionalStateStart,
+        emotionalStateEnd: normalizedStateEnd || prev.emotionalStateEnd,
+        narrative: result.sessionNarrative || prev.narrative,
+        interventions: result.interventionsApplied || prev.interventions,
+        followUpActions: result.followUpActions || prev.followUpActions,
+      }))
+
+      setAutoFillMissingFields(result.missingFields ?? [])
+      setAutoFillConfidence(result.confidence)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        setAutoFillError(
+          'AI quota exceeded. Please try again later or fill in the fields manually.',
+        )
+      } else {
+        setAutoFillError('Unable to auto-fill from audio. Please fill in manually.')
+      }
+    } finally {
+      setAutoFillLoading(false)
+    }
+  }
 
   async function handleSave() {
     const resident = residents.find((r) => String(r.id) === formResident)
@@ -245,6 +341,10 @@ export function ProcessRecording() {
           onClick={() => {
             setForm(blankForm)
             setFormResident('')
+            setAudioFile(null)
+            setAutoFillError('')
+            setAutoFillMissingFields([])
+            setAutoFillConfidence(null)
             setDialogOpen(true)
           }}
           className="gap-2 bg-violet-700 hover:bg-violet-800"
@@ -357,12 +457,86 @@ export function ProcessRecording() {
 
       {/* New Session Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Counseling Session</DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            {/* Audio Auto-fill */}
+            <div className="space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+              <Label htmlFor="sessionAudio" className="flex items-center gap-1.5">
+                <Mic className="h-3.5 w-3.5 text-zinc-400" />
+                Upload Recording for AI Auto-fill
+                <span className="ml-1 text-xs font-normal text-zinc-400">
+                  (optional)
+                </span>
+              </Label>
+              <p className="text-xs text-zinc-400">
+                Audio is processed in memory and never stored. Review all fields before
+                saving.
+              </p>
+              {/* Hidden native file input */}
+              <Input
+                id="sessionAudio"
+                type="file"
+                accept="audio/*"
+                className="hidden"
+                onChange={(e) => {
+                  setAudioFile(e.target.files?.[0] ?? null)
+                  setAutoFillError('')
+                }}
+              />
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-violet-700 text-white hover:bg-violet-800"
+                    onClick={() => {
+                      document.getElementById('sessionAudio')?.click()
+                    }}
+                  >
+                    Choose audio file
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAutofillFromAudio}
+                    disabled={!audioFile || autoFillLoading}
+                  >
+                    {autoFillLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        Analyzing…
+                      </>
+                    ) : (
+                      'Auto-fill from Audio'
+                    )}
+                  </Button>
+                  {autoFillConfidence !== null && (
+                    <p className="text-xs text-zinc-500">
+                      AI confidence: {Math.round(autoFillConfidence * 100)}%
+                    </p>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-500">
+                  {audioFile ? audioFile.name : 'No file chosen'}
+                </p>
+              </div>
+              {autoFillError && (
+                <p className="text-sm text-red-600">{autoFillError}</p>
+              )}
+              {autoFillMissingFields.length > 0 && (
+                <p className="text-xs text-amber-700">
+                  Could not extract:{' '}
+                  {autoFillMissingFields.map(formatMissingField).join(', ')}. Please fill
+                  in manually.
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Resident</Label>
