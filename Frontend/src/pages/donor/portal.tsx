@@ -10,6 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
+import { donorSpotlightResidentIds, listDonorSpotlightStories } from '@/lib/publicResidentStories'
 
 const donorDonations = [
   { id: 1, date: '2026-03-15', amount: 5000, type: 'Monetary', campaign: 'Year-End Hope', recurring: true },
@@ -75,10 +76,12 @@ export function DonorPortal() {
           </CardTitle>
           <CardDescription>How your donations have been allocated</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-8">
           <div className="grid gap-6 sm:grid-cols-3">
             <div className="text-center">
-              <div className="text-2xl font-bold text-foreground font-serif">3</div>
+              <div className="text-2xl font-bold text-foreground font-serif">
+                {donorSpotlightResidentIds.length}
+              </div>
               <p className="text-sm text-muted-foreground mt-1">Residents supported</p>
             </div>
             <div className="text-center">
@@ -89,6 +92,24 @@ export function DonorPortal() {
               <div className="text-2xl font-bold text-foreground font-serif">12</div>
               <p className="text-sm text-muted-foreground mt-1">Months of education</p>
             </div>
+          </div>
+          <div className="border-t border-border pt-6">
+            <p className="text-sm font-medium text-foreground mb-3">Representative participants you helped</p>
+            <p className="text-xs text-muted-foreground mb-4">
+              Shown with anonymized labels only (not real names).
+            </p>
+            <ul className="space-y-4">
+              {listDonorSpotlightStories().map((story) => (
+                <li
+                  key={story.residentId}
+                  className="rounded-md border border-border bg-muted/20 px-4 py-3"
+                >
+                  <div className="font-mono text-sm font-semibold text-primary">{story.pseudonym}</div>
+                  <div className="mt-1 text-sm font-medium text-foreground">{story.headline}</div>
+                  <p className="mt-1 text-sm text-muted-foreground leading-snug">{story.description}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </CardContent>
       </Card>
