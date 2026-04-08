@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
-import { login, loginWithTwoFactor, register, getGoogleLoginUrl } from '@/lib/authApi'
+import { login, completeMfaChallenge, register, getGoogleLoginUrl } from '@/lib/authApi'
 import { useAuth } from '@/context/AuthContext'
 
 export function LoginPage() {
@@ -23,8 +23,6 @@ export function LoginPage() {
 
   // Step: 'credentials' shows the normal form; 'totp' shows the MFA code input
   const [step, setStep] = useState<'credentials' | 'totp'>('credentials')
-  const [pendingEmail, setPendingEmail] = useState('')
-  const [pendingPassword, setPendingPassword] = useState('')
   const [totpCode, setTotpCode] = useState('')
 
   const [loginEmail, setLoginEmail] = useState('')
@@ -41,7 +39,7 @@ export function LoginPage() {
   const [error, setError] = useState(externalError ?? '')
 
   function navigateAfterLogin(roles: string[]) {
-    if (roles.includes('Admin')) {
+    if (roles.includes('Admin') || roles.includes('Staff')) {
       navigate('/admin')
     } else {
       navigate('/donor')
@@ -60,8 +58,6 @@ export function LoginPage() {
         const session = await refreshAuthState()
         navigateAfterLogin(session?.roles ?? [])
       } else if (result.status === 'requiresTwoFactor') {
-        setPendingEmail(loginEmail)
-        setPendingPassword(loginPassword)
         setStep('totp')
       } else if (result.status === 'error') {
         setError(result.message)
@@ -77,15 +73,12 @@ export function LoginPage() {
     setIsLoading(true)
 
     try {
-      const result = await loginWithTwoFactor(pendingEmail, pendingPassword, totpCode)
-
-      if (result.status === 'ok') {
-        const session = await refreshAuthState()
-        navigateAfterLogin(session?.roles ?? [])
-      } else if (result.status === 'error') {
-        setError(result.message)
-        setTotpCode('')
-      }
+      await completeMfaChallenge(totpCode)
+      const session = await refreshAuthState()
+      navigateAfterLogin(session?.roles ?? [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid verification code.')
+      setTotpCode('')
     } finally {
       setIsLoading(false)
     }
