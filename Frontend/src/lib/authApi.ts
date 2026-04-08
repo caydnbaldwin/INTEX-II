@@ -30,7 +30,7 @@ export async function login(email: string, password: string): Promise<LoginResul
 
   const data = await res.json().catch(() => ({})) as { detail?: string };
 
-  if (res.status === 401 && data.detail === 'requiresTwoFactor') {
+  if (data.detail === 'requiresTwoFactor') {
     return { status: 'requiresTwoFactor' };
   }
 
