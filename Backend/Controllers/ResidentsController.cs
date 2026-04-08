@@ -8,7 +8,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/residents")]
-[Authorize(Policy = AuthPolicies.AdminOnly)]
+[Authorize(Policy = AuthPolicies.StaffOrAdmin)]
 public class ResidentsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
