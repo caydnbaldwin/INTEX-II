@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Menu, X, Shield } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/context/AuthContext'
@@ -38,10 +38,14 @@ export function PublicLayout() {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-sm border-b border-border">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-          <Link to="/" className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-foreground" />
-            <span className="text-lg font-semibold tracking-tight text-foreground font-serif">
+        <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-8">
+          <Link to="/" className="flex items-center gap-3">
+            <img
+              src="/images/PinwheelLogo-cropped.png"
+              alt=""
+              className="h-14 self-center"
+            />
+            <span className="font-serif text-2xl font-bold text-foreground tracking-tight leading-none">
               Lunas
             </span>
           </Link>
@@ -54,7 +58,7 @@ export function PublicLayout() {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`relative text-sm font-medium transition-colors ${
+                  className={`relative text-base font-medium transition-colors ${
                     isActive
                       ? 'text-foreground'
                       : 'text-muted-foreground hover:text-foreground'
@@ -74,20 +78,20 @@ export function PublicLayout() {
             {isAuthenticated ? (
               <>
                 {dashboardPath && (
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to={dashboardPath}>Dashboard</Link>
+                  <Button variant="ghost" asChild>
+                    <Link to={dashboardPath} className="text-base">Dashboard</Link>
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={handleLogout}>
+                <Button variant="outline" onClick={handleLogout} className="text-base">
                   Sign Out
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/login">Sign In</Link>
+                <Button variant="ghost" asChild>
+                  <Link to="/login" className="text-base">Sign In</Link>
                 </Button>
-                <Button size="sm" asChild>
+                <Button asChild className="rounded-full px-7 text-base">
                   <Link to="/impact">Donate</Link>
                 </Button>
               </>
@@ -144,7 +148,7 @@ export function PublicLayout() {
                     <Button variant="outline" size="sm" asChild className="w-full">
                       <Link to="/login">Sign In</Link>
                     </Button>
-                    <Button size="sm" asChild className="w-full">
+                    <Button size="sm" asChild className="w-full rounded-full">
                       <Link to="/impact">Donate</Link>
                     </Button>
                   </>
@@ -164,12 +168,16 @@ export function PublicLayout() {
       <footer className="border-t border-border">
         <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-foreground" />
-              <span className="text-base font-semibold text-foreground font-serif">
+            <Link to="/" className="flex items-center gap-2">
+              <img
+                src="/images/PinwheelLogo-cropped.png"
+                alt=""
+                className="h-8"
+              />
+              <span className="font-serif text-lg font-bold text-foreground tracking-tight">
                 Lunas
               </span>
-            </div>
+            </Link>
 
             <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
               {navigation.map((item) => (
