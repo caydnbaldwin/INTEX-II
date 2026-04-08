@@ -27,6 +27,7 @@ public class ProcessRecordingsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] ProcessRecording recording)
     {
         recording.RecordingId = await db.ProcessRecordings.AnyAsync()
