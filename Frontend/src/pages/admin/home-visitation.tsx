@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, MapPin, Calendar, Loader2, Brain, ArrowUp, ArrowDown, CalendarCheck, FileText } from 'lucide-react'
+import { Plus, MapPin, Calendar, Loader2, Brain, ArrowUp, ArrowDown, CalendarCheck, FileText, Trash2 } from 'lucide-react'
 import {
   Table,
   TableHeader,
@@ -26,6 +26,17 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { api } from '@/lib/api'
@@ -274,6 +285,10 @@ export function HomeVisitation() {
   ).length
 
   async function handleSave() {
+    if (!form.residentId) { alert('Resident is required.'); return }
+    if (!form.date) { alert('Visit Date is required.'); return }
+    if (!form.visitType) { alert('Visit Type is required.'); return }
+
     const resident = residents.find((r) => String(r.id) === form.residentId)
     if (!resident) return
 
@@ -297,6 +312,15 @@ export function HomeVisitation() {
       console.error('Failed to save visit', err)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDeleteVisit(id: number) {
+    try {
+      await api.delete(`/api/home-visitations/${id}`)
+      await fetchData()
+    } catch (err) {
+      console.error('Failed to delete visit:', err)
     }
   }
 
@@ -643,13 +667,14 @@ export function HomeVisitation() {
               <TableHead className="text-zinc-500">Location</TableHead>
               <TableHead className="text-zinc-500">Cooperation</TableHead>
               <TableHead className="text-zinc-500">Follow-up</TableHead>
+              <TableHead className="w-12 text-zinc-500"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {visits.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="h-24 text-center text-zinc-400"
                 >
                   No visits logged yet.
@@ -703,6 +728,29 @@ export function HomeVisitation() {
                         No
                       </Badge>
                     )}
+                  </TableCell>
+                  <TableCell className="px-2">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Visit</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently remove this {visit.visitType} visit for {visit.residentName}. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteVisit(visit.id)} className="bg-red-600 hover:bg-red-700">
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))

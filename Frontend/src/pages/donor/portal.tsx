@@ -97,8 +97,8 @@ export function DonorPortal() {
             <TrendingUp className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">92</div>
-            <p className="text-xs text-muted-foreground mt-1">Top 15% of donors</p>
+            <div className="text-3xl font-bold text-primary">{Math.min(99, Math.max(1, Math.round(Math.log1p(totalDonated / 100) * 20)))}</div>
+            <p className="text-xs text-muted-foreground mt-1">Based on contribution history</p>
           </CardContent>
         </Card>
       </div>
@@ -121,14 +121,15 @@ export function DonorPortal() {
               <p className="text-sm text-muted-foreground mt-1">Residents supported</p>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-foreground font-serif">48</div>
+              <div className="text-2xl font-bold text-foreground font-serif">~{Math.max(1, Math.round(totalDonated / 500))}</div>
               <p className="text-sm text-muted-foreground mt-1">Counseling sessions funded</p>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-foreground font-serif">12</div>
+              <div className="text-2xl font-bold text-foreground font-serif">~{Math.max(1, Math.round(totalDonated / 2000))}</div>
               <p className="text-sm text-muted-foreground mt-1">Months of education</p>
             </div>
           </div>
+          <p className="text-xs text-muted-foreground italic">Estimates based on average program costs.</p>
           <div className="border-t border-border pt-6">
             <p className="text-sm font-medium text-foreground mb-3">Representative participants you helped</p>
             <p className="text-xs text-muted-foreground mb-4">

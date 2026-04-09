@@ -352,6 +352,10 @@ export function ProcessRecording() {
   }
 
   async function handleSave() {
+    if (!formResident) { alert('Resident is required.'); return }
+    if (!form.date) { alert('Session Date is required.'); return }
+    if (!form.narrative?.trim()) { alert('Session Narrative is required.'); return }
+
     const resident = residents.find((r) => String(r.id) === formResident)
     if (!resident) return
 
