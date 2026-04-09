@@ -114,7 +114,7 @@ function TemplateEditorCard({
               onClick={async () => {
                 setSaving(true)
                 try {
-                  await onSave(template.id, subject, bodyText)
+                  await onSave(template.templateId, subject, bodyText)
                 } finally {
                   setSaving(false)
                 }

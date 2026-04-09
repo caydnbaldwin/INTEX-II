@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect, useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Plus, Search, Users, UserCheck, Banknote, Trash2, Pencil, AlertTriangle, ChevronDown, ChevronRight, Loader2, Mail, Play, SendHorizonal, Eye, Activity } from 'lucide-react'
+import { Plus, Search, Users, UserCheck, Banknote, Trash2, Pencil, AlertTriangle, ChevronDown, ChevronRight, Loader2, Mail, Play, Eye } from 'lucide-react'
 import {
   Tabs,
   TabsList,
@@ -310,7 +310,6 @@ export function DonorsManagement() {
   const itemsPerPage = 15
 
   // Automation state
-  const [automationState, setAutomationState] = useState<AutomationState | null>(null)
   const [automationDonors, setAutomationDonors] = useState<AutomationDonorResponse | null>(null)
   const [emailLog, setEmailLog] = useState<EmailLogEntry[]>([])
   const [automationOn, setAutomationOn] = useState(false)
@@ -329,7 +328,6 @@ export function DonorsManagement() {
         api.get<AutomationDonorResponse>('/api/email-automation/donors'),
         api.get<EmailLogEntry[]>('/api/email-automation/email-log'),
       ])
-      setAutomationState(stateJson)
       setAutomationDonors(donorJson)
       setEmailLog(emailJson)
       setAutomationOn(stateJson.enabled ?? false)
