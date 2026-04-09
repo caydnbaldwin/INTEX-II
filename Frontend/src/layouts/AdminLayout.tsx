@@ -5,7 +5,6 @@ import {
   Users,
   FileText,
   Home,
-  Heart,
   BarChart3,
   ShieldAlert,
   ShieldCheck,
@@ -16,8 +15,10 @@ import {
   X,
   Sun,
   Moon,
-  DollarSign,
+  BedDouble,
   UserCheck,
+  DollarSign,
+  Heart,
   Share2,
 } from 'lucide-react'
 import {
@@ -54,6 +55,7 @@ const residentCareNav = [
   { name: 'Caseload', href: '/admin/caseload', icon: Users },
   { name: 'Process Recording', href: '/admin/process-recording', icon: FileText },
   { name: 'Home Visitation', href: '/admin/visitation', icon: Home },
+  { name: 'Safehouse Operations', href: '/admin/safehouses/boarding', icon: BedDouble },
 ]
 
 const outreachNav = [
@@ -77,12 +79,13 @@ export function AdminLayout() {
 
   const { theme, setTheme, canSetTheme } = useTheme()
   const isAdmin = authSession.roles.includes('Admin')
-  const allAdminItems = [...dashboardNav, ...donorFundingNav, ...residentCareNav, ...outreachNav]
 
   const [showMfaBanner, setShowMfaBanner] = useState(false)
   const isItemActive = (item: { href: string }) =>
     location.pathname === item.href
     || (item.href.includes('?') && location.pathname + location.search === item.href)
+  const allAdminItems = [...dashboardNav, ...donorFundingNav, ...residentCareNav, ...outreachNav]
+  const activeHeaderItem = [...(isAdmin ? allAdminItems : donorNav), ...securityNav].find(isItemActive)
   const sectionHasActiveItem = (items: { href: string }[]) => items.some(isItemActive)
   const [openSections, setOpenSections] = useState<Record<AdminSectionKey, boolean>>({
     donorsFunding: sectionHasActiveItem(donorFundingNav),
@@ -330,7 +333,7 @@ export function AdminLayout() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <span className="text-sm font-medium text-muted-foreground flex-1">
-            {[...(isAdmin ? allAdminItems : donorNav), ...securityNav].find((item) => item.href === location.pathname || (item.href.includes('?') && item.href === location.pathname + location.search))?.name ?? 'Dashboard'}
+            {activeHeaderItem?.name ?? 'Dashboard'}
           </span>
           <TooltipProvider>
             <Tooltip>

@@ -17,4 +17,6 @@ public class IncidentReport
     public DateOnly? ResolutionDate { get; set; }
     public string? ReportedBy { get; set; }
     public bool? FollowUpRequired { get; set; }
+    public string? AssignedStaffUserId { get; set; }
+    public string? AssignedStaffDisplayName { get; set; }
 }

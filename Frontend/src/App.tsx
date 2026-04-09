@@ -42,6 +42,9 @@ const DonorsManagement = lazy(() =>
 const ReportsAnalytics = lazy(() =>
   import('./pages/admin/reports').then((m) => ({ default: m.ReportsAnalytics })),
 )
+const BoardingManagement = lazy(() =>
+  import('./pages/admin/boarding').then((m) => ({ default: m.BoardingManagement })),
+)
 const DonorPortal = lazy(() =>
   import('./pages/donor/portal').then((m) => ({ default: m.DonorPortal })),
 )
@@ -120,6 +123,7 @@ export default function App() {
             <Route path="visitation" element={<HomeVisitation />} />
             <Route path="donors" element={<DonorsManagement />} />
             <Route path="reports" element={<ReportsAnalytics />} />
+            <Route path="safehouses/boarding" element={<BoardingManagement />} />
           </Route>
 
           {/* Donor routes */}
