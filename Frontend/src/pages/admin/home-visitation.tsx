@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, MapPin, Calendar, Loader2, Brain, ArrowUp, ArrowDown, CalendarCheck, Trash2 } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Plus, MapPin, Calendar, Loader2, Brain, ArrowUp, ArrowDown, CalendarCheck, Search, Pencil, Trash2 } from 'lucide-react'
 import {
   Table,
   TableHeader,
@@ -23,7 +23,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
@@ -40,10 +39,11 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
-import { api } from '@/lib/api'
-import { sanitize } from '@/lib/sanitize'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { api, ApiError } from '@/lib/api'
 import { TablePagination } from '@/components/TablePagination'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useAuth } from '@/context/AuthContext'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,7 +74,7 @@ interface ApiHomeVisitation {
   purpose: string
   observations: string
   familyCooperationLevel: string
-  safetyConcernsNoted: string
+  safetyConcernsNoted: boolean | null
   followUpNeeded: boolean
   followUpNotes: string
   visitOutcome: string
@@ -118,17 +118,8 @@ interface HomeVisit {
   location: string
   observations: string
   cooperationLevel: CooperationLevel
-  safetyConcerns: string
+  safetyConcerns: boolean
   followUpNeeded: boolean
-}
-
-interface InterventionPlan {
-  planId: number
-  residentId: number | null
-  planCategory: string | null
-  planDescription: string | null
-  status: string | null
-  caseConferenceDate: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -193,9 +184,11 @@ const blankForm = {
   location: '',
   observations: '',
   cooperationLevel: '' as string,
-  safetyConcerns: '',
-  followUpNeeded: 'no',
+  safetyConcerns: false,
+  followUpNeeded: false,
 }
+
+type FormFieldErrors = Partial<Record<'residentId' | 'date' | 'visitType' | 'general', string>>
 
 // ---------------------------------------------------------------------------
 // Component
@@ -203,19 +196,21 @@ const blankForm = {
 
 export function HomeVisitation() {
   usePageTitle('Home Visitation')
+  const { authSession } = useAuth()
+  const isAdmin = authSession.roles.includes('Admin')
   const [visits, setVisits] = useState<HomeVisit[]>([])
   const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
-  const [upcomingConferences, setUpcomingConferences] = useState<(InterventionPlan & { residentName: string })[]>([])
-  const [pastConferences, setPastConferences] = useState<(InterventionPlan & { residentName: string })[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const [visitsPage, setVisitsPage] = useState(1)
-  const visitsPerPage = 15
-
-  const [viewingVisit, setViewingVisit] = useState<HomeVisit | null>(null)
+  const recordsPerPage = 15
+  const [upcomingPage, setUpcomingPage] = useState(1)
+  const [historyPage, setHistoryPage] = useState(1)
+  const [activeConferenceTab, setActiveConferenceTab] = useState<'upcoming' | 'history'>('upcoming')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(blankForm)
+  const [formErrors, setFormErrors] = useState<FormFieldErrors>({})
 
   // ML prediction state
   const [predForm, setPredForm] = useState({
@@ -226,15 +221,16 @@ export function HomeVisitation() {
   })
   const [predicting, setPredicting] = useState(false)
   const [prediction, setPrediction] = useState<PredictionResult | null>(null)
+  const [conferenceSearch, setConferenceSearch] = useState('')
+  const conferenceRecordsRef = useRef<HTMLDivElement | null>(null)
 
   // --- Data fetching ---
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [apiVisits, apiResidents, apiConferences] = await Promise.all([
+      const [apiVisits, apiResidents] = await Promise.all([
         api.get<ApiHomeVisitation[]>('/api/home-visitations'),
         api.get<ApiResident[]>('/api/residents'),
-        api.get<InterventionPlan[]>('/api/residents/case-conferences').catch(() => [] as InterventionPlan[]),
       ])
 
       const residentList = apiResidents.map((r) => ({
@@ -244,15 +240,6 @@ export function HomeVisitation() {
       setResidents(residentList)
 
       const residentMap = new Map(residentList.map((r) => [r.id, r.name]))
-
-      // Split conferences into upcoming vs past
-      const today = new Date().toISOString().split('T')[0]
-      const enriched = apiConferences.map((c) => ({
-        ...c,
-        residentName: residentMap.get(c.residentId ?? 0) ?? `Resident ${c.residentId}`,
-      }))
-      setUpcomingConferences(enriched.filter((c) => (c.caseConferenceDate ?? '') >= today))
-      setPastConferences(enriched.filter((c) => (c.caseConferenceDate ?? '') < today))
 
       setVisits(
         apiVisits.map((v) => ({
@@ -264,7 +251,7 @@ export function HomeVisitation() {
           location: v.locationVisited ?? '',
           observations: v.observations ?? '',
           cooperationLevel: (v.familyCooperationLevel as CooperationLevel) || 'Cooperative',
-          safetyConcerns: v.safetyConcernsNoted ?? '',
+          safetyConcerns: v.safetyConcernsNoted ?? false,
           followUpNeeded: v.followUpNeeded ?? false,
         })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
       )
@@ -285,18 +272,143 @@ export function HomeVisitation() {
   const emergencyCount = visits.filter(
     (v) => v.visitType === 'Emergency',
   ).length
+  const today = new Date().toISOString().split('T')[0]
+  const normalizedConferenceSearch = conferenceSearch.trim().toLowerCase()
+  const filteredUpcomingConferences = visits.filter((v) =>
+    v.date >= today
+    && (!normalizedConferenceSearch || v.residentName.toLowerCase().includes(normalizedConferenceSearch)),
+  )
+  const filteredPastConferences = visits.filter((v) =>
+    v.date < today
+    && (!normalizedConferenceSearch || v.residentName.toLowerCase().includes(normalizedConferenceSearch)),
+  )
+  const sortByConferenceDateDesc = (a: HomeVisit, b: HomeVisit) => {
+    const aTime = new Date(a.date).getTime() || 0
+    const bTime = new Date(b.date).getTime() || 0
+    return bTime - aTime
+  }
+  const sortedUpcomingConferences = [...filteredUpcomingConferences].sort(sortByConferenceDateDesc)
+  const sortedPastConferences = [...filteredPastConferences].sort(sortByConferenceDateDesc)
+  const paginatedUpcomingConferences = sortedUpcomingConferences.slice(
+    (upcomingPage - 1) * recordsPerPage,
+    upcomingPage * recordsPerPage,
+  )
+  const paginatedPastConferences = sortedPastConferences.slice(
+    (historyPage - 1) * recordsPerPage,
+    historyPage * recordsPerPage,
+  )
+
+  useEffect(() => {
+    setUpcomingPage(1)
+    setHistoryPage(1)
+  }, [conferenceSearch])
+
+  function toFriendlyApiErrors(err: unknown): string[] {
+    if (!(err instanceof ApiError)) return ['Unable to save visit. Please try again.']
+
+    try {
+      const parsed = JSON.parse(err.message) as {
+        title?: string
+        errors?: Record<string, string[]>
+      }
+
+      const validationMessages = Object.values(parsed.errors ?? {}).flat()
+      if (validationMessages.length === 0) {
+        return [parsed.title ?? 'Unable to save visit. Please review the form and try again.']
+      }
+
+      return validationMessages.map((msg) => {
+        if (msg.includes('safetyConcernsNoted') || msg.includes('System.Nullable`1[System.Boolean]')) {
+          return 'Safety Concerns must be selected as Yes or No.'
+        }
+        if (msg.includes('visitation field is required')) {
+          return 'Please complete all required fields before saving.'
+        }
+        return msg
+      })
+    } catch {
+      return ['Unable to save visit. Please review required fields and try again.']
+    }
+  }
+
+  function updateFormField<K extends keyof typeof blankForm>(key: K, value: (typeof blankForm)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+    setFormErrors((prev) => {
+      if (!prev[key as keyof FormFieldErrors] && !prev.general) return prev
+      return { ...prev, [key]: undefined, general: undefined }
+    })
+  }
+
+  function requiredFieldLabels(): string[] {
+    const missing: string[] = []
+    if (!form.date) missing.push('Date')
+    if (!form.residentId) missing.push('Resident')
+    if (!form.visitType) missing.push('Visit Type')
+    return missing
+  }
+
+  function scrollToConferenceRecords() {
+    requestAnimationFrame(() => {
+      conferenceRecordsRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    })
+  }
+
+  function openEditDialog(visit: HomeVisit) {
+    setEditingId(visit.id)
+    setForm({
+      date: visit.date,
+      residentId: String(visit.residentId),
+      visitType: visit.visitType,
+      location: visit.location,
+      observations: visit.observations,
+      cooperationLevel: visit.cooperationLevel,
+      safetyConcerns: visit.safetyConcerns,
+      followUpNeeded: visit.followUpNeeded,
+    })
+    setFormErrors({})
+    setDialogOpen(true)
+  }
+
+  async function handleDelete(id: number) {
+    try {
+      await api.delete(`/api/home-visitations/${id}`)
+      await fetchData()
+      scrollToConferenceRecords()
+    } catch (err) {
+      console.error('Failed to delete visit', err)
+    }
+  }
 
   async function handleSave() {
-    if (!form.residentId) { alert('Resident is required.'); return }
-    if (!form.date) { alert('Visit Date is required.'); return }
-    if (!form.visitType) { alert('Visit Type is required.'); return }
+    const nextErrors: FormFieldErrors = {}
+    if (!form.residentId) nextErrors.residentId = 'Resident is required.'
+    if (!form.date) nextErrors.date = 'Visit date is required.'
+    if (!form.visitType) nextErrors.visitType = 'Visit type is required.'
+
+    if (Object.keys(nextErrors).length > 0) {
+      const missingFields = requiredFieldLabels()
+      setFormErrors({
+        ...nextErrors,
+        general: `Cannot save yet. Please complete required fields: ${missingFields.join(', ')}.`,
+      })
+      return
+    }
 
     const resident = residents.find((r) => String(r.id) === form.residentId)
-    if (!resident) return
+    if (!resident) {
+      setFormErrors({
+        residentId: 'Please select a valid resident.',
+        general: 'Cannot save yet. Please complete required fields: Resident.',
+      })
+      return
+    }
 
     setSaving(true)
     try {
-      await api.post('/api/home-visitations', {
+      const payload = {
         residentId: resident.id,
         visitDate: form.date,
         visitType: form.visitType || 'Routine Follow-Up',
@@ -304,25 +416,31 @@ export function HomeVisitation() {
         observations: form.observations,
         familyCooperationLevel: form.cooperationLevel || 'Cooperative',
         safetyConcernsNoted: form.safetyConcerns,
-        followUpNeeded: form.followUpNeeded === 'yes',
-      })
+        followUpNeeded: form.followUpNeeded,
+      }
+
+      const wasEditing = editingId !== null
+      if (wasEditing) {
+        await api.put(`/api/home-visitations/${editingId}`, payload)
+      } else {
+        await api.post('/api/home-visitations', payload)
+      }
 
       setDialogOpen(false)
+      setEditingId(null)
       setForm(blankForm)
+      setFormErrors({})
       await fetchData()
+      if (wasEditing) {
+        scrollToConferenceRecords()
+      }
     } catch (err) {
       console.error('Failed to save visit', err)
+      setFormErrors({
+        general: toFriendlyApiErrors(err).join(' '),
+      })
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleDeleteVisit(id: number) {
-    try {
-      await api.delete(`/api/home-visitations/${id}`)
-      await fetchData()
-    } catch (err) {
-      console.error('Failed to delete visit:', err)
     }
   }
 
@@ -368,7 +486,9 @@ export function HomeVisitation() {
         </div>
         <Button
           onClick={() => {
+            setEditingId(null)
             setForm(blankForm)
+            setFormErrors({})
             setDialogOpen(true)
           }}
           className="gap-2 bg-violet-700 hover:bg-violet-800"
@@ -421,93 +541,42 @@ export function HomeVisitation() {
         </Card>
       </div>
 
-      {/* Upcoming Conferences + ML Predictor — side by side */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card className="border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <CalendarCheck className="h-5 w-5 text-primary" />
-              Upcoming Case Conferences
-            </CardTitle>
-            <CardDescription>Scheduled intervention reviews for residents</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {upcomingConferences.length === 0 && pastConferences.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No case conferences on record.</p>
-              ) : upcomingConferences.length === 0 ? (
-                <>
-                  <p className="text-xs text-muted-foreground mb-2">No upcoming conferences. Showing most recent:</p>
-                  {pastConferences.slice(0, 5).map((conf) => (
-                    <div key={conf.planId} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-mono text-muted-foreground">{conf.residentName}</span>
-                        {conf.planCategory && (
-                          <Badge variant="outline" className="border-border bg-muted text-muted-foreground">{conf.planCategory}</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        {conf.status && <Badge variant="outline">{conf.status}</Badge>}
-                        <span>{conf.caseConferenceDate ? new Date(conf.caseConferenceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</span>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                upcomingConferences.map((conf) => (
-                  <div key={conf.planId} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-mono text-muted-foreground">{conf.residentName}</span>
-                      {conf.planCategory && (
-                        <Badge variant="outline" className="border-violet-200 bg-violet-50 text-primary dark:border-violet-800 dark:bg-violet-950 dark:text-violet-400">{conf.planCategory}</Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                      {conf.status && <Badge variant="outline">{conf.status}</Badge>}
-                      <span>{conf.caseConferenceDate ? new Date(conf.caseConferenceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Pre-Visit Risk Assessment</CardTitle>
-            </div>
-            <CardDescription>Predict visit outcome before scheduling</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Resident</Label>
-                  <Select value={predForm.residentId} onValueChange={(v) => setPredForm({ ...predForm, residentId: v })}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {residents.map((r) => (
-                        <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Visit Type</Label>
-                  <Select value={predForm.visitType} onValueChange={(v) => setPredForm({ ...predForm, visitType: v })}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {['Initial Assessment', 'Routine Follow-Up', 'Reintegration Assessment', 'Post-Placement Monitoring', 'Emergency'].map((t) => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+      {/* ML Predictor resized now that conference summary card is removed */}
+      <Card ref={conferenceRecordsRef} className="border-border">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">Pre-Visit Risk Assessment</CardTitle>
+          </div>
+          <CardDescription>Predict visit outcome before scheduling</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Resident</Label>
+                <Select value={predForm.residentId} onValueChange={(v) => setPredForm({ ...predForm, residentId: v })}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    {residents.map((r) => (
+                      <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Visit Type</Label>
+                <Select value={predForm.visitType} onValueChange={(v) => setPredForm({ ...predForm, visitType: v })}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    {['Initial Assessment', 'Routine Follow-Up', 'Reintegration Assessment', 'Post-Placement Monitoring', 'Emergency'].map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Cooperation Level</Label>
                   <Select value={predForm.cooperationLevel} onValueChange={(v) => setPredForm({ ...predForm, cooperationLevel: v })}>
@@ -529,172 +598,302 @@ export function HomeVisitation() {
                     <span className="text-sm text-muted-foreground">{predForm.safetyConcerns ? 'Yes' : 'No'}</span>
                   </div>
                 </div>
-              </div>
-              <Button
-                onClick={handlePredict}
-                disabled={predicting || !predForm.residentId || !predForm.visitType || !predForm.cooperationLevel}
-                size="sm"
-                className="w-full gap-2 bg-violet-700 hover:bg-violet-800"
-              >
-                {predicting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
-                Predict Outcome
-              </Button>
-              {prediction && (
-                <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`text-2xl font-bold ${
-                        prediction.favorableProbability >= 0.7 ? 'text-emerald-600 dark:text-emerald-400'
-                          : prediction.favorableProbability >= 0.4 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
-                      }`}
-                    >
-                      {Math.round(prediction.favorableProbability * 100)}%
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={
-                        prediction.favorableProbability >= 0.7 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
-                          : prediction.favorableProbability >= 0.4 ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
-                            : 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
-                      }
-                    >
-                      {prediction.riskLabel}
-                    </Badge>
-                  </div>
-                  <span className="text-xs text-muted-foreground">Confidence: {Math.round(prediction.confidence * 100)}%</span>
-                </div>
-              )}
-              {prediction && prediction.factors.length > 0 && (
-                <div className="space-y-1">
-                  {prediction.factors.slice(0, 3).map((f, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs px-2 py-1">
-                      <div className="flex items-center gap-1.5">
-                        {f.impact === 'positive' ? <ArrowUp className="h-3 w-3 text-emerald-500 dark:text-emerald-400" /> : <ArrowDown className="h-3 w-3 text-red-500 dark:text-red-400" />}
-                        <span className="text-muted-foreground">{f.factor}</span>
-                      </div>
-                      <span className="text-muted-foreground">{f.weight > 0 ? '+' : ''}{(f.weight * 100).toFixed(0)}%</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Visit History Table */}
-      <Card className="border-border">
-        <CardHeader className="pb-0">
-          <CardTitle className="text-lg">Visit History</CardTitle>
-          <CardDescription>All logged home visits, sorted by most recent</CardDescription>
-        </CardHeader>
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-muted-foreground">Date</TableHead>
-              <TableHead className="text-muted-foreground">Resident</TableHead>
-              <TableHead className="text-muted-foreground">Type</TableHead>
-              <TableHead className="text-muted-foreground">Location</TableHead>
-              <TableHead className="text-muted-foreground">Cooperation</TableHead>
-              <TableHead className="text-muted-foreground">Follow-up</TableHead>
-              <TableHead className="w-12 text-muted-foreground"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visits.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  No visits logged yet.
-                </TableCell>
-              </TableRow>
-            ) : (
-              visits.slice((visitsPage - 1) * visitsPerPage, visitsPage * visitsPerPage).map((visit) => (
-                <TableRow key={visit.id} className="cursor-pointer hover:bg-muted" onClick={() => setViewingVisit(visit)}>
-                  <TableCell className="text-foreground/80">
-                    {new Date(visit.date).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </TableCell>
-                  <TableCell className="font-medium text-foreground">
-                    {visit.residentName}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={visitTypeBadgeClass(visit.visitType)}
-                    >
-                      {visit.visitType}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                    {visit.location}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={cooperationBadgeClass(visit.cooperationLevel)}
-                    >
-                      {visit.cooperationLevel}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {visit.followUpNeeded ? (
-                      <Badge
-                        variant="outline"
-                        className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400"
-                      >
-                        Yes
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-border bg-muted text-muted-foreground"
-                      >
-                        No
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="px-2">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button className="rounded p-1 text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:text-red-400" onClick={(e) => e.stopPropagation()}>
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Visit</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently remove this {visit.visitType} visit for {visit.residentName}. This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteVisit(visit.id)} className="bg-red-600 hover:bg-red-700">
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))
+            <Button
+              onClick={handlePredict}
+              disabled={predicting || !predForm.residentId || !predForm.visitType || !predForm.cooperationLevel}
+              size="sm"
+              className="w-full gap-2 bg-violet-700 hover:bg-violet-800"
+            >
+              {predicting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+              Predict Outcome
+            </Button>
+            {prediction && (
+              <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`text-2xl font-bold ${
+                      prediction.favorableProbability >= 0.7 ? 'text-emerald-600 dark:text-emerald-400'
+                        : prediction.favorableProbability >= 0.4 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+                    }`}
+                  >
+                    {Math.round(prediction.favorableProbability * 100)}%
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={
+                      prediction.favorableProbability >= 0.7 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
+                        : prediction.favorableProbability >= 0.4 ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
+                          : 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
+                    }
+                  >
+                    {prediction.riskLabel}
+                  </Badge>
+                </div>
+                <span className="text-xs text-muted-foreground">Confidence: {Math.round(prediction.confidence * 100)}%</span>
+              </div>
             )}
-          </TableBody>
-        </Table>
+            {prediction && prediction.factors.length > 0 && (
+              <div className="space-y-1">
+                {prediction.factors.slice(0, 3).map((f, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs px-2 py-1">
+                    <div className="flex items-center gap-1.5">
+                      {f.impact === 'positive' ? <ArrowUp className="h-3 w-3 text-emerald-500 dark:text-emerald-400" /> : <ArrowDown className="h-3 w-3 text-red-500 dark:text-red-400" />}
+                      <span className="text-muted-foreground">{f.factor}</span>
+                    </div>
+                    <span className="text-muted-foreground">{f.weight > 0 ? '+' : ''}{(f.weight * 100).toFixed(0)}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
       </Card>
-      <TablePagination currentPage={visitsPage} totalPages={Math.ceil(visits.length / visitsPerPage)} onPageChange={setVisitsPage} />
+
+      {/* Case conference records (Donors-style tabs + search) */}
+      <Card className="border-border">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <CalendarCheck className="h-5 w-5 text-primary" />
+            Case Conference Records
+          </CardTitle>
+          <CardDescription>Search by resident code/name (e.g., LS-0027), then view upcoming or history.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={conferenceSearch}
+              onChange={(e) => setConferenceSearch(e.target.value)}
+              placeholder="Search resident (e.g., LS-0027)"
+              className="pl-9"
+            />
+          </div>
+
+          <Tabs
+            value={activeConferenceTab}
+            onValueChange={(value) => setActiveConferenceTab(value as 'upcoming' | 'history')}
+            className="space-y-3"
+          >
+            <TabsList>
+              <TabsTrigger value="upcoming">Upcoming Conferences</TabsTrigger>
+              <TabsTrigger value="history">Case Conference History</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="upcoming" className="space-y-2">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Resident</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Cooperation</TableHead>
+                    <TableHead>Follow-up</TableHead>
+                    {isAdmin && <TableHead className="w-16"></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUpcomingConferences.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={isAdmin ? 7 : 6} className="h-20 text-center text-muted-foreground">
+                        No upcoming conferences match your search.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedUpcomingConferences.map((visit) => (
+                      <TableRow key={visit.id}>
+                        <TableCell>
+                          {new Date(visit.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </TableCell>
+                        <TableCell className="font-medium text-foreground">{visit.residentName}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={visitTypeBadgeClass(visit.visitType)}>
+                            {visit.visitType}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-[220px] truncate text-muted-foreground">
+                          {visit.location || '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cooperationBadgeClass(visit.cooperationLevel)}>
+                            {visit.cooperationLevel}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {visit.followUpNeeded ? (
+                            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400">
+                              Yes
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
+                              No
+                            </Badge>
+                          )}
+                        </TableCell>
+                        {isAdmin && (
+                          <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                onClick={() => openEditDialog(visit)}
+                                aria-label="Edit visit"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <button
+                                    className="rounded p-1 text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:text-red-400"
+                                    aria-label="Delete visit"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Visit</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently remove this visit record for {visit.residentName}. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(visit.id)}
+                                      className="bg-red-600 hover:bg-red-700"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+              <TablePagination
+                currentPage={upcomingPage}
+                totalPages={Math.max(1, Math.ceil(filteredUpcomingConferences.length / recordsPerPage))}
+                onPageChange={setUpcomingPage}
+              />
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-2">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Resident</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Cooperation</TableHead>
+                    <TableHead>Follow-up</TableHead>
+                    {isAdmin && <TableHead className="w-16"></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPastConferences.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={isAdmin ? 7 : 6} className="h-20 text-center text-muted-foreground">
+                        No conference history matches your search.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedPastConferences.map((visit) => (
+                      <TableRow key={visit.id}>
+                        <TableCell>
+                          {new Date(visit.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </TableCell>
+                        <TableCell className="font-medium text-foreground">{visit.residentName}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={visitTypeBadgeClass(visit.visitType)}>
+                            {visit.visitType}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-[220px] truncate text-muted-foreground">
+                          {visit.location || '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cooperationBadgeClass(visit.cooperationLevel)}>
+                            {visit.cooperationLevel}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {visit.followUpNeeded ? (
+                            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400">
+                              Yes
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
+                              No
+                            </Badge>
+                          )}
+                        </TableCell>
+                        {isAdmin && (
+                          <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                onClick={() => openEditDialog(visit)}
+                                aria-label="Edit visit"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <button
+                                    className="rounded p-1 text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:text-red-400"
+                                    aria-label="Delete visit"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Visit</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently remove this visit record for {visit.residentName}. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(visit.id)}
+                                      className="bg-red-600 hover:bg-red-700"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+              <TablePagination
+                currentPage={historyPage}
+                totalPages={Math.max(1, Math.ceil(filteredPastConferences.length / recordsPerPage))}
+                onPageChange={setHistoryPage}
+              />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Log Visit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Log Home Visit</DialogTitle>
+            <DialogTitle>{editingId ? 'Edit Home Visit' : 'Log Home Visit'}</DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
@@ -705,14 +904,17 @@ export function HomeVisitation() {
                   id="visitDate"
                   type="date"
                   value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  onChange={(e) => updateFormField('date', e.target.value)}
                 />
+                {formErrors.date && (
+                  <p className="text-xs text-destructive">{formErrors.date}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Resident</Label>
                 <Select
                   value={form.residentId}
-                  onValueChange={(v) => setForm({ ...form, residentId: v })}
+                  onValueChange={(v) => updateFormField('residentId', v)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select resident" />
@@ -725,6 +927,9 @@ export function HomeVisitation() {
                     ))}
                   </SelectContent>
                 </Select>
+                {formErrors.residentId && (
+                  <p className="text-xs text-destructive">{formErrors.residentId}</p>
+                )}
               </div>
             </div>
 
@@ -732,7 +937,7 @@ export function HomeVisitation() {
               <Label>Visit Type</Label>
               <Select
                 value={form.visitType}
-                onValueChange={(v) => setForm({ ...form, visitType: v })}
+                onValueChange={(v) => updateFormField('visitType', v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select type" />
@@ -745,7 +950,11 @@ export function HomeVisitation() {
                   ))}
                 </SelectContent>
               </Select>
+              {formErrors.visitType && (
+                <p className="text-xs text-destructive">{formErrors.visitType}</p>
+              )}
             </div>
+            <p className="text-xs text-muted-foreground">Required fields: Date, Resident, Visit Type.</p>
 
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
@@ -754,7 +963,7 @@ export function HomeVisitation() {
                 placeholder="e.g., Brgy. San Isidro, Quezon City"
                 value={form.location}
                 onChange={(e) =>
-                  setForm({ ...form, location: e.target.value })
+                  updateFormField('location', e.target.value)
                 }
               />
             </div>
@@ -767,7 +976,7 @@ export function HomeVisitation() {
                 placeholder="Describe findings and observations..."
                 value={form.observations}
                 onChange={(e) =>
-                  setForm({ ...form, observations: e.target.value })
+                  updateFormField('observations', e.target.value)
                 }
               />
             </div>
@@ -778,7 +987,7 @@ export function HomeVisitation() {
                 <Select
                   value={form.cooperationLevel}
                   onValueChange={(v) =>
-                    setForm({ ...form, cooperationLevel: v })
+                    updateFormField('cooperationLevel', v)
                   }
                 >
                   <SelectTrigger>
@@ -796,9 +1005,9 @@ export function HomeVisitation() {
               <div className="space-y-2">
                 <Label>Follow-up Needed</Label>
                 <Select
-                  value={form.followUpNeeded}
+                  value={form.followUpNeeded ? 'yes' : 'no'}
                   onValueChange={(v) =>
-                    setForm({ ...form, followUpNeeded: v })
+                    updateFormField('followUpNeeded', v === 'yes')
                   }
                 >
                   <SelectTrigger>
@@ -813,16 +1022,19 @@ export function HomeVisitation() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="safetyConcerns">Safety Concerns</Label>
-              <Textarea
-                id="safetyConcerns"
-                rows={2}
-                placeholder="Note any safety concerns observed..."
-                value={form.safetyConcerns}
-                onChange={(e) =>
-                  setForm({ ...form, safetyConcerns: e.target.value })
-                }
-              />
+              <Label>Safety Concerns Noted</Label>
+              <Select
+                value={form.safetyConcerns ? 'yes' : 'no'}
+                onValueChange={(v) => updateFormField('safetyConcerns', v === 'yes')}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no">No</SelectItem>
+                  <SelectItem value="yes">Yes</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -836,66 +1048,12 @@ export function HomeVisitation() {
               className="bg-violet-700 hover:bg-violet-800"
             >
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Visit
+              {editingId ? 'Save Changes' : 'Save Visit'}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Visit Detail Dialog */}
-      <Dialog open={!!viewingVisit} onOpenChange={(open) => { if (!open) setViewingVisit(null) }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{viewingVisit?.residentName} — Home Visit</DialogTitle>
-            <DialogDescription>
-              {viewingVisit && new Date(viewingVisit.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </DialogDescription>
-          </DialogHeader>
-          {viewingVisit && (
-            <div className="space-y-4 py-4 text-sm">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                <div>
-                  <p className="text-muted-foreground mb-1">Visit Type</p>
-                  <Badge variant="outline" className={visitTypeBadgeClass(viewingVisit.visitType)}>
-                    {viewingVisit.visitType}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-muted-foreground mb-1">Cooperation Level</p>
-                  <Badge variant="outline" className={cooperationBadgeClass(viewingVisit.cooperationLevel)}>
-                    {viewingVisit.cooperationLevel}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-muted-foreground mb-1">Location</p>
-                  <p className="font-medium text-foreground">{viewingVisit.location || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground mb-1">Follow-up Needed</p>
-                  <Badge variant="outline" className={viewingVisit.followUpNeeded ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400' : 'border-border bg-muted text-muted-foreground'}>
-                    {viewingVisit.followUpNeeded ? 'Yes' : 'No'}
-                  </Badge>
-                </div>
-              </div>
-              {viewingVisit.observations && (
-                <div>
-                  <p className="text-muted-foreground mb-1">Observations</p>
-                  <p className="leading-relaxed text-foreground/80">{sanitize(viewingVisit.observations)}</p>
-                </div>
-              )}
-              {viewingVisit.safetyConcerns && (
-                <div>
-                  <p className="text-muted-foreground mb-1">Safety Concerns</p>
-                  <p className="text-foreground/80">{sanitize(viewingVisit.safetyConcerns)}</p>
-                </div>
-              )}
-            </div>
-          )}
-          <div className="flex justify-end pt-2">
-            <Button variant="outline" onClick={() => setViewingVisit(null)}>Close</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

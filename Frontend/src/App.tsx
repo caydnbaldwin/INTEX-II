@@ -45,6 +45,9 @@ const ReportsAnalytics = lazy(() =>
 const EmailTemplates = lazy(() =>
   import('./pages/admin/email-templates').then((m) => ({ default: m.EmailTemplates })),
 )
+const BoardingManagement = lazy(() =>
+  import('./pages/admin/boarding').then((m) => ({ default: m.BoardingManagement })),
+)
 const DonorPortal = lazy(() =>
   import('./pages/donor/portal').then((m) => ({ default: m.DonorPortal })),
 )
@@ -124,6 +127,7 @@ export default function App() {
             <Route path="donors" element={<DonorsManagement />} />
             <Route path="email-templates" element={<EmailTemplates />} />
             <Route path="reports" element={<ReportsAnalytics />} />
+            <Route path="safehouses/boarding" element={<BoardingManagement />} />
           </Route>
 
           {/* Donor routes */}

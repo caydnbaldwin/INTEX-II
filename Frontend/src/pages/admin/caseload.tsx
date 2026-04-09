@@ -21,6 +21,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Select,
   SelectTrigger,
   SelectValue,
@@ -161,6 +169,10 @@ function riskBadgeClass(level: RiskLevel) {
   }
 }
 
+function formatMlRiskBadge(score: number, label: string) {
+  return `${(score * 100).toFixed(0)}% - ${label}`
+}
+
 function statusBadgeClass(status: CaseStatus) {
   switch (status) {
     case 'Active':
@@ -239,14 +251,23 @@ export function CaseloadInventory() {
   const [residents, setResidents] = useState<Resident[]>([])
   const [safehouses, setSafehouses] = useState<ApiSafehouse[]>([])
   const [mlRiskMap, setMlRiskMap] = useState<Map<number, { score: number; label: string }>>(new Map())
+  const [mlRiskStatus, setMlRiskStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const [search, setSearch] = useState('')
-  const [filterSafehouse, setFilterSafehouse] = useState('all')
-  const [filterRisk, setFilterRisk] = useState(initialFilters.risk)
-  const [filterStatus, setFilterStatus] = useState(initialFilters.status)
-  const [filterCategory, setFilterCategory] = useState('all')
+  const [filterSafehouse, setFilterSafehouse] = useState<string[]>([])
+  const [filterRisk, setFilterRisk] = useState<string[]>(initialFilters.risk !== 'all' ? [initialFilters.risk] : [])
+  const [filterStatus, setFilterStatus] = useState<string[]>(initialFilters.status !== 'all' ? [initialFilters.status] : [])
+  const [filterCategory, setFilterCategory] = useState<string[]>([])
+  const [safehouseFilterOpen, setSafehouseFilterOpen] = useState(false)
+  const [riskFilterOpen, setRiskFilterOpen] = useState(false)
+  const [statusFilterOpen, setStatusFilterOpen] = useState(false)
+  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false)
+  const [draftFilterSafehouse, setDraftFilterSafehouse] = useState<string[]>([])
+  const [draftFilterRisk, setDraftFilterRisk] = useState<string[]>([])
+  const [draftFilterStatus, setDraftFilterStatus] = useState<string[]>([])
+  const [draftFilterCategory, setDraftFilterCategory] = useState<string[]>([])
 
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 15
@@ -267,17 +288,13 @@ export function CaseloadInventory() {
 
       setSafehouses(apiSafehouses)
 
-      const safehouseMap = new Map(
-        apiSafehouses.map((s) => [s.safehouseId, s.name]),
-      )
-
       setResidents(
         apiResidents.map((r) => ({
           id: r.residentId,
           name: r.internalCode || r.caseControlNo || `Resident ${r.residentId}`,
           caseControlNo: r.caseControlNo,
           safehouseId: r.safehouseId,
-          safehouse: safehouseMap.get(r.safehouseId) ?? `Safehouse ${r.safehouseId}`,
+          safehouse: `Safehouse ${r.safehouseId}`,
           riskLevel: (r.currentRiskLevel as RiskLevel) || 'Low',
           caseStatus: (r.caseStatus as CaseStatus) || 'Active',
           caseCategory: r.caseCategory ?? '',
@@ -288,17 +305,21 @@ export function CaseloadInventory() {
         })),
       )
 
-      // Fetch ML risk predictions (non-blocking)
-      try {
-        const mlResults = await api.get<MlRiskResult[]>('/api/pipeline-results/resident-risk')
-        const riskMap = new Map<number, { score: number; label: string }>()
-        for (const r of mlResults) {
-          riskMap.set(r.entityId, { score: r.score, label: r.label })
+      // Fetch ML risk predictions in background so main grid is interactive sooner.
+      void (async () => {
+        try {
+          const mlResults = await api.get<MlRiskResult[]>('/api/pipeline-results/resident-risk')
+          const riskMap = new Map<number, { score: number; label: string }>()
+          for (const r of mlResults) {
+            riskMap.set(r.entityId, { score: r.score, label: r.label })
+          }
+          setMlRiskMap(riskMap)
+          setMlRiskStatus('ready')
+        } catch {
+          setMlRiskStatus('unavailable')
+          console.warn('ML pipeline data unavailable')
         }
-        setMlRiskMap(riskMap)
-      } catch {
-        console.warn('ML pipeline data unavailable')
-      }
+      })()
     } catch (err) {
       console.error('Failed to load caseload data', err)
     } finally {
@@ -318,17 +339,19 @@ export function CaseloadInventory() {
       r.name.toLowerCase().includes(q) ||
       r.safehouse.toLowerCase().includes(q)
     const matchesSafehouse =
-      filterSafehouse === 'all' || r.safehouse === filterSafehouse
+      filterSafehouse.length === 0 || filterSafehouse.includes(r.safehouse)
     const matchesRisk =
-      filterRisk === 'all'
+      filterRisk.length === 0
         ? true
-        : filterRisk === 'at-risk'
-          ? r.riskLevel === 'Critical' || r.riskLevel === 'High'
-          : r.riskLevel === filterRisk
+        : filterRisk.some((selectedRisk) =>
+          selectedRisk === 'at-risk'
+            ? r.riskLevel === 'Critical' || r.riskLevel === 'High'
+            : r.riskLevel === selectedRisk
+        )
     const matchesStatus =
-      filterStatus === 'all' || r.caseStatus === filterStatus
+      filterStatus.length === 0 || filterStatus.includes(r.caseStatus)
     const matchesCategory =
-      filterCategory === 'all' || r.caseCategory === filterCategory
+      filterCategory.length === 0 || filterCategory.includes(r.caseCategory)
     return matchesSearch && matchesSafehouse && matchesRisk && matchesStatus && matchesCategory
   })
 
@@ -337,6 +360,66 @@ export function CaseloadInventory() {
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage)
   const paginatedResidents = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+  function toggleSelection<T extends string>(
+    value: T,
+    setList: (value: T[] | ((prev: T[]) => T[])) => void,
+  ) {
+    setList((prev) =>
+      prev.includes(value)
+        ? prev.filter((v) => v !== value)
+        : [...prev, value],
+    )
+  }
+
+  function formatFilterLabel(base: string, selectedValues: string[], formatter?: (value: string) => string): string {
+    if (selectedValues.length === 0) return `All ${base}`
+    if (selectedValues.length === 1) {
+      const value = selectedValues[0]
+      return formatter ? formatter(value) : value
+    }
+    return `${base} (${selectedValues.length})`
+  }
+
+  function handleSafehouseFilterOpenChange(open: boolean) {
+    if (open) {
+      setDraftFilterSafehouse(filterSafehouse)
+      setSafehouseFilterOpen(true)
+      return
+    }
+    setFilterSafehouse(draftFilterSafehouse)
+    setSafehouseFilterOpen(false)
+  }
+
+  function handleRiskFilterOpenChange(open: boolean) {
+    if (open) {
+      setDraftFilterRisk(filterRisk)
+      setRiskFilterOpen(true)
+      return
+    }
+    setFilterRisk(draftFilterRisk)
+    setRiskFilterOpen(false)
+  }
+
+  function handleStatusFilterOpenChange(open: boolean) {
+    if (open) {
+      setDraftFilterStatus(filterStatus)
+      setStatusFilterOpen(true)
+      return
+    }
+    setFilterStatus(draftFilterStatus)
+    setStatusFilterOpen(false)
+  }
+
+  function handleCategoryFilterOpenChange(open: boolean) {
+    if (open) {
+      setDraftFilterCategory(filterCategory)
+      setCategoryFilterOpen(true)
+      return
+    }
+    setFilterCategory(draftFilterCategory)
+    setCategoryFilterOpen(false)
+  }
 
   // --- Dialog helpers ---
   function openAdd() {
@@ -910,60 +993,159 @@ export function CaseloadInventory() {
                 className="pl-9"
               />
             </div>
-            <Select value={filterSafehouse} onValueChange={setFilterSafehouse}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Safehouse" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Safehouses</SelectItem>
+            <DropdownMenu open={safehouseFilterOpen} onOpenChange={handleSafehouseFilterOpenChange}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="min-w-[170px] max-w-[280px] justify-between gap-2 font-normal">
+                  <span className="truncate">{formatFilterLabel('Safehouses', filterSafehouse)}</span>
+                  <ChevronDown className="h-4 w-4 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[240px]">
+                <DropdownMenuLabel>Safehouses</DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 {safehouses.map((s) => (
-                  <SelectItem key={s.safehouseId} value={s.name}>
-                    {s.name}
-                  </SelectItem>
+                  <DropdownMenuCheckboxItem
+                    key={s.safehouseId}
+                    checked={draftFilterSafehouse.includes(`Safehouse ${s.safehouseId}`)}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={() => toggleSelection(`Safehouse ${s.safehouseId}`, setDraftFilterSafehouse)}
+                  >
+                    Safehouse {s.safehouseId}
+                  </DropdownMenuCheckboxItem>
                 ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterRisk} onValueChange={setFilterRisk}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Risk Level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Risk Levels</SelectItem>
-                <SelectItem value="at-risk">At Risk (Critical + High)</SelectItem>
+                <DropdownMenuSeparator />
+                <div className="p-1">
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setFilterSafehouse(draftFilterSafehouse)
+                      setSafehouseFilterOpen(false)
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu open={riskFilterOpen} onOpenChange={handleRiskFilterOpenChange}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="min-w-[180px] max-w-[300px] justify-between gap-2 font-normal">
+                  <span className="truncate">{formatFilterLabel('Risk Levels', filterRisk, (value) => value === 'at-risk' ? 'At Risk (Critical + High)' : value)}</span>
+                  <ChevronDown className="h-4 w-4 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[240px]">
+                <DropdownMenuLabel>Risk Levels</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={draftFilterRisk.includes('at-risk')}
+                  onSelect={(e) => e.preventDefault()}
+                  onCheckedChange={() => toggleSelection('at-risk', setDraftFilterRisk)}
+                >
+                  At Risk (Critical + High)
+                </DropdownMenuCheckboxItem>
                 {RISK_LEVELS.map((rl) => (
-                  <SelectItem key={rl} value={rl}>
+                  <DropdownMenuCheckboxItem
+                    key={rl}
+                    checked={draftFilterRisk.includes(rl)}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={() => toggleSelection(rl, setDraftFilterRisk)}
+                  >
                     {rl}
-                  </SelectItem>
+                  </DropdownMenuCheckboxItem>
                 ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <DropdownMenuSeparator />
+                <div className="p-1">
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setFilterRisk(draftFilterRisk)
+                      setRiskFilterOpen(false)
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu open={statusFilterOpen} onOpenChange={handleStatusFilterOpenChange}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="min-w-[170px] max-w-[240px] justify-between gap-2 font-normal">
+                  <span className="truncate">{formatFilterLabel('Statuses', filterStatus)}</span>
+                  <ChevronDown className="h-4 w-4 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[220px]">
+                <DropdownMenuLabel>Statuses</DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 {CASE_STATUSES.map((cs) => (
-                  <SelectItem key={cs} value={cs}>
+                  <DropdownMenuCheckboxItem
+                    key={cs}
+                    checked={draftFilterStatus.includes(cs)}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={() => toggleSelection(cs, setDraftFilterStatus)}
+                  >
                     {cs}
-                  </SelectItem>
+                  </DropdownMenuCheckboxItem>
                 ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
+                <DropdownMenuSeparator />
+                <div className="p-1">
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setFilterStatus(draftFilterStatus)
+                      setStatusFilterOpen(false)
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu open={categoryFilterOpen} onOpenChange={handleCategoryFilterOpenChange}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="min-w-[170px] max-w-[260px] justify-between gap-2 font-normal">
+                  <span className="truncate">{formatFilterLabel('Categories', filterCategory)}</span>
+                  <ChevronDown className="h-4 w-4 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-[220px]">
+                <DropdownMenuLabel>Categories</DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 {CASE_CATEGORIES.map((cc) => (
-                  <SelectItem key={cc} value={cc}>
+                  <DropdownMenuCheckboxItem
+                    key={cc}
+                    checked={draftFilterCategory.includes(cc)}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={() => toggleSelection(cc, setDraftFilterCategory)}
+                  >
                     {cc}
-                  </SelectItem>
+                  </DropdownMenuCheckboxItem>
                 ))}
-              </SelectContent>
-            </Select>
+                <DropdownMenuSeparator />
+                <div className="p-1">
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setFilterCategory(draftFilterCategory)
+                      setCategoryFilterOpen(false)
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
       </div>
+      {mlRiskStatus === 'unavailable' && (
+        <p className="text-xs text-muted-foreground">
+          ML risk scores are unavailable right now. Showing DB risk levels (no percentage).
+        </p>
+      )}
 
       {/* Table */}
       <Card className="border-border">
@@ -1003,7 +1185,7 @@ export function CaseloadInventory() {
                         variant="outline"
                         className={riskBadgeClass(mlRiskMap.get(r.id)!.label as RiskLevel)}
                       >
-                        {mlRiskMap.get(r.id)!.label} {(mlRiskMap.get(r.id)!.score * 100).toFixed(0)}%
+                        {formatMlRiskBadge(mlRiskMap.get(r.id)!.score, mlRiskMap.get(r.id)!.label)}
                       </Badge>
                     ) : (
                       <Badge
@@ -1025,7 +1207,7 @@ export function CaseloadInventory() {
                   <TableCell className="text-muted-foreground">
                     {r.reintegrationStatus}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-1">
                       <Button
                         variant="ghost"
@@ -1102,7 +1284,7 @@ export function CaseloadInventory() {
                 <p className="text-muted-foreground mb-1">Risk Level</p>
                 {mlRiskMap.has(viewingResident.id) ? (
                   <Badge variant="outline" className={riskBadgeClass(mlRiskMap.get(viewingResident.id)!.label as RiskLevel)}>
-                    {mlRiskMap.get(viewingResident.id)!.label} {(mlRiskMap.get(viewingResident.id)!.score * 100).toFixed(0)}%
+                    {formatMlRiskBadge(mlRiskMap.get(viewingResident.id)!.score, mlRiskMap.get(viewingResident.id)!.label)}
                   </Badge>
                 ) : (
                   <Badge variant="outline" className={riskBadgeClass(viewingResident.riskLevel)}>

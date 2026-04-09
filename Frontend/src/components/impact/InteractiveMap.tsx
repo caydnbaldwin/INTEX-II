@@ -29,12 +29,6 @@ export function InteractiveMap() {
     fetchSafehouses().then(setSafehouses).catch(() => {})
   }, [])
 
-  // Compute region counts dynamically
-  const regionCounts = safehouses.reduce<Record<string, number>>((acc, sh) => {
-    acc[sh.region] = (acc[sh.region] ?? 0) + 1
-    return acc
-  }, {})
-
   return (
     <section className="pt-10 pb-5 sm:pt-12 sm:pb-6 bg-background">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -87,15 +81,7 @@ export function InteractiveMap() {
           </MapContainer>
         </div>
 
-        {/* Region summary — dynamic from API */}
-        <div className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
-          {Object.entries(regionCounts).map(([region, count]) => (
-            <span key={region}>
-              <span className="font-semibold text-foreground">{region}</span> — {count} {count === 1 ? 'shelter' : 'shelters'}
-            </span>
-          ))}
-        </div>
-        <p className="mt-2 text-center text-xs text-muted-foreground">
+        <p className="mt-4 text-center text-sm text-muted-foreground">
           Click on a dot to view shelter details.
         </p>
       </div>

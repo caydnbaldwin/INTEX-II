@@ -8,7 +8,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/safehouses")]
-[Authorize(Policy = AuthPolicies.AdminOnly)]
+[Authorize(Policy = AuthPolicies.StaffOrAdmin)]
 public class SafehousesController(AppDbContext db) : ControllerBase
 {
     [HttpGet]

@@ -120,6 +120,107 @@ namespace Backend.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Backend.Models.BoardingPlacement", b =>
+                {
+                    b.Property<int>("BoardingPlacementId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("ActualCheckIn")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ActualCheckOut")
+                        .HasColumnType("date");
+
+                    b.Property<string>("BedLabel")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ChildrenSummary")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ConfidentialResidentName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly?>("ExpectedCheckIn")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ExpectedCheckOut")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PlacementNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PlacementStatus")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RelationshipSummary")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ResidentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SafehouseId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Sensitivities")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SpecialConsiderations")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("BoardingPlacementId");
+
+                    b.HasIndex("ResidentId");
+
+                    b.HasIndex("SafehouseId");
+
+                    b.ToTable("BoardingPlacements");
+                });
+
+            modelBuilder.Entity("Backend.Models.BoardingStandingOrder", b =>
+                {
+                    b.Property<int>("BoardingStandingOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BoardingPlacementId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Category")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("BoardingStandingOrderId");
+
+                    b.HasIndex("BoardingPlacementId");
+
+                    b.ToTable("BoardingStandingOrders");
+                });
+
             modelBuilder.Entity("Backend.Models.Donation", b =>
                 {
                     b.Property<int>("DonationId")
@@ -454,6 +555,12 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AssignedStaffDisplayName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AssignedStaffUserId")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool?>("FollowUpRequired")
@@ -1320,6 +1427,28 @@ namespace Backend.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Backend.Models.BoardingPlacement", b =>
+                {
+                    b.HasOne("Backend.Models.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Backend.Models.Safehouse", null)
+                        .WithMany()
+                        .HasForeignKey("SafehouseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Backend.Models.BoardingStandingOrder", b =>
+                {
+                    b.HasOne("Backend.Models.BoardingPlacement", null)
+                        .WithMany()
+                        .HasForeignKey("BoardingPlacementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

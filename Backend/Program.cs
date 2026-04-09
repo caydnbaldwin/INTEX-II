@@ -7,6 +7,12 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConsole();
+}
+
 const string FrontendCorsPolicy = "AllowFrontend";
 const string DefaultFrontendUrl = "http://localhost:4200";
 var frontendUrl = builder.Configuration["FrontendUrl"] ?? DefaultFrontendUrl;
