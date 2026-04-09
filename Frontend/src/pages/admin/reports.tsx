@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { TablePagination } from '@/components/TablePagination'
 import {
   TrendingUp,
   DollarSign,
@@ -212,6 +213,10 @@ export function ReportsAnalytics() {
     .sort((a, b) => b.importance - a.importance)
 
   const educationRiskData = [...educationRisk].sort((a, b) => b.score - a.score)
+  const [eduPage, setEduPage] = useState(1)
+  const EDU_PER_PAGE = 10
+  const eduTotalPages = Math.ceil(educationRiskData.length / EDU_PER_PAGE)
+  const paginatedEduRisk = educationRiskData.slice((eduPage - 1) * EDU_PER_PAGE, eduPage * EDU_PER_PAGE)
 
   const safehousePerfData = [...safehousePerf].sort((a, b) => b.score - a.score)
 
@@ -421,7 +426,7 @@ export function ReportsAnalytics() {
             </CardContent>
           </Card>
           {/* Education Completion Risk (ML) */}
-          {educationRiskData.length > 0 && (
+          {educationRiskData.length > 0 && (<>
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -440,7 +445,7 @@ export function ReportsAnalytics() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {educationRiskData.map((r) => (
+                    {paginatedEduRisk.map((r) => (
                       <TableRow key={r.pipelineResultId}>
                         <TableCell className="font-medium">
                           {r.resident?.internalCode || r.resident?.caseControlNo || `ID ${r.entityId}`}
@@ -472,7 +477,10 @@ export function ReportsAnalytics() {
                 </Table>
               </CardContent>
             </Card>
-          )}
+            {eduTotalPages > 1 && (
+              <TablePagination currentPage={eduPage} totalPages={eduTotalPages} onPageChange={setEduPage} />
+            )}
+          </>)}
         </TabsContent>
 
         {/* Social Media Tab */}

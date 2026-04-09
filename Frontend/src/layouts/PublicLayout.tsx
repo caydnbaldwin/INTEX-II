@@ -49,10 +49,10 @@ export function PublicLayout() {
       </a>
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-sm border-b border-border">
-        <nav className="flex items-center justify-between pl-4 pr-6 py-3 lg:pl-6 lg:pr-8">
+        <nav aria-label="Main navigation" className="flex items-center justify-between pl-4 pr-6 py-3 lg:pl-6 lg:pr-8">
           {/* Left group: logo + nav links */}
           <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3" aria-label="Home">
               <img
                 src="/images/PinwheelLogo-cropped.png"
                 alt=""
@@ -229,7 +229,7 @@ export function PublicLayout() {
       <footer className="border-t border-border">
         <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2" aria-label="Home">
               <img
                 src="/images/PinwheelLogo-cropped.png"
                 alt=""

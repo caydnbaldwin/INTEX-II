@@ -376,6 +376,10 @@ export function CaseloadInventory() {
   }
 
   async function handleSave() {
+    if (!form.internalCode?.trim()) { alert('Internal Code is required.'); return }
+    if (!form.safehouseId) { alert('Safehouse is required.'); return }
+    if (!form.caseStatus) { alert('Case Status is required.'); return }
+
     setSaving(true)
     try {
       const payload = {
