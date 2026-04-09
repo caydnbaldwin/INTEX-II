@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, MapPin, Calendar, Loader2, Brain, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, MapPin, Calendar, Loader2, Brain, ArrowUp, ArrowDown, CalendarCheck, FileText } from 'lucide-react'
 import {
   Table,
   TableHeader,
@@ -29,6 +29,9 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { api } from '@/lib/api'
+import { sanitize } from '@/lib/sanitize'
+import { TablePagination } from '@/components/TablePagination'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -107,6 +110,15 @@ interface HomeVisit {
   followUpNeeded: boolean
 }
 
+interface InterventionPlan {
+  planId: number
+  residentId: number | null
+  planCategory: string | null
+  planDescription: string | null
+  status: string | null
+  caseConferenceDate: string | null
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -178,10 +190,16 @@ const blankForm = {
 // ---------------------------------------------------------------------------
 
 export function HomeVisitation() {
+  usePageTitle('Home Visitation')
   const [visits, setVisits] = useState<HomeVisit[]>([])
   const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
+  const [upcomingConferences, setUpcomingConferences] = useState<(InterventionPlan & { residentName: string })[]>([])
+  const [pastConferences, setPastConferences] = useState<(InterventionPlan & { residentName: string })[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  const [visitsPage, setVisitsPage] = useState(1)
+  const visitsPerPage = 15
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState(blankForm)
@@ -200,9 +218,10 @@ export function HomeVisitation() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [apiVisits, apiResidents] = await Promise.all([
+      const [apiVisits, apiResidents, apiConferences] = await Promise.all([
         api.get<ApiHomeVisitation[]>('/api/home-visitations'),
         api.get<ApiResident[]>('/api/residents'),
+        api.get<InterventionPlan[]>('/api/residents/case-conferences').catch(() => [] as InterventionPlan[]),
       ])
 
       const residentList = apiResidents.map((r) => ({
@@ -212,6 +231,15 @@ export function HomeVisitation() {
       setResidents(residentList)
 
       const residentMap = new Map(residentList.map((r) => [r.id, r.name]))
+
+      // Split conferences into upcoming vs past
+      const today = new Date().toISOString().split('T')[0]
+      const enriched = apiConferences.map((c) => ({
+        ...c,
+        residentName: residentMap.get(c.residentId ?? 0) ?? `Resident ${c.residentId}`,
+      }))
+      setUpcomingConferences(enriched.filter((c) => (c.caseConferenceDate ?? '') >= today))
+      setPastConferences(enriched.filter((c) => (c.caseConferenceDate ?? '') < today))
 
       setVisits(
         apiVisits.map((v) => ({
@@ -306,10 +334,10 @@ export function HomeVisitation() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-            Home Visitation
+            Home Visitation & Case Conferences
           </h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Log and track home visits for residents and their families.
+            Log home visits and track case conference history for residents.
           </p>
         </div>
         <Button
@@ -530,6 +558,80 @@ export function HomeVisitation() {
         </CardContent>
       </Card>
 
+      {/* Case Conference History */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card className="border-zinc-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <CalendarCheck className="h-5 w-5 text-violet-600" />
+              Upcoming Case Conferences
+            </CardTitle>
+            <CardDescription>Scheduled intervention reviews for residents</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {upcomingConferences.length === 0 ? (
+                <p className="text-sm text-zinc-400">No upcoming case conferences scheduled.</p>
+              ) : (
+                upcomingConferences.map((conf) => (
+                  <div key={conf.planId} className="flex items-center justify-between rounded-lg border border-zinc-100 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-mono text-zinc-500">{conf.residentName}</span>
+                      {conf.planCategory && (
+                        <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">{conf.planCategory}</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-zinc-500">
+                      {conf.status && <Badge variant="outline">{conf.status}</Badge>}
+                      <span>{conf.caseConferenceDate ? new Date(conf.caseConferenceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-zinc-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <FileText className="h-5 w-5 text-zinc-500" />
+              Past Case Conferences
+            </CardTitle>
+            <CardDescription>Completed conference records and outcomes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {pastConferences.length === 0 ? (
+                <p className="text-sm text-zinc-400">No past case conference records.</p>
+              ) : (
+                pastConferences.slice(0, 10).map((conf) => (
+                  <div key={conf.planId} className="flex items-center justify-between rounded-lg border border-zinc-100 px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-mono text-zinc-500">{conf.residentName}</span>
+                        {conf.planCategory && (
+                          <Badge variant="outline" className="border-zinc-200 bg-zinc-50 text-zinc-600">{conf.planCategory}</Badge>
+                        )}
+                        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                          {conf.status || 'Completed'}
+                        </Badge>
+                      </div>
+                      {conf.planDescription && (
+                        <span className="text-xs text-zinc-500">{sanitize(conf.planDescription)}</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-zinc-400">
+                      {conf.caseConferenceDate ? new Date(conf.caseConferenceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Table */}
       <Card className="border-zinc-200">
         <Table>
@@ -554,7 +656,7 @@ export function HomeVisitation() {
                 </TableCell>
               </TableRow>
             ) : (
-              visits.map((visit) => (
+              visits.slice((visitsPage - 1) * visitsPerPage, visitsPage * visitsPerPage).map((visit) => (
                 <TableRow key={visit.id}>
                   <TableCell className="text-zinc-700">
                     {new Date(visit.date).toLocaleDateString('en-US', {
@@ -608,6 +710,7 @@ export function HomeVisitation() {
           </TableBody>
         </Table>
       </Card>
+      <TablePagination currentPage={visitsPage} totalPages={Math.ceil(visits.length / visitsPerPage)} onPageChange={setVisitsPage} />
 
       {/* Log Visit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

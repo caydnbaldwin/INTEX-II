@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Calendar, Brain, ArrowRight, Loader2, Mic } from 'lucide-react'
+import { Plus, Calendar, Brain, ArrowRight, Loader2, Mic, Pencil, Trash2 } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -26,7 +26,21 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import { api, ApiError } from '@/lib/api'
+import { sanitize } from '@/lib/sanitize'
+import { TablePagination } from '@/components/TablePagination'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -85,6 +99,8 @@ interface Session {
   residentId: number
   residentName: string
   date: string
+  socialWorker: string
+  sessionDurationMinutes: number | null
   sessionType: SessionType
   emotionalStateStart: EmotionalState
   emotionalStateEnd: EmotionalState
@@ -148,6 +164,8 @@ function emotionBadgeClass(state: EmotionalState): string {
 
 const blankForm = {
   date: '',
+  socialWorker: '',
+  sessionDurationMinutes: '',
   sessionType: '' as string,
   emotionalStateStart: '' as string,
   emotionalStateEnd: '' as string,
@@ -161,6 +179,7 @@ const blankForm = {
 // ---------------------------------------------------------------------------
 
 export function ProcessRecording() {
+  usePageTitle('Process Recording')
   const [sessions, setSessions] = useState<Session[]>([])
   const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
@@ -168,6 +187,7 @@ export function ProcessRecording() {
 
   const [selectedResident, setSelectedResident] = useState('all')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(blankForm)
   const [formResident, setFormResident] = useState('')
 
@@ -176,6 +196,9 @@ export function ProcessRecording() {
   const [autoFillError, setAutoFillError] = useState('')
   const [autoFillMissingFields, setAutoFillMissingFields] = useState<string[]>([])
   const [autoFillConfidence, setAutoFillConfidence] = useState<number | null>(null)
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
 
   // --- Data fetching ---
   const fetchData = useCallback(async () => {
@@ -200,6 +223,8 @@ export function ProcessRecording() {
           residentId: s.residentId,
           residentName: residentMap.get(s.residentId) ?? `Resident ${s.residentId}`,
           date: s.sessionDate,
+          socialWorker: s.socialWorker ?? '',
+          sessionDurationMinutes: s.sessionDurationMinutes ?? null,
           sessionType: (s.sessionType as SessionType) || 'Individual',
           emotionalStateStart: (s.emotionalStateObserved as EmotionalState) || 'Neutral',
           emotionalStateEnd: (s.emotionalStateEnd as EmotionalState) || 'Neutral',
@@ -219,10 +244,18 @@ export function ProcessRecording() {
     fetchData()
   }, [fetchData])
 
+  useEffect(() => { setCurrentPage(1) }, [selectedResident])
+
   const filteredSessions =
     selectedResident === 'all'
       ? sessions
       : sessions.filter((s) => String(s.residentId) === selectedResident)
+
+  const totalPages = Math.ceil(filteredSessions.length / itemsPerPage)
+  const paginatedSessions = filteredSessions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  )
 
   async function handleAutofillFromAudio() {
     if (!audioFile) {
@@ -288,26 +321,65 @@ export function ProcessRecording() {
     }
   }
 
+  function openEdit(session: Session) {
+    setEditingId(session.id)
+    setFormResident(String(session.residentId))
+    setForm({
+      date: session.date ? session.date.split('T')[0] : '',
+      socialWorker: session.socialWorker ?? '',
+      sessionDurationMinutes: session.sessionDurationMinutes ? String(session.sessionDurationMinutes) : '',
+      sessionType: session.sessionType,
+      emotionalStateStart: session.emotionalStateStart,
+      emotionalStateEnd: session.emotionalStateEnd,
+      narrative: session.narrative,
+      interventions: session.interventions,
+      followUpActions: session.followUpActions,
+    })
+    setAudioFile(null)
+    setAutoFillError('')
+    setAutoFillMissingFields([])
+    setAutoFillConfidence(null)
+    setDialogOpen(true)
+  }
+
+  async function handleDelete(id: number) {
+    try {
+      await api.delete(`/api/process-recordings/${id}`)
+      await fetchData()
+    } catch (err) {
+      console.error('Failed to delete session', err)
+    }
+  }
+
   async function handleSave() {
     const resident = residents.find((r) => String(r.id) === formResident)
     if (!resident) return
 
     setSaving(true)
     try {
-      await api.post('/api/process-recordings', {
+      const payload = {
         residentId: resident.id,
         sessionDate: form.date,
+        socialWorker: form.socialWorker || undefined,
+        sessionDurationMinutes: form.sessionDurationMinutes ? Number(form.sessionDurationMinutes) : undefined,
         sessionType: form.sessionType || 'Individual',
         emotionalStateObserved: form.emotionalStateStart || 'Neutral',
         emotionalStateEnd: form.emotionalStateEnd || 'Neutral',
         sessionNarrative: form.narrative,
         interventionsApplied: form.interventions,
         followUpActions: form.followUpActions,
-      })
+      }
+
+      if (editingId) {
+        await api.put(`/api/process-recordings/${editingId}`, payload)
+      } else {
+        await api.post('/api/process-recordings', payload)
+      }
 
       setDialogOpen(false)
       setForm(blankForm)
       setFormResident('')
+      setEditingId(null)
       await fetchData()
     } catch (err) {
       console.error('Failed to save session', err)
@@ -339,6 +411,7 @@ export function ProcessRecording() {
         </div>
         <Button
           onClick={() => {
+            setEditingId(null)
             setForm(blankForm)
             setFormResident('')
             setAudioFile(null)
@@ -387,7 +460,7 @@ export function ProcessRecording() {
             </CardContent>
           </Card>
         ) : (
-          filteredSessions.map((session) => (
+          paginatedSessions.map((session) => (
             <Card key={session.id} className="border-zinc-200">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
@@ -395,7 +468,7 @@ export function ProcessRecording() {
                     <CardTitle className="text-base text-zinc-900">
                       {session.residentName}
                     </CardTitle>
-                    <CardDescription className="mt-1 flex items-center gap-3 text-sm">
+                    <CardDescription className="mt-1 flex flex-wrap items-center gap-3 text-sm">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5" />
                         {new Date(session.date).toLocaleDateString('en-US', {
@@ -407,6 +480,12 @@ export function ProcessRecording() {
                       <Badge variant="secondary" className="text-xs">
                         {session.sessionType}
                       </Badge>
+                      {session.socialWorker && (
+                        <span className="text-zinc-500">SW: {session.socialWorker}</span>
+                      )}
+                      {session.sessionDurationMinutes && (
+                        <span className="text-zinc-500">{session.sessionDurationMinutes} min</span>
+                      )}
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
@@ -423,13 +502,35 @@ export function ProcessRecording() {
                     >
                       {session.emotionalStateEnd}
                     </Badge>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-violet-700" onClick={() => openEdit(session)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-red-600">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Session</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this counseling session for <span className="font-semibold">{session.residentName}</span>? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(session.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </CardHeader>
               <Separator />
               <CardContent className="pt-4 space-y-3">
                 <p className="text-sm leading-relaxed text-zinc-700">
-                  {session.narrative}
+                  {sanitize(session.narrative)}
                 </p>
                 <div className="flex flex-col gap-2 text-sm sm:flex-row sm:gap-6">
                   <div>
@@ -437,7 +538,7 @@ export function ProcessRecording() {
                       Interventions:{' '}
                     </span>
                     <span className="text-zinc-700">
-                      {session.interventions}
+                      {sanitize(session.interventions)}
                     </span>
                   </div>
                   <div>
@@ -445,7 +546,7 @@ export function ProcessRecording() {
                       Follow-up:{' '}
                     </span>
                     <span className="text-zinc-700">
-                      {session.followUpActions}
+                      {sanitize(session.followUpActions)}
                     </span>
                   </div>
                 </div>
@@ -455,11 +556,13 @@ export function ProcessRecording() {
         )}
       </div>
 
+      <TablePagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+
       {/* New Session Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>New Counseling Session</DialogTitle>
+            <DialogTitle>{editingId ? 'Edit Counseling Session' : 'New Counseling Session'}</DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
@@ -560,6 +663,29 @@ export function ProcessRecording() {
                   type="date"
                   value={form.date}
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="socialWorker">Social Worker</Label>
+                <Input
+                  id="socialWorker"
+                  placeholder="Name of social worker"
+                  value={form.socialWorker}
+                  onChange={(e) => setForm({ ...form, socialWorker: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sessionDuration">Duration (min)</Label>
+                <Input
+                  id="sessionDuration"
+                  type="number"
+                  min="1"
+                  placeholder="e.g., 60"
+                  value={form.sessionDurationMinutes}
+                  onChange={(e) => setForm({ ...form, sessionDurationMinutes: e.target.value })}
                 />
               </div>
             </div>

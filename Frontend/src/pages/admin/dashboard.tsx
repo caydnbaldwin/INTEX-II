@@ -27,6 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { api } from '@/lib/api'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const CHART_COLORS = [
   'oklch(0.45 0.18 280)',
@@ -111,13 +112,15 @@ interface SafehousePerformanceResult {
   }
 }
 
-const upcomingConferences = [
-  { id: 1, resident: 'R-012', date: '2026-04-09', category: 'Psychosocial' },
-  { id: 2, resident: 'R-023', date: '2026-04-10', category: 'Reintegration' },
-  { id: 3, resident: 'R-045', date: '2026-04-11', category: 'Safety' },
-]
+interface CaseConference {
+  planId: number
+  residentId: number
+  planCategory: string
+  caseConferenceDate: string
+}
 
 export function AdminDashboard() {
+  usePageTitle('Dashboard')
   const [loading, setLoading] = useState(true)
   const [safehouseOccupancy, setSafehouseOccupancy] = useState<{ name: string; capacity: number; occupancy: number }[]>([])
   const [riskDistribution, setRiskDistribution] = useState<{ name: string; value: number }[]>([])
@@ -133,6 +136,7 @@ export function AdminDashboard() {
   const [donationAmount, setDonationAmount] = useState(0)
   const [mlRiskAlerts, setMlRiskAlerts] = useState<ResidentRiskResult[]>([])
   const [mlSafehousePerf, setMlSafehousePerf] = useState<SafehousePerformanceResult[]>([])
+  const [upcomingConferences, setUpcomingConferences] = useState<CaseConference[]>([])
 
   useEffect(() => {
     async function fetchData() {
@@ -208,6 +212,18 @@ export function AdminDashboard() {
           setMlSafehousePerf(perfResults)
         } catch {
           console.warn('ML pipeline data unavailable')
+        }
+
+        // Upcoming case conferences from real API data
+        try {
+          const conferences = await api.get<CaseConference[]>('/api/residents/case-conferences')
+          const today = new Date().toISOString().split('T')[0]
+          const upcoming = conferences
+            .filter((c) => c.caseConferenceDate && c.caseConferenceDate >= today)
+            .slice(0, 5)
+          setUpcomingConferences(upcoming)
+        } catch {
+          console.warn('Case conference data unavailable')
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err)
@@ -350,16 +366,22 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {upcomingConferences.map((conf) => (
-                <div key={conf.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-mono text-muted-foreground">{conf.resident}</span>
-                    <Badge variant="outline" className="text-xs">{conf.category}</Badge>
+              {upcomingConferences.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">No upcoming conferences scheduled.</p>
+              ) : (
+                upcomingConferences.map((conf) => (
+                  <div key={conf.planId} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-mono text-muted-foreground">R-{String(conf.residentId).padStart(3, '0')}</span>
+                      <Badge variant="outline" className="text-xs">{conf.planCategory}</Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(conf.caseConferenceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{conf.date}</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             <Separator className="my-4" />
@@ -372,6 +394,9 @@ export function AdminDashboard() {
               </div>
               <div className="text-3xl font-bold text-primary font-serif">63.3%</div>
               <p className="text-xs text-muted-foreground mt-1">19 of 30 completed cases successfully reintegrated</p>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                This is Lunas's primary OKR because it captures the ultimate outcome of every service we provide — shelter, counseling, education, and case management — in a single metric. A higher rate means more girls are leaving our care with the support systems needed to thrive independently.
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -37,12 +37,25 @@ export function ResidentStoryCard({ story, compact }: ResidentStoryCardProps) {
           {story.description}
         </p>
       </div>
+<<<<<<< navbarfixes
       {/* Fixed image height so every card matches */}
       <div className="h-48 w-full shrink-0 overflow-hidden bg-muted">
         {photoPath ? (
           <img src={photoPath} alt="" className="h-full w-full object-cover object-center" />
         ) : null}
       </div>
+=======
+      {/* Image — fills remaining space */}
+      {photoPath && (
+        <div className="flex-1 min-h-0">
+          <img
+            src={photoPath}
+            alt={story.headline}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+>>>>>>> main
     </div>
   )
 }
