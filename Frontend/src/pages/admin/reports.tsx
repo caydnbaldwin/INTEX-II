@@ -528,7 +528,7 @@ export function ReportsAnalytics() {
                       <YAxis className="text-xs fill-muted-foreground" />
                       <Tooltip
                         contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
-                        formatter={(value: number) => [`${value.toFixed(2)}`, 'Avg. Impact Score']}
+                        formatter={(value) => [`${Number(value).toFixed(2)}`, 'Avg. Impact Score']}
                       />
                       <Bar dataKey="avgScore" name="Avg. Impact Score" radius={[4, 4, 0, 0]}>
                         {socialDriversData.map((_e, i) => (

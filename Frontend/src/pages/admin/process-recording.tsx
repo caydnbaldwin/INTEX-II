@@ -8,12 +8,7 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table'
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

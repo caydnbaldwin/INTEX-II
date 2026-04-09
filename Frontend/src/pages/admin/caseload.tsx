@@ -227,7 +227,7 @@ const blankForm = {
 
 export function CaseloadInventory() {
   usePageTitle('Caseload')
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
 
   // Read initial filter values from URL params
   const initialFilters = useMemo(() => ({
