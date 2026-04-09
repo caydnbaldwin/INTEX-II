@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Search,
   Plus,
@@ -113,12 +114,16 @@ interface MlRiskResult {
 interface Resident {
   id: number
   name: string
+  caseControlNo: string
   safehouseId: number
   safehouse: string
   riskLevel: RiskLevel
   caseStatus: CaseStatus
   caseCategory: string
   reintegrationStatus: ReintegrationStatus
+  dateOfBirth: string
+  assignedSocialWorker: string
+  hasSpecialNeeds: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -143,27 +148,27 @@ const RELIGIONS = ['Roman Catholic', 'Islam', 'Protestant', 'INC', 'Iglesia ni C
 // Helpers
 // ---------------------------------------------------------------------------
 
-function riskBadgeVariant(level: RiskLevel) {
+function riskBadgeClass(level: RiskLevel) {
   switch (level) {
     case 'Critical':
-      return 'destructive' as const
+      return 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
     case 'High':
-      return 'outline' as const
+      return 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-400'
     case 'Medium':
-      return 'default' as const
+      return 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
     case 'Low':
-      return 'secondary' as const
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
   }
 }
 
 function statusBadgeClass(status: CaseStatus) {
   switch (status) {
     case 'Active':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
     case 'Closed':
-      return 'border-zinc-200 bg-zinc-50 text-zinc-500'
+      return 'border-border bg-muted text-muted-foreground'
     case 'Pending Review':
-      return 'border-amber-200 bg-amber-50 text-amber-700'
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
   }
 }
 
@@ -222,6 +227,15 @@ const blankForm = {
 
 export function CaseloadInventory() {
   usePageTitle('Caseload')
+  const [searchParams] = useSearchParams()
+
+  // Read initial filter values from URL params
+  const initialFilters = useMemo(() => ({
+    risk: searchParams.get('risk') || 'all',
+    status: searchParams.get('status') || 'all',
+    reintegration: searchParams.get('reintegration') || 'all',
+  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const [residents, setResidents] = useState<Resident[]>([])
   const [safehouses, setSafehouses] = useState<ApiSafehouse[]>([])
   const [mlRiskMap, setMlRiskMap] = useState<Map<number, { score: number; label: string }>>(new Map())
@@ -230,12 +244,14 @@ export function CaseloadInventory() {
 
   const [search, setSearch] = useState('')
   const [filterSafehouse, setFilterSafehouse] = useState('all')
-  const [filterRisk, setFilterRisk] = useState('all')
-  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterRisk, setFilterRisk] = useState(initialFilters.risk)
+  const [filterStatus, setFilterStatus] = useState(initialFilters.status)
+  const [filterCategory, setFilterCategory] = useState('all')
 
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 15
 
+  const [viewingResident, setViewingResident] = useState<Resident | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(blankForm)
@@ -259,12 +275,16 @@ export function CaseloadInventory() {
         apiResidents.map((r) => ({
           id: r.residentId,
           name: r.internalCode || r.caseControlNo || `Resident ${r.residentId}`,
+          caseControlNo: r.caseControlNo,
           safehouseId: r.safehouseId,
           safehouse: safehouseMap.get(r.safehouseId) ?? `Safehouse ${r.safehouseId}`,
           riskLevel: (r.currentRiskLevel as RiskLevel) || 'Low',
           caseStatus: (r.caseStatus as CaseStatus) || 'Active',
           caseCategory: r.caseCategory ?? '',
           reintegrationStatus: (r.reintegrationStatus as ReintegrationStatus) || 'Not Started',
+          dateOfBirth: r.dateOfBirth ?? '',
+          assignedSocialWorker: r.assignedSocialWorker ?? '',
+          hasSpecialNeeds: r.hasSpecialNeeds ?? false,
         })),
       )
 
@@ -299,14 +319,21 @@ export function CaseloadInventory() {
       r.safehouse.toLowerCase().includes(q)
     const matchesSafehouse =
       filterSafehouse === 'all' || r.safehouse === filterSafehouse
-    const matchesRisk = filterRisk === 'all' || r.riskLevel === filterRisk
+    const matchesRisk =
+      filterRisk === 'all'
+        ? true
+        : filterRisk === 'at-risk'
+          ? r.riskLevel === 'Critical' || r.riskLevel === 'High'
+          : r.riskLevel === filterRisk
     const matchesStatus =
       filterStatus === 'all' || r.caseStatus === filterStatus
-    return matchesSearch && matchesSafehouse && matchesRisk && matchesStatus
+    const matchesCategory =
+      filterCategory === 'all' || r.caseCategory === filterCategory
+    return matchesSearch && matchesSafehouse && matchesRisk && matchesStatus && matchesCategory
   })
 
   // Reset page when filters change
-  useEffect(() => { setCurrentPage(1) }, [search, filterSafehouse, filterRisk, filterStatus])
+  useEffect(() => { setCurrentPage(1) }, [search, filterSafehouse, filterRisk, filterStatus, filterCategory])
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage)
   const paginatedResidents = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -455,7 +482,7 @@ export function CaseloadInventory() {
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-700" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -465,10 +492,10 @@ export function CaseloadInventory() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Caseload Inventory
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             Manage and track all resident cases across safehouses.
           </p>
         </div>
@@ -609,7 +636,7 @@ export function CaseloadInventory() {
 
               {/* Demographics */}
               <Collapsible>
-                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted">
                   Demographics
                   <ChevronDown className="h-4 w-4" />
                 </CollapsibleTrigger>
@@ -644,7 +671,7 @@ export function CaseloadInventory() {
 
               {/* Case Sub-Categories */}
               <Collapsible>
-                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted">
                   Case Sub-Categories
                   <ChevronDown className="h-4 w-4" />
                 </CollapsibleTrigger>
@@ -677,7 +704,7 @@ export function CaseloadInventory() {
 
               {/* Disability & Special Needs */}
               <Collapsible>
-                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted">
                   Disability & Special Needs
                   <ChevronDown className="h-4 w-4" />
                 </CollapsibleTrigger>
@@ -707,7 +734,7 @@ export function CaseloadInventory() {
 
               {/* Family Profile */}
               <Collapsible>
-                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted">
                   Family Socio-Demographic Profile
                   <ChevronDown className="h-4 w-4" />
                 </CollapsibleTrigger>
@@ -735,7 +762,7 @@ export function CaseloadInventory() {
 
               {/* Referral & Assignment */}
               <Collapsible>
-                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted">
                   Referral & Assignment
                   <ChevronDown className="h-4 w-4" />
                 </CollapsibleTrigger>
@@ -779,7 +806,7 @@ export function CaseloadInventory() {
 
               {/* Reintegration */}
               <Collapsible>
-                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-muted">
                   Reintegration
                   <ChevronDown className="h-4 w-4" />
                 </CollapsibleTrigger>
@@ -830,41 +857,41 @@ export function CaseloadInventory() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Residents
             </CardTitle>
-            <Users className="h-4 w-4 text-zinc-400" />
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">
+            <div className="text-2xl font-bold text-foreground">
               {residents.length}
             </div>
           </CardContent>
         </Card>
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Active Cases
             </CardTitle>
-            <Users className="h-4 w-4 text-emerald-500" />
+            <Users className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">
+            <div className="text-2xl font-bold text-foreground">
               {activeCount}
             </div>
           </CardContent>
         </Card>
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Critical Risk
             </CardTitle>
-            <ShieldAlert className="h-4 w-4 text-red-500" />
+            <ShieldAlert className="h-4 w-4 text-red-500 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">
+            <div className="text-2xl font-bold text-foreground">
               {criticalCount}
             </div>
           </CardContent>
@@ -872,11 +899,9 @@ export function CaseloadInventory() {
       </div>
 
       {/* Filters */}
-      <Card className="border-zinc-200">
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search residents..."
                 aria-label="Search residents"
@@ -904,6 +929,7 @@ export function CaseloadInventory() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Risk Levels</SelectItem>
+                <SelectItem value="at-risk">At Risk (Critical + High)</SelectItem>
                 {RISK_LEVELS.map((rl) => (
                   <SelectItem key={rl} value={rl}>
                     {rl}
@@ -924,22 +950,32 @@ export function CaseloadInventory() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        </CardContent>
-      </Card>
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {CASE_CATEGORIES.map((cc) => (
+                  <SelectItem key={cc} value={cc}>
+                    {cc}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+      </div>
 
       {/* Table */}
-      <Card className="border-zinc-200">
+      <Card className="border-border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="text-zinc-500">Name</TableHead>
-              <TableHead className="text-zinc-500">Safehouse</TableHead>
-              <TableHead className="text-zinc-500">Risk Level</TableHead>
-              <TableHead className="text-zinc-500">ML Risk</TableHead>
-              <TableHead className="text-zinc-500">Status</TableHead>
-              <TableHead className="text-zinc-500">Reintegration</TableHead>
-              <TableHead className="text-right text-zinc-500">
+              <TableHead className="text-muted-foreground">Name</TableHead>
+              <TableHead className="text-muted-foreground">Safehouse</TableHead>
+              <TableHead className="text-muted-foreground">Risk Level</TableHead>
+              <TableHead className="text-muted-foreground">Status</TableHead>
+              <TableHead className="text-muted-foreground">Reintegration</TableHead>
+              <TableHead className="text-right text-muted-foreground">
                 Actions
               </TableHead>
             </TableRow>
@@ -949,48 +985,33 @@ export function CaseloadInventory() {
               <TableRow>
                 <TableCell
                   colSpan={7}
-                  className="h-24 text-center text-zinc-400"
+                  className="h-24 text-center text-muted-foreground"
                 >
                   No residents found.
                 </TableCell>
               </TableRow>
             ) : (
               paginatedResidents.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium text-zinc-900">
+                <TableRow key={r.id} className="cursor-pointer hover:bg-muted" onClick={() => setViewingResident(r)}>
+                  <TableCell className="font-medium text-foreground">
                     {r.name}
                   </TableCell>
                   <TableCell>{r.safehouse}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant={riskBadgeVariant(r.riskLevel)}
-                      className={
-                        r.riskLevel === 'High'
-                          ? 'border-red-300 text-red-700'
-                          : undefined
-                      }
-                    >
-                      {r.riskLevel}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
                     {mlRiskMap.has(r.id) ? (
                       <Badge
                         variant="outline"
-                        className={
-                          mlRiskMap.get(r.id)!.label === 'Critical'
-                            ? 'border-red-300 bg-red-50 text-red-700'
-                            : mlRiskMap.get(r.id)!.label === 'High'
-                              ? 'border-orange-300 bg-orange-50 text-orange-700'
-                              : mlRiskMap.get(r.id)!.label === 'Medium'
-                                ? 'border-yellow-300 bg-yellow-50 text-yellow-700'
-                                : 'border-green-300 bg-green-50 text-green-700'
-                        }
+                        className={riskBadgeClass(mlRiskMap.get(r.id)!.label as RiskLevel)}
                       >
                         {mlRiskMap.get(r.id)!.label} {(mlRiskMap.get(r.id)!.score * 100).toFixed(0)}%
                       </Badge>
                     ) : (
-                      <span className="text-xs text-zinc-400">--</span>
+                      <Badge
+                        variant="outline"
+                        className={riskBadgeClass(r.riskLevel)}
+                      >
+                        {r.riskLevel}
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell>
@@ -1001,7 +1022,7 @@ export function CaseloadInventory() {
                       {r.caseStatus}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-zinc-600">
+                  <TableCell className="text-muted-foreground">
                     {r.reintegrationStatus}
                   </TableCell>
                   <TableCell className="text-right">
@@ -1009,8 +1030,8 @@ export function CaseloadInventory() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-zinc-500 hover:text-violet-700"
-                        onClick={() => openEdit(r)}
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={(e) => { e.stopPropagation(); openEdit(r) }}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -1020,7 +1041,8 @@ export function CaseloadInventory() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-zinc-500 hover:text-red-600"
+                            className="h-8 w-8 text-muted-foreground hover:text-red-600 dark:text-red-400"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -1058,6 +1080,85 @@ export function CaseloadInventory() {
         </Table>
       </Card>
       <TablePagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+
+      {/* Resident Detail Dialog */}
+      <Dialog open={!!viewingResident} onOpenChange={(open) => { if (!open) setViewingResident(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{viewingResident?.name}</DialogTitle>
+            <DialogDescription>Resident details</DialogDescription>
+          </DialogHeader>
+          {viewingResident && (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 py-4 text-sm">
+              <div>
+                <p className="text-muted-foreground mb-1">Case Control No.</p>
+                <p className="font-medium text-foreground">{viewingResident.caseControlNo || '—'}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Safehouse</p>
+                <p className="font-medium text-foreground">{viewingResident.safehouse}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Risk Level</p>
+                {mlRiskMap.has(viewingResident.id) ? (
+                  <Badge variant="outline" className={riskBadgeClass(mlRiskMap.get(viewingResident.id)!.label as RiskLevel)}>
+                    {mlRiskMap.get(viewingResident.id)!.label} {(mlRiskMap.get(viewingResident.id)!.score * 100).toFixed(0)}%
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className={riskBadgeClass(viewingResident.riskLevel)}>
+                    {viewingResident.riskLevel}
+                  </Badge>
+                )}
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Status</p>
+                <Badge variant="outline" className={statusBadgeClass(viewingResident.caseStatus)}>
+                  {viewingResident.caseStatus}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Case Category</p>
+                <p className="font-medium text-foreground">{viewingResident.caseCategory || '—'}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Reintegration</p>
+                <p className="font-medium text-foreground">{viewingResident.reintegrationStatus}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Date of Birth</p>
+                <p className="font-medium text-foreground">
+                  {viewingResident.dateOfBirth
+                    ? new Date(viewingResident.dateOfBirth).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : '—'}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Social Worker</p>
+                <p className="font-medium text-foreground">{viewingResident.assignedSocialWorker || '—'}</p>
+              </div>
+              {viewingResident.hasSpecialNeeds && (
+                <div className="col-span-2">
+                  <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400">Special Needs</Badge>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setViewingResident(null)}>Close</Button>
+            <Button
+              className="bg-violet-700 hover:bg-violet-800"
+              onClick={() => {
+                const resident = viewingResident
+                setViewingResident(null)
+                if (resident) openEdit(resident)
+              }}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

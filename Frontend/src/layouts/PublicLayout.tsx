@@ -1,9 +1,10 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/context/AuthContext'
+import { useTheme } from '@/components/theme-provider'
 import { logout } from '@/lib/authApi'
 
 const navigation = [
@@ -21,6 +22,7 @@ export function PublicLayout() {
     setMobileMenuOpen(false)
   }, [location])
 
+  const { theme, setTheme, canSetTheme } = useTheme()
   const isAdmin = authSession.roles.includes('Admin')
   const isDonor = authSession.roles.includes('Donor')
   const dashboardPath = isAdmin
@@ -210,7 +212,20 @@ export function PublicLayout() {
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-sm text-muted-foreground">
             <p>&copy; {new Date().getFullYear()} Lunas. All rights reserved.</p>
-            <p>A 501(c)(3) nonprofit organization</p>
+            <div className="flex items-center gap-3">
+              <p>A 501(c)(3) nonprofit organization</p>
+              {canSetTheme && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                >
+                  {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </footer>

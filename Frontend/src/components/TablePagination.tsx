@@ -29,12 +29,11 @@ export function TablePagination({ currentPage, totalPages, onPageChange }: Table
             className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
           />
         </PaginationItem>
-        {pages.map((page, idx) => (
-          <span key={page}>
-            {idx > 0 && pages[idx - 1] !== page - 1 && (
-              <PaginationItem><PaginationEllipsis /></PaginationItem>
-            )}
-            <PaginationItem>
+        {pages.map((page, idx) => {
+          const showEllipsis = idx > 0 && pages[idx - 1] !== page - 1
+          return (
+            <PaginationItem key={page} className="flex items-center gap-1">
+              {showEllipsis && <PaginationEllipsis />}
               <PaginationLink
                 isActive={page === currentPage}
                 onClick={(e) => { e.preventDefault(); onPageChange(page) }}
@@ -43,8 +42,8 @@ export function TablePagination({ currentPage, totalPages, onPageChange }: Table
                 {page}
               </PaginationLink>
             </PaginationItem>
-          </span>
-        ))}
+          )
+        })}
         <PaginationItem>
           <PaginationNext
             onClick={(e) => { e.preventDefault(); onPageChange(Math.min(totalPages, currentPage + 1)) }}

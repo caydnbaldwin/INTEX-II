@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, Users, UserCheck, Banknote, Trash2, Pencil, AlertTriangle, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
 import {
   Tabs,
@@ -190,19 +191,19 @@ function formatPHP(amount: number): string {
 function typeBadgeClass(type: DonorType | string): string {
   switch (type) {
     case 'MonetaryDonor':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 dark:text-emerald-300'
     case 'InKindDonor':
-      return 'border-blue-200 bg-blue-50 text-blue-700'
+      return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-400'
     case 'Volunteer':
-      return 'border-violet-200 bg-violet-50 text-violet-700'
+      return 'border-violet-200 bg-violet-50 text-primary dark:border-violet-800 dark:bg-violet-950 dark:text-violet-400'
     case 'SkillsContributor':
-      return 'border-cyan-200 bg-cyan-50 text-cyan-700'
+      return 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950 dark:text-cyan-400'
     case 'SocialMediaAdvocate':
-      return 'border-pink-200 bg-pink-50 text-pink-700'
+      return 'border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-800 dark:bg-pink-950 dark:text-pink-400'
     case 'PartnerOrganization':
-      return 'border-amber-200 bg-amber-50 text-amber-700'
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
     default:
-      return 'border-zinc-200 bg-zinc-50 text-zinc-700'
+      return 'border-border bg-muted text-muted-foreground'
   }
 }
 
@@ -223,6 +224,9 @@ const blankForm = {
 
 export function DonorsManagement() {
   usePageTitle('Donors')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = searchParams.get('tab') || 'supporters'
+
   const [donors, setDonors] = useState<Donor[]>([])
   const [donations, setDonations] = useState<Donation[]>([])
   const [loading, setLoading] = useState(true)
@@ -230,12 +234,14 @@ export function DonorsManagement() {
   const [filterType, setFilterType] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
   const [atRiskDonors, setAtRiskDonors] = useState<DonorChurnResult[]>([])
+  const [viewingDonor, setViewingDonor] = useState<Donor | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(blankForm)
   const [saving, setSaving] = useState(false)
   const [donorsPage, setDonorsPage] = useState(1)
   const [donationsPage, setDonationsPage] = useState(1)
+  const [atRiskPage, setAtRiskPage] = useState(1)
   const itemsPerPage = 15
 
   // Donation creation state
@@ -456,15 +462,15 @@ export function DonorsManagement() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Donors & Contributions
             </h1>
-            <p className="mt-1 text-sm text-zinc-500">
-              Manage supporters and track donation activity.
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage donors and track donation activity.
             </p>
           </div>
         </div>
-        <div className="flex items-center justify-center py-20 text-zinc-400">
+        <div className="flex items-center justify-center py-20 text-muted-foreground">
           Loading donors data...
         </div>
       </div>
@@ -476,128 +482,82 @@ export function DonorsManagement() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Donors & Contributions
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Manage supporters and track donation activity.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage donors and track donation activity.
           </p>
         </div>
         <Button onClick={openAdd} className="gap-2 bg-violet-700 hover:bg-violet-800">
           <Plus className="h-4 w-4" />
-          Add Supporter
+          Add Donor
         </Button>
       </div>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Donors
             </CardTitle>
-            <Users className="h-4 w-4 text-zinc-400" />
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">{totalDonors}</div>
+            <div className="text-2xl font-bold text-foreground">{totalDonors}</div>
           </CardContent>
         </Card>
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Active Donors
             </CardTitle>
-            <UserCheck className="h-4 w-4 text-emerald-500" />
+            <UserCheck className="h-4 w-4 text-emerald-500 dark:text-emerald-400 dark:text-emerald-300" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">
+            <div className="text-2xl font-bold text-foreground">
               {activeDonors}
             </div>
           </CardContent>
         </Card>
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Donations
             </CardTitle>
-            <Banknote className="h-4 w-4 text-violet-500" />
+            <Banknote className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">
+            <div className="text-2xl font-bold text-foreground">
               {formatPHP(totalDonationsAmount)}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* At-Risk Donors (ML) */}
-      {atRiskDonors.length > 0 && (
-        <Card className="border-amber-300 bg-amber-50/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-amber-800">
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
-              At-Risk Donors (ML)
-            </CardTitle>
-            <p className="text-sm text-amber-700">
-              These donors are predicted to be at risk of churning based on ML analysis.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {atRiskDonors.map((d) => {
-                const daysSinceFirst = d.supporter?.firstDonationDate
-                  ? Math.floor(
-                      (Date.now() - new Date(d.supporter.firstDonationDate).getTime()) /
-                        (1000 * 60 * 60 * 24),
-                    )
-                  : null
-                return (
-                  <div
-                    key={d.pipelineResultId}
-                    className="flex items-center justify-between rounded-lg border border-amber-200 bg-white px-4 py-3"
-                  >
-                    <div>
-                      <div className="text-sm font-medium text-zinc-900">
-                        {d.supporter?.displayName || `Donor ${d.entityId}`}
-                      </div>
-                      <div className="text-xs text-zinc-500">{d.supporter?.email}</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {daysSinceFirst !== null && (
-                        <span className="text-xs text-zinc-500">
-                          {daysSinceFirst}d since first donation
-                        </span>
-                      )}
-                      <Badge
-                        variant="outline"
-                        className="border-amber-400 bg-amber-100 text-amber-800"
-                      >
-                        {(d.score * 100).toFixed(0)}% churn risk
-                      </Badge>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Tabs */}
-      <Tabs defaultValue="supporters">
+      <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })}>
         <TabsList>
-          <TabsTrigger value="supporters">Supporters</TabsTrigger>
+          <TabsTrigger value="supporters">Donors</TabsTrigger>
           <TabsTrigger value="donations">Recent Donations</TabsTrigger>
+          <TabsTrigger value="at-risk" className="gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            At-Risk Donors
+            {atRiskDonors.length > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1 text-[10px]">
+                {atRiskDonors.length}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Supporters Tab */}
         <TabsContent value="supporters" className="space-y-4">
           {/* Filters */}
-          <Card className="border-zinc-200">
-            <CardContent className="pt-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Search donors..."
                     aria-label="Search donors"
@@ -632,23 +592,21 @@ export function DonorsManagement() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </CardContent>
-          </Card>
+          </div>
 
           {/* Donors Table */}
-          <Card className="border-zinc-200">
+          <Card className="border-border">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-zinc-500">Name</TableHead>
-                  <TableHead className="text-zinc-500">Type</TableHead>
-                  <TableHead className="text-zinc-500">Status</TableHead>
-                  <TableHead className="text-zinc-500">Last Donation</TableHead>
-                  <TableHead className="text-right text-zinc-500">
+                  <TableHead className="text-muted-foreground">Name</TableHead>
+                  <TableHead className="text-muted-foreground">Type</TableHead>
+                  <TableHead className="text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-muted-foreground">Last Donation</TableHead>
+                  <TableHead className="text-right text-muted-foreground">
                     Total Amount
                   </TableHead>
-                  <TableHead className="text-right text-zinc-500">
+                  <TableHead className="text-right text-muted-foreground">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -658,20 +616,20 @@ export function DonorsManagement() {
                   <TableRow>
                     <TableCell
                       colSpan={7}
-                      className="h-24 text-center text-zinc-400"
+                      className="h-24 text-center text-muted-foreground"
                     >
                       No donors found.
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedDonors.map((donor) => (
-                    <TableRow key={donor.id}>
+                    <TableRow key={donor.id} className="cursor-pointer hover:bg-muted" onClick={() => setViewingDonor(donor)}>
                       <TableCell>
                         <div>
-                          <div className="font-medium text-zinc-900">
+                          <div className="font-medium text-foreground">
                             {donor.name}
                           </div>
-                          <div className="text-xs text-zinc-400">
+                          <div className="text-xs text-muted-foreground">
                             {donor.email}
                           </div>
                         </div>
@@ -689,14 +647,14 @@ export function DonorsManagement() {
                           variant="outline"
                           className={
                             donor.status === 'Active'
-                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                              : 'border-zinc-200 bg-zinc-50 text-zinc-500'
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 dark:text-emerald-300'
+                              : 'border-border bg-muted text-muted-foreground'
                           }
                         >
                           {donor.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-zinc-600">
+                      <TableCell className="text-muted-foreground">
                         {donor.lastDonationDate === '-'
                           ? '-'
                           : new Date(
@@ -707,7 +665,7 @@ export function DonorsManagement() {
                               year: 'numeric',
                             })}
                       </TableCell>
-                      <TableCell className="text-right font-medium text-zinc-900">
+                      <TableCell className="text-right font-medium text-foreground">
                         {formatPHP(donor.totalAmount)}
                       </TableCell>
                       <TableCell className="text-right">
@@ -715,8 +673,8 @@ export function DonorsManagement() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-zinc-500 hover:text-violet-700"
-                            onClick={() => openEdit(donor)}
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={(e) => { e.stopPropagation(); openEdit(donor) }}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -726,7 +684,8 @@ export function DonorsManagement() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-zinc-500 hover:text-red-600"
+                                className="h-8 w-8 text-muted-foreground hover:text-red-600 dark:text-red-400"
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -775,19 +734,19 @@ export function DonorsManagement() {
               Record Donation
             </Button>
           </div>
-          <Card className="border-zinc-200">
+          <Card className="border-border">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-8 text-zinc-500"></TableHead>
-                  <TableHead className="text-zinc-500">Date</TableHead>
-                  <TableHead className="text-zinc-500">Donor</TableHead>
-                  <TableHead className="text-zinc-500">Type</TableHead>
-                  <TableHead className="text-zinc-500">Description</TableHead>
-                  <TableHead className="text-right text-zinc-500">
+                  <TableHead className="w-8 text-muted-foreground"></TableHead>
+                  <TableHead className="text-muted-foreground">Date</TableHead>
+                  <TableHead className="text-muted-foreground">Donor</TableHead>
+                  <TableHead className="text-muted-foreground">Type</TableHead>
+                  <TableHead className="text-muted-foreground">Description</TableHead>
+                  <TableHead className="text-right text-muted-foreground">
                     Amount
                   </TableHead>
-                  <TableHead className="w-12 text-zinc-500"></TableHead>
+                  <TableHead className="w-12 text-muted-foreground"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -795,7 +754,7 @@ export function DonorsManagement() {
                   <TableRow>
                     <TableCell
                       colSpan={7}
-                      className="h-24 text-center text-zinc-400"
+                      className="h-24 text-center text-muted-foreground"
                     >
                       No donations found.
                     </TableCell>
@@ -805,24 +764,24 @@ export function DonorsManagement() {
                     <>
                     <TableRow
                       key={donation.id}
-                      className="cursor-pointer hover:bg-zinc-50"
+                      className="cursor-pointer hover:bg-muted"
                       onClick={() => fetchAllocations(donation.id)}
                     >
                       <TableCell className="w-8 px-2">
                         {expandedDonationId === donation.id ? (
-                          <ChevronDown className="h-4 w-4 text-zinc-400" />
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-zinc-400" />
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         )}
                       </TableCell>
-                      <TableCell className="text-zinc-600">
+                      <TableCell className="text-muted-foreground">
                         {new Date(donation.date).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',
                         })}
                       </TableCell>
-                      <TableCell className="font-medium text-zinc-900">
+                      <TableCell className="font-medium text-foreground">
                         {donation.donorName}
                       </TableCell>
                       <TableCell>
@@ -833,16 +792,16 @@ export function DonorsManagement() {
                           {DONOR_TYPE_LABELS[donation.type as DonorType] ?? donation.type}
                         </Badge>
                       </TableCell>
-                      <TableCell className="max-w-[280px] truncate text-zinc-600">
+                      <TableCell className="max-w-[280px] truncate text-muted-foreground">
                         {sanitize(donation.description)}
                       </TableCell>
-                      <TableCell className="text-right font-medium text-zinc-900">
+                      <TableCell className="text-right font-medium text-foreground">
                         {formatPHP(donation.amount)}
                       </TableCell>
                       <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <button className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600">
+                            <button className="rounded p-1 text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:text-red-400">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </AlertDialogTrigger>
@@ -865,32 +824,32 @@ export function DonorsManagement() {
                     </TableRow>
                     {expandedDonationId === donation.id && (
                       <TableRow key={`alloc-${donation.id}`}>
-                        <TableCell colSpan={7} className="bg-zinc-50/50 px-8 py-4">
+                        <TableCell colSpan={7} className="bg-muted/50 px-8 py-4">
                           {allocationsLoading ? (
-                            <div className="flex items-center gap-2 text-sm text-zinc-400">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Loader2 className="h-4 w-4 animate-spin" /> Loading allocations...
                             </div>
                           ) : allocations.length === 0 ? (
-                            <p className="text-sm text-zinc-400">No allocations recorded for this donation.</p>
+                            <p className="text-sm text-muted-foreground">No allocations recorded for this donation.</p>
                           ) : (
                             <div className="space-y-2">
-                              <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Allocation Breakdown</p>
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Allocation Breakdown</p>
                               <Table>
                                 <TableHeader>
                                   <TableRow className="hover:bg-transparent">
-                                    <TableHead className="text-zinc-500">Program Area</TableHead>
-                                    <TableHead className="text-zinc-500">Safehouse</TableHead>
-                                    <TableHead className="text-right text-zinc-500">Amount</TableHead>
-                                    <TableHead className="text-zinc-500">Notes</TableHead>
+                                    <TableHead className="text-muted-foreground">Program Area</TableHead>
+                                    <TableHead className="text-muted-foreground">Safehouse</TableHead>
+                                    <TableHead className="text-right text-muted-foreground">Amount</TableHead>
+                                    <TableHead className="text-muted-foreground">Notes</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {allocations.map((a) => (
                                     <TableRow key={a.allocationId}>
-                                      <TableCell className="text-zinc-700">{a.programArea}</TableCell>
-                                      <TableCell className="text-zinc-600">Safehouse {a.safehouseId}</TableCell>
-                                      <TableCell className="text-right font-medium text-zinc-900">{formatPHP(a.amountAllocated)}</TableCell>
-                                      <TableCell className="text-zinc-500">{a.allocationNotes || '—'}</TableCell>
+                                      <TableCell className="text-foreground/80">{a.programArea}</TableCell>
+                                      <TableCell className="text-muted-foreground">Safehouse {a.safehouseId}</TableCell>
+                                      <TableCell className="text-right font-medium text-foreground">{formatPHP(a.amountAllocated)}</TableCell>
+                                      <TableCell className="text-muted-foreground">{a.allocationNotes || '—'}</TableCell>
                                     </TableRow>
                                   ))}
                                 </TableBody>
@@ -908,19 +867,119 @@ export function DonorsManagement() {
           </Card>
           <TablePagination currentPage={donationsPage} totalPages={donationsTotalPages} onPageChange={setDonationsPage} />
         </TabsContent>
+
+        {/* At-Risk Donors Tab */}
+        <TabsContent value="at-risk" className="space-y-4">
+          <Card className="border-border">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  At-Risk Donors
+                </CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Donors predicted to be at risk of churning based on ML analysis.
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {atRiskDonors.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <UserCheck className="h-10 w-10 text-emerald-400 dark:text-emerald-300 mb-3" />
+                  <p className="text-sm font-medium text-foreground/80">No at-risk donors detected</p>
+                  <p className="text-xs text-muted-foreground mt-1">All donors appear healthy based on the latest ML analysis.</p>
+                </div>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-muted-foreground">Name</TableHead>
+                        <TableHead className="text-muted-foreground">Email</TableHead>
+                        <TableHead className="text-muted-foreground">Type</TableHead>
+                        <TableHead className="text-muted-foreground">Status</TableHead>
+                        <TableHead className="text-muted-foreground">First Donation</TableHead>
+                        <TableHead className="text-right text-muted-foreground">Churn Risk</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {atRiskDonors
+                        .slice((atRiskPage - 1) * itemsPerPage, atRiskPage * itemsPerPage)
+                        .map((d) => (
+                          <TableRow key={d.pipelineResultId}>
+                            <TableCell>
+                              <span className="font-medium text-foreground">
+                                {d.supporter?.displayName || `Donor ${d.entityId}`}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {d.supporter?.email || '—'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={typeBadgeClass(d.supporter?.supporterType || '')}>
+                                {DONOR_TYPE_LABELS[d.supporter?.supporterType as DonorType] ?? d.supporter?.supporterType ?? '—'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  d.supporter?.status === 'Active'
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 dark:text-emerald-300'
+                                    : 'border-border bg-muted text-muted-foreground'
+                                }
+                              >
+                                {d.supporter?.status || '—'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {d.supporter?.firstDonationDate
+                                ? new Date(d.supporter.firstDonationDate).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                  })
+                                : '—'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  d.score >= 0.7
+                                    ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
+                                    : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
+                                }
+                              >
+                                {(d.score * 100).toFixed(0)}%
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                  <TablePagination
+                    currentPage={atRiskPage}
+                    totalPages={Math.ceil(atRiskDonors.length / itemsPerPage)}
+                    onPageChange={setAtRiskPage}
+                  />
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
-      {/* Add/Edit Supporter Dialog */}
+      {/* Add/Edit Donor Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? 'Edit Supporter' : 'Add New Supporter'}
+              {editingId ? 'Edit Donor' : 'Add New Donor'}
             </DialogTitle>
             <DialogDescription>
               {editingId
-                ? 'Update the supporter information below.'
-                : 'Register a new donor or supporter.'}
+                ? 'Update the donor information below.'
+                : 'Register a new donor.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -997,7 +1056,7 @@ export function DonorsManagement() {
               disabled={saving}
               className="bg-violet-700 hover:bg-violet-800"
             >
-              {saving ? 'Saving...' : editingId ? 'Save Changes' : 'Add Supporter'}
+              {saving ? 'Saving...' : editingId ? 'Save Changes' : 'Add Donor'}
             </Button>
           </div>
         </DialogContent>
@@ -1008,13 +1067,13 @@ export function DonorsManagement() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Record Donation</DialogTitle>
-            <DialogDescription>Log a new donation from an existing supporter.</DialogDescription>
+            <DialogDescription>Log a new donation from an existing donor.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label>Supporter</Label>
+              <Label>Donor</Label>
               <Select value={donationForm.supporterId} onValueChange={(v) => setDonationForm({ ...donationForm, supporterId: v })}>
-                <SelectTrigger><SelectValue placeholder="Select supporter" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select donor" /></SelectTrigger>
                 <SelectContent>
                   {donors.map((d) => (
                     <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
@@ -1058,6 +1117,79 @@ export function DonorsManagement() {
             <Button variant="outline" onClick={() => setDonationDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveDonation} disabled={savingDonation} className="bg-violet-700 hover:bg-violet-800">
               {savingDonation ? 'Saving...' : 'Record Donation'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Donor Detail Dialog */}
+      <Dialog open={!!viewingDonor} onOpenChange={(open) => { if (!open) setViewingDonor(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{viewingDonor?.name}</DialogTitle>
+            <DialogDescription>Donor details</DialogDescription>
+          </DialogHeader>
+          {viewingDonor && (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 py-4 text-sm">
+              <div>
+                <p className="text-muted-foreground mb-1">Email</p>
+                <p className="font-medium text-foreground">{viewingDonor.email}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Type</p>
+                <Badge variant="outline" className={typeBadgeClass(viewingDonor.type)}>
+                  {DONOR_TYPE_LABELS[viewingDonor.type] ?? viewingDonor.type}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Status</p>
+                <Badge
+                  variant="outline"
+                  className={
+                    viewingDonor.status === 'Active'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 dark:text-emerald-300'
+                      : 'border-border bg-muted text-muted-foreground'
+                  }
+                >
+                  {viewingDonor.status}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Acquisition Channel</p>
+                <p className="font-medium text-foreground">
+                  {CHANNEL_LABELS[viewingDonor.acquisitionChannel] ?? viewingDonor.acquisitionChannel}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Last Donation</p>
+                <p className="font-medium text-foreground">
+                  {viewingDonor.lastDonationDate === '-'
+                    ? '—'
+                    : new Date(viewingDonor.lastDonationDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Total Donations</p>
+                <p className="font-medium text-foreground">{formatPHP(viewingDonor.totalAmount)}</p>
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setViewingDonor(null)}>Close</Button>
+            <Button
+              className="bg-violet-700 hover:bg-violet-800"
+              onClick={() => {
+                const donor = viewingDonor
+                setViewingDonor(null)
+                if (donor) openEdit(donor)
+              }}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
             </Button>
           </div>
         </DialogContent>
