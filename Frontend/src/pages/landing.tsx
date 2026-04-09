@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
-import { ArrowRight, ChevronDown, Heart, CheckCircle2 } from 'lucide-react'
+import { ChevronDown, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePageTitle } from '@/hooks/usePageTitle'
 
