@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   build: {
-    chunkSizeWarningLimit: 700,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -19,6 +19,8 @@ export default defineConfig({
 
           if (id.includes('recharts')) return 'charts'
           if (id.includes('lucide-react')) return 'icons'
+          if (id.includes('leaflet')) return 'leaflet'
+          if (id.includes('@tiptap')) return 'editor'
           if (id.includes('react-router') || id.includes('@remix-run')) return 'router'
           if (id.includes('react') || id.includes('scheduler')) return 'react-vendor'
 

@@ -333,7 +333,7 @@ export function ImpactDashboard() {
                         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                         <XAxis dataKey="month" className="text-xs fill-muted-foreground" />
                         <YAxis className="text-xs fill-muted-foreground" />
-                        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                        <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                         <Legend />
                         <Line type="monotone" dataKey="total" name="Total Served" stroke={CHART_COLORS[0]} strokeWidth={2} dot={{ fill: CHART_COLORS[0] }} />
                         <Line type="monotone" dataKey="active" name="Active" stroke={CHART_COLORS[1]} strokeWidth={2} dot={{ fill: CHART_COLORS[1] }} />
@@ -357,7 +357,7 @@ export function ImpactDashboard() {
                             <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip />
+                        <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -380,7 +380,7 @@ export function ImpactDashboard() {
                         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                         <XAxis type="number" className="text-xs fill-muted-foreground" />
                         <YAxis dataKey="name" type="category" width={120} className="text-xs fill-muted-foreground" />
-                        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                        <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                         <Legend />
                         <Bar dataKey="enrolled" name="Enrolled" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} />
                         <Bar dataKey="completed" name="Completed" fill={CHART_COLORS[2]} radius={[0, 4, 4, 0]} />
@@ -455,7 +455,7 @@ export function ImpactDashboard() {
                         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                         <XAxis dataKey="month" className="text-xs fill-muted-foreground" />
                         <YAxis className="text-xs fill-muted-foreground" />
-                        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                        <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                         <Legend />
                         <Line type="monotone" dataKey="healthScore" name="Health Score" stroke={CHART_COLORS[0]} strokeWidth={2} dot={{ fill: CHART_COLORS[0] }} />
                         <Line type="monotone" dataKey="sessions" name="Sessions (x10)" stroke={CHART_COLORS[2]} strokeWidth={2} strokeDasharray="5 5" dot={{ fill: CHART_COLORS[2] }} />
@@ -499,7 +499,7 @@ export function ImpactDashboard() {
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                       <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
                       <YAxis className="text-xs fill-muted-foreground" />
-                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                      <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                       <Legend />
                       <Bar dataKey="capacity" name="Capacity" fill={CHART_COLORS[3]} radius={[4, 4, 0, 0]} />
                       <Bar dataKey="occupancy" name="Occupancy" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />

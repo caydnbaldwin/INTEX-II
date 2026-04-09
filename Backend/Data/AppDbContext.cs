@@ -39,6 +39,50 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<PipelineResult>().Property(e => e.PipelineResultId).ValueGeneratedNever();
         modelBuilder.Entity<PipelineResult>().Property(e => e.Score).HasPrecision(18, 6);
 
+        // Email automation tables
+        modelBuilder.Entity<EmailTemplate>().HasKey(e => e.TemplateId);
+        modelBuilder.Entity<EmailTemplate>().Property(e => e.TemplateId).ValueGeneratedNever();
+
+        modelBuilder.Entity<AutomationState>().HasData(
+            new AutomationState { Id = 1, Enabled = false, EmailsThisWeek = 0 }
+        );
+
+        modelBuilder.Entity<EmailTemplate>().HasData(
+            new EmailTemplate
+            {
+                TemplateId = "loyal",
+                Name = "Loyal Donors",
+                Description = "3+ gifts — partner-level tone",
+                Trigger = "frequency >= 3",
+                Subject = "You're making a difference, {{first_name}}",
+                Body = "{{first_name}},\n\nYou are making a difference. We are so grateful for your commitment to these girls. You are one of our best supporters — your {{frequency}} heartfelt donations have helped fund {{program_area}}, supported girls through some of their hardest moments, and kept our doors open for those who need us most.\n\nWe are growing more than ever and working to reach more girls across the Philippines. Right now we are in need of funding for {{program_area}}, and even a donation of {{suggested_amount}} would help us get closer to our goal. Anything you give goes a long way to protecting our girls.\n\n{{donate_button}}\n\n— Lunas Project",
+                LastEdited = new DateTime(2026, 4, 8, 0, 0, 0, DateTimeKind.Utc),
+                LastEditedBy = "system"
+            },
+            new EmailTemplate
+            {
+                TemplateId = "first_time",
+                Name = "First-Time Donors",
+                Description = "1-2 gifts — welcome tone",
+                Trigger = "frequency <= 2",
+                Subject = "{{first_name}}, your gift is already making an impact",
+                Body = "{{first_name}},\n\nYou are making a difference. Thank you for your generous gift to Lunas Foundation — it means more than you know. Your donation has gone toward {{program_area}}, directly supporting girls who had nowhere else to turn.\n\nWe are growing and working hard to reach even more girls who need us. A donation of {{suggested_amount}} would help us continue that work. Every contribution, no matter the size, goes directly to protecting and empowering the girls in our care.\n\n{{donate_button}}\n\n— Lunas Project",
+                LastEdited = new DateTime(2026, 4, 8, 0, 0, 0, DateTimeKind.Utc),
+                LastEditedBy = "system"
+            },
+            new EmailTemplate
+            {
+                TemplateId = "win_back",
+                Name = "Win-Back",
+                Description = "90+ days since last gift — reactivation tone",
+                Trigger = "recency > 90",
+                Subject = "We miss you, {{first_name}}",
+                Body = "{{first_name}},\n\nYou made a difference — and we haven't forgotten it. Your past generosity helped fund {{program_area}} and supported girls during some of their most vulnerable moments. That gift mattered then, and it still matters now.\n\nA lot has happened since your last donation. We are reaching more girls than ever and growing every month — but we need supporters like you to keep going. Even a gift of {{suggested_amount}} would help us continue the work you helped start.\n\n{{donate_button}}\n\n— Lunas Project",
+                LastEdited = new DateTime(2026, 4, 8, 0, 0, 0, DateTimeKind.Utc),
+                LastEditedBy = "system"
+            }
+        );
+
         modelBuilder.Entity<BoardingPlacement>()
             .HasOne<Resident>()
             .WithMany()
@@ -129,4 +173,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<SocialMediaPost> SocialMediaPosts { get; set; }
     public DbSet<Supporter> Supporters { get; set; }
     public DbSet<PipelineResult> PipelineResults { get; set; }
+    public DbSet<EmailTemplate> EmailTemplates { get; set; }
+    public DbSet<OutreachEmailLog> OutreachEmailLogs { get; set; }
+    public DbSet<AutomationState> AutomationStates { get; set; }
 }

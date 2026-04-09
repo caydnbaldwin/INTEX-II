@@ -1,6 +1,7 @@
-import { Fragment, useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, Users, UserCheck, Banknote, Trash2, Pencil, AlertTriangle, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
+import { Fragment, useState, useEffect, useCallback } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
+import { toast } from 'sonner'
+import { Plus, Search, Users, UserCheck, Banknote, Trash2, Pencil, AlertTriangle, ChevronDown, ChevronRight, Loader2, Mail, Play, Eye } from 'lucide-react'
 import {
   Tabs,
   TabsList,
@@ -53,6 +54,9 @@ import {
   SelectItem,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { api } from '@/lib/api'
 import { sanitize } from '@/lib/sanitize'
 import { TablePagination } from '@/components/TablePagination'
@@ -140,6 +144,46 @@ interface DonorChurnResult {
     status: string
     firstDonationDate: string
   }
+}
+
+// ---------------------------------------------------------------------------
+// Donor Automation Types (camelCase — matches .NET JSON serialization)
+// ---------------------------------------------------------------------------
+
+interface AutomationState {
+  enabled: boolean
+  lastRun: string | null
+  nextRun: string | null
+  emailsThisWeek: number
+}
+
+interface AutomationDonor {
+  supporterId: number
+  displayName: string
+  firstName: string
+  email: string
+  emailMasked: string
+  upgradeScore: 'High' | 'Medium' | 'Low'
+  monetaryAvg: number
+  frequency: number
+  recency: number
+}
+
+interface AutomationDonorResponse {
+  donors: AutomationDonor[]
+  total: number
+}
+
+interface EmailLogEntry {
+  outreachEmailLogId: number
+  supporterId: number
+  donorName: string
+  email: string
+  sentAt: string
+  subject: string
+  body: string
+  status: string
+  templateId?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +308,85 @@ export function DonorsManagement() {
   const [draftFilterAllocationSafehouse, setDraftFilterAllocationSafehouse] = useState<string[]>([])
   const [draftFilterAllocationProgramArea, setDraftFilterAllocationProgramArea] = useState<string[]>([])
   const itemsPerPage = 15
+
+  // Automation state
+  const [automationDonors, setAutomationDonors] = useState<AutomationDonorResponse | null>(null)
+  const [emailLog, setEmailLog] = useState<EmailLogEntry[]>([])
+  const [automationOn, setAutomationOn] = useState(false)
+  const [automationLoading, setAutomationLoading] = useState(true)
+  const [automationError, setAutomationError] = useState<string | null>(null)
+  const [toggling, setToggling] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [sendingId, setSendingId] = useState<number | null>(null)
+  const [logOpen, setLogOpen] = useState(false)
+  const [previewEmail, setPreviewEmail] = useState<EmailLogEntry | null>(null)
+
+  const fetchAutomation = useCallback(async () => {
+    try {
+      const [stateJson, donorJson, emailJson] = await Promise.all([
+        api.get<AutomationState>('/api/email-automation/state'),
+        api.get<AutomationDonorResponse>('/api/email-automation/donors'),
+        api.get<EmailLogEntry[]>('/api/email-automation/email-log'),
+      ])
+      setAutomationDonors(donorJson)
+      setEmailLog(emailJson)
+      setAutomationOn(stateJson.enabled ?? false)
+      setAutomationError(null)
+    } catch {
+      setAutomationError('Could not reach the automation API.')
+    } finally {
+      setAutomationLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchAutomation()
+  }, [fetchAutomation])
+
+  async function toggleAutomation(checked: boolean) {
+    setToggling(true)
+    try {
+      await api.post('/api/email-automation/toggle', { enabled: checked })
+      setAutomationOn(checked)
+      toast.success(checked ? 'Automation enabled' : 'Automation disabled')
+      await fetchAutomation()
+    } catch {
+      toast.error('Could not toggle automation')
+    } finally {
+      setToggling(false)
+    }
+  }
+
+  async function runAutomationNow() {
+    setRunning(true)
+    try {
+      await api.post('/api/email-automation/run-now', {})
+      toast.success('Automation run triggered')
+      await fetchAutomation()
+    } catch {
+      toast.error('Automation run failed')
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  async function sendEmail(supporterId: number, emailDisplay: string, templateId?: string) {
+    setSendingId(supporterId)
+    try {
+      await api.post('/api/email-automation/send', { supporterId, templateId })
+      toast.success(`Email sent to ${emailDisplay}`)
+      await fetchAutomation()
+    } catch {
+      toast.error('Could not send email')
+    } finally {
+      setSendingId(null)
+    }
+  }
+
+  function fmtAutoDate(iso: string | null) {
+    if (!iso) return '—'
+    return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  }
 
   // Donation creation state
   const [donationDialogOpen, setDonationDialogOpen] = useState(false)
@@ -673,6 +796,10 @@ export function DonorsManagement() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="automation" className="gap-1.5">
+            <Mail className="h-3.5 w-3.5" />
+            Automation
+          </TabsTrigger>
         </TabsList>
 
         {/* Supporters Tab */}
@@ -1066,6 +1193,7 @@ export function DonorsManagement() {
 
         {/* At-Risk Donors Tab */}
         <TabsContent value="at-risk" className="space-y-4">
+          {/* ML Churn Predictions */}
           <Card className="border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
@@ -1096,6 +1224,7 @@ export function DonorsManagement() {
                         <TableHead className="text-muted-foreground">Status</TableHead>
                         <TableHead className="text-muted-foreground">First Donation</TableHead>
                         <TableHead className="text-right text-muted-foreground">Churn Risk</TableHead>
+                        <TableHead className="text-right text-muted-foreground">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1121,7 +1250,7 @@ export function DonorsManagement() {
                                 variant="outline"
                                 className={
                                   d.supporter?.status === 'Active'
-                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 dark:text-emerald-300'
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
                                     : 'border-border bg-muted text-muted-foreground'
                                 }
                               >
@@ -1149,6 +1278,22 @@ export function DonorsManagement() {
                                 {(d.score * 100).toFixed(0)}%
                               </Badge>
                             </TableCell>
+                            <TableCell className="text-right">
+                              {d.supporter?.email ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={sendingId === d.entityId}
+                                  onClick={() => sendEmail(d.entityId, d.supporter?.email ?? '', 'win_back')}
+                                  className="gap-1"
+                                >
+                                  <Mail className="h-3.5 w-3.5" />
+                                  {sendingId === d.entityId ? 'Sending...' : 'Send Email'}
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No email</span>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                     </TableBody>
@@ -1162,6 +1307,206 @@ export function DonorsManagement() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Automation Tab */}
+        <TabsContent value="automation" className="space-y-4">
+          {/* Email Campaign Automation */}
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Mail className="size-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-semibold">
+                      Email Automation
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Automated email campaigns to re-engage at-risk donors
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={automationOn}
+                      onCheckedChange={toggleAutomation}
+                      disabled={toggling || !!automationError}
+                    />
+                    <span className="text-sm font-medium">Enabled</span>
+                    {automationOn ? (
+                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 text-xs">
+                        <span className="mr-1 inline-block size-2 animate-pulse rounded-full bg-emerald-500" />
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {automationError ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 p-4 text-sm text-amber-800 dark:text-amber-300">
+                  <p className="font-medium">Automation API unavailable</p>
+                  <p className="mt-1 text-xs">Could not connect to the email automation service. Please try again later.</p>
+                </div>
+              ) : automationLoading ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-3">
+                    <Button onClick={runAutomationNow} disabled={running} size="sm">
+                      <Play className="size-4" />
+                      {running ? 'Running...' : 'Run Now'}
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to="/admin/email-templates">
+                        <Mail className="size-4" />
+                        Edit Templates
+                      </Link>
+                    </Button>
+                  </div>
+
+                  {/* Scored donors table */}
+                  {automationDonors && automationDonors.donors.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-foreground">Upgrade Candidates</p>
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="text-muted-foreground">Name</TableHead>
+                            <TableHead className="text-muted-foreground">Email</TableHead>
+                            <TableHead className="text-muted-foreground">Score</TableHead>
+                            <TableHead className="text-right text-muted-foreground">Avg Gift</TableHead>
+                            <TableHead className="text-right text-muted-foreground"># Gifts</TableHead>
+                            <TableHead className="text-right text-muted-foreground">Days Since Last</TableHead>
+                            <TableHead className="text-muted-foreground">Last Emailed</TableHead>
+                            <TableHead className="text-right text-muted-foreground">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {automationDonors.donors.map((d) => {
+                            const lastEmail = emailLog.find(e => e.supporterId === d.supporterId)
+                            const daysAgo = lastEmail
+                              ? Math.floor((Date.now() - new Date(lastEmail.sentAt).getTime()) / 86400000)
+                              : null
+                            return (
+                              <TableRow key={d.supporterId}>
+                                <TableCell className="font-medium">{d.displayName}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{d.emailMasked || d.email}</TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      d.upgradeScore === 'High'
+                                        ? 'border-primary/20 bg-primary/10 text-primary'
+                                        : d.upgradeScore === 'Medium'
+                                          ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
+                                          : 'border-border bg-muted text-muted-foreground'
+                                    }
+                                  >
+                                    {d.upgradeScore}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right font-mono">{formatPHP(d.monetaryAvg)}</TableCell>
+                                <TableCell className="text-right">{d.frequency}</TableCell>
+                                <TableCell className="text-right">{d.recency}</TableCell>
+                                <TableCell className="text-xs">
+                                  {daysAgo === null ? 'Never' : daysAgo === 0 ? 'Today' : `${daysAgo}d ago`}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {!d.email ? (
+                                    <Button size="sm" variant="outline" disabled className="opacity-40">No Email</Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      disabled={sendingId === d.supporterId}
+                                      onClick={() => sendEmail(d.supporterId, d.emailMasked || d.email)}
+                                    >
+                                      {sendingId === d.supporterId ? 'Sending...' : 'Send Email'}
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+
+                  {/* Collapsible email log */}
+                  <Collapsible open={logOpen} onOpenChange={setLogOpen}>
+                    <CollapsibleTrigger asChild>
+                      <button type="button" className="flex w-full items-center gap-2 text-left text-sm font-medium text-foreground hover:text-primary transition-colors py-2">
+                        <ChevronDown className={`size-4 text-muted-foreground transition-transform ${logOpen ? 'rotate-180' : ''}`} />
+                        Email Log
+                        <Badge variant="secondary" className="text-xs font-normal">
+                          {emailLog.filter(e => e.status === 'sent').length} sent
+                        </Badge>
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      {emailLog.length === 0 ? (
+                        <p className="py-4 text-center text-sm text-muted-foreground">No emails logged yet.</p>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                              <TableHead className="text-muted-foreground">Donor</TableHead>
+                              <TableHead className="text-muted-foreground">Timestamp</TableHead>
+                              <TableHead className="text-muted-foreground">Subject</TableHead>
+                              <TableHead className="text-right text-muted-foreground">Preview</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {emailLog.slice(0, 10).map((e, i) => (
+                              <TableRow key={`${e.supporterId}-${e.sentAt}-${i}`}>
+                                <TableCell className="font-medium">{e.donorName}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{fmtAutoDate(e.sentAt)}</TableCell>
+                                <TableCell className="max-w-[280px] truncate text-xs">{e.subject}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button size="sm" variant="ghost" onClick={() => setPreviewEmail(e)}>
+                                    <Eye className="size-4" />
+                                    Preview
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Email preview dialog */}
+          <Dialog open={!!previewEmail} onOpenChange={(open) => !open && setPreviewEmail(null)}>
+            <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{previewEmail?.subject}</DialogTitle>
+                <DialogDescription>
+                  To: {previewEmail?.donorName} &lt;{previewEmail?.email}&gt; · {fmtAutoDate(previewEmail?.sentAt ?? null)}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="whitespace-pre-wrap rounded-md border bg-muted/30 p-4 text-sm leading-relaxed">
+                {previewEmail?.body}
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
 

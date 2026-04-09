@@ -305,7 +305,7 @@ export function ReportsAnalytics() {
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                       <XAxis dataKey="month" className="text-xs fill-muted-foreground" />
                       <YAxis className="text-xs fill-muted-foreground" />
-                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                      <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                       <Line type="monotone" dataKey="totalAmount" name="Total Amount" stroke={CHART_COLORS[0]} strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -327,7 +327,7 @@ export function ReportsAnalytics() {
                         <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
                         <YAxis className="text-xs fill-muted-foreground" />
                         <Tooltip
-                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                          contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                           formatter={(value, _name, item) => {
                             const num = typeof value === 'number' ? value : Number(value)
                             if (Number.isNaN(num)) return ['—', 'ROI Score']
@@ -368,7 +368,7 @@ export function ReportsAnalytics() {
                         <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
@@ -393,7 +393,7 @@ export function ReportsAnalytics() {
                         <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
@@ -473,7 +473,7 @@ export function ReportsAnalytics() {
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                       <XAxis dataKey="platform" className="text-xs fill-muted-foreground" />
                       <YAxis className="text-xs fill-muted-foreground" />
-                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                      <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                       <Bar dataKey="referralsPerPost" name="Referrals / Post" radius={[4, 4, 0, 0]}>
                         {socialMediaEffectiveness.map((_e, i) => (
                           <Cell key={`rpp-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -497,7 +497,7 @@ export function ReportsAnalytics() {
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                       <XAxis dataKey="platform" className="text-xs fill-muted-foreground" />
                       <YAxis className="text-xs fill-muted-foreground" />
-                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                      <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                       <Bar dataKey="avgValue" name="Avg. Value (PHP)" radius={[4, 4, 0, 0]}>
                         {socialMediaEffectiveness.map((_e, i) => (
                           <Cell key={`av-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -527,7 +527,7 @@ export function ReportsAnalytics() {
                       <XAxis dataKey="topic" className="text-xs fill-muted-foreground" />
                       <YAxis className="text-xs fill-muted-foreground" />
                       <Tooltip
-                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                        contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         formatter={(value) => [`${Number(value).toFixed(2)}`, 'Avg. Impact Score']}
                       />
                       <Bar dataKey="avgScore" name="Avg. Impact Score" radius={[4, 4, 0, 0]}>
@@ -546,6 +546,11 @@ export function ReportsAnalytics() {
         {/* Safehouses Tab */}
         <TabsContent value="safehouses" className="mt-6 space-y-6">
           {safehousePerfData.length > 0 ? (
+            <>
+            <p className="text-sm text-muted-foreground">
+              Each safehouse is scored out of 100 by our ML model based on occupancy, outcomes, and operational metrics.
+              Status badges reflect the model's assessment: <span className="font-medium text-emerald-600 dark:text-emerald-400">High</span> = strong performance, <span className="font-medium text-amber-600 dark:text-amber-400">Average</span> = meeting expectations, <span className="font-medium text-red-600 dark:text-red-400">Needs Attention</span> = may need additional support.
+            </p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {safehousePerfData.map((sh, i) => {
                 const occupancyPct = sh.safehouse.capacityGirls > 0
@@ -595,6 +600,7 @@ export function ReportsAnalytics() {
                 )
               })}
             </div>
+            </>
           ) : (
             <Card>
               <CardContent className="flex items-center justify-center py-12 text-muted-foreground">
