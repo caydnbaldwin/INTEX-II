@@ -1,44 +1,8 @@
 import { Link } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
-import { ArrowRight, ChevronDown, Heart, CheckCircle2, Pill, Utensils, Stethoscope, Users, Home, ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowRight, ChevronDown, Heart, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
 import { usePageTitle } from '@/hooks/usePageTitle'
-
-const AREA_COLORS: Record<string, string> = {
-  'Education':   'oklch(0.45 0.18 280)',
-  'Operations':  'oklch(0.55 0.15 280)',
-  'Wellbeing':   'oklch(0.35 0.12 280)',
-  'Maintenance': 'oklch(0.65 0.10 280)',
-  'Transport':   'oklch(0.70 0.08 280)',
-  'Outreach':    'oklch(0.75 0.06 280)',
-}
-const AREA_LABELS: Record<string, string> = {
-  Education:   'Education',
-  Operations:  'Operations',
-  Wellbeing:   'Counseling',
-  Maintenance: 'Maintenance',
-  Transport:   'Transport',
-  Outreach:    'Outreach',
-}
-
-interface AnnualPayload {
-  type: string
-  year: number
-  funding_coverage_pct: number
-  funding_gap_php: number
-  allocation_breakdown: Record<string, number>
-  challenge: string
-  months_below_50pct_funding: number
-}
-
-const donationTiers = [
-  { amount: 15, label: '$15', description: 'Provides essential vitamins for a child', icon: Pill, iconLabel: 'Vitamins' },
-  { amount: 50, label: '$50', description: 'Feeds a child for an entire month', icon: Utensils, iconLabel: 'Meals' },
-  { amount: 100, label: '$100', description: 'Covers medical, dental, and educational needs', icon: Stethoscope, iconLabel: 'Healthcare' },
-  { amount: 300, label: '$300', description: 'Employs a professional caregiver for many children', icon: Users, iconLabel: 'Caregivers' },
-  { amount: 1500, label: '$1,500', description: 'Pays the mortgage that provides refuge for all children', icon: Home, iconLabel: 'Shelter' },
-]
 
 export function LandingPage() {
   usePageTitle('Home')
@@ -47,23 +11,6 @@ export function LandingPage() {
   const [dbStatus, setDbStatus] = useState('')
   const [isCheckingBackend, setIsCheckingBackend] = useState(false)
   const [isCheckingDb, setIsCheckingDb] = useState(false)
-  const [donationTier, setDonationTier] = useState(0)
-  const [latestAnnual, setLatestAnnual] = useState<AnnualPayload | null>(null)
-
-  useEffect(() => {
-    fetch(`${API}/api/public/impact-snapshots`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then((snapshots: Array<{ metricPayloadJson: string }> | null) => {
-        if (!snapshots) return
-        const annual = snapshots
-          .map(s => { try { return JSON.parse(s.metricPayloadJson) as AnnualPayload } catch { return null } })
-          .filter((p): p is AnnualPayload => p?.type === 'annual_summary')
-          .sort((a, b) => b.year - a.year)
-        if (annual.length > 0) setLatestAnnual(annual[0])
-      })
-      .catch(() => { /* non-critical — transparency strip stays hidden */ })
-  }, [API])
-
   async function verifyBackend() {
     setBackendStatus('Checking backend...')
     setIsCheckingBackend(true)
@@ -97,8 +44,6 @@ export function LandingPage() {
   const scrollToContent = () => {
     document.getElementById('crisis')?.scrollIntoView({ behavior: 'smooth' })
   }
-
-  const currentTier = donationTiers[donationTier]
 
   return (
     <div className="flex flex-col">
@@ -259,68 +204,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ───────────────── Donate CTA ───────────────── */}
-      <section className="pt-10 sm:pt-14 pb-20 sm:pb-28 bg-background">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center mb-14">
-            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-semibold text-foreground tracking-tight">
-              Give a Girl Her Future Back
-            </h2>
-            <p className="mt-6 text-lg leading-relaxed text-muted-foreground max-w-2xl mx-auto">
-              The holistic healing provided to the children of Lunas is only possible with
-              your financial help. Every penny goes directly to the children.
-            </p>
-          </div>
-
-          {/* Donation Slider — side-by-side layout */}
-          <div className="mx-auto max-w-4xl grid md:grid-cols-2 gap-10 items-center">
-            {/* Left: slider + amount */}
-            <div>
-              <div className="mb-6">
-                <div className="text-5xl sm:text-6xl font-serif font-semibold text-foreground">
-                  {currentTier.label}
-                  <span className="text-lg font-sans font-normal text-muted-foreground ml-2">/ month</span>
-                </div>
-                <p className="mt-3 text-base text-muted-foreground">{currentTier.description}</p>
-              </div>
-
-              <Slider
-                value={[donationTier]}
-                onValueChange={(v) => setDonationTier(v[0])}
-                min={0}
-                max={donationTiers.length - 1}
-                step={1}
-                className="w-full [&_[data-slot=range]]:bg-primary [&_[data-slot=thumb]]:bg-white [&_[data-slot=thumb]]:border-primary"
-              />
-
-              <div className="flex justify-between mt-3 text-xs text-muted-foreground/60">
-                <span>$15</span>
-                <span>$1,500</span>
-              </div>
-
-              <p className="mt-6 text-xs text-muted-foreground/50">
-                Total monthly expenses are nearly $11,000.
-              </p>
-
-              <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                <Button size="lg" asChild className="rounded-full px-8 font-medium">
-                  <Link to="/donate">
-                    Donate Now
-                    <Heart className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button size="lg" variant="outline" asChild className="rounded-full px-8">
-                  <Link to="/login">Become a Partner</Link>
-                </Button>
-              </div>
-            </div>
-
-            {/* Right: animated icon card */}
-            <DonationIconCard tier={donationTier} />
-          </div>
-        </div>
-      </section>
-
       {/* ───────────────── Impact: Bento Grid ───────────────── */}
       <section className="py-20 sm:py-28 bg-muted/30">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -389,105 +272,6 @@ export function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* ───────────────── Transparency Strip ───────────────── */}
-      {latestAnnual && (
-        <section className="py-16 sm:py-20 bg-foreground text-background">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 items-start">
-
-              {/* Left: heading + allocation bar */}
-              <div>
-                <p className="text-xs font-medium uppercase tracking-[0.2em] text-background/50 mb-4">
-                  Financial Transparency
-                </p>
-                <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-background tracking-tight">
-                  Every peso, accounted for
-                </h2>
-                <p className="mt-4 text-base text-background/70 leading-relaxed">
-                  In {latestAnnual.year} we raised{' '}
-                  <span className="font-semibold text-background">{latestAnnual.funding_coverage_pct.toFixed(0)}%</span>{' '}
-                  of our annual operating budget.{' '}
-                  Here is exactly where every donated peso went.
-                </p>
-
-                {/* Segmented allocation bar */}
-                <div className="mt-8 space-y-3">
-                  <div className="flex h-6 w-full rounded-full overflow-hidden gap-px">
-                    {Object.entries(latestAnnual.allocation_breakdown)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([key, value]) => {
-                        const total = Object.values(latestAnnual.allocation_breakdown).reduce((s, v) => s + v, 0)
-                        const pct = (value / total) * 100
-                        return (
-                          <div
-                            key={key}
-                            title={`${AREA_LABELS[key] ?? key}: ${pct.toFixed(0)}%`}
-                            style={{ width: `${pct}%`, backgroundColor: AREA_COLORS[key] ?? 'oklch(0.5 0.1 280)' }}
-                          />
-                        )
-                      })}
-                  </div>
-                  {/* Legend */}
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
-                    {Object.entries(latestAnnual.allocation_breakdown)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([key, value]) => {
-                        const total = Object.values(latestAnnual.allocation_breakdown).reduce((s, v) => s + v, 0)
-                        return (
-                          <div key={key} className="flex items-center gap-1.5 text-xs text-background/70">
-                            <span
-                              className="inline-block h-2 w-2 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: AREA_COLORS[key] ?? 'oklch(0.5 0.1 280)' }}
-                            />
-                            {AREA_LABELS[key] ?? key}{' '}
-                            <span className="text-background/50">{((value / total) * 100).toFixed(0)}%</span>
-                          </div>
-                        )
-                      })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: challenge callout + CTA */}
-              <div className="flex flex-col gap-6">
-                <div className="rounded-2xl border border-background/10 bg-background/5 p-6">
-                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-background/40 mb-3">
-                    {latestAnnual.year} — What the gap cost us
-                  </p>
-                  <blockquote className="text-base leading-relaxed text-background/80 italic">
-                    "{latestAnnual.challenge}"
-                  </blockquote>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    size="lg"
-                    asChild
-                    className="bg-background text-foreground hover:bg-background/90 font-medium rounded-full"
-                  >
-                    <Link to="/impact?tab=funding">
-                      See Full Financial Report
-                      <ExternalLink className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    asChild
-                    className="border-background/30 text-background bg-transparent hover:bg-background/10 hover:text-background rounded-full"
-                  >
-                    <Link to="/login">
-                      <Heart className="mr-2 h-4 w-4" />
-                      Close the Gap
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ───────────────── Education: Text + Overlapping Images ───────────────── */}
       <section className="py-20 sm:py-28 bg-background">
@@ -895,65 +679,6 @@ export function PhilippinesMap() {
   )
 }
 
-/* ──────────────────────────────────────────────────────────
-   Donation Icon Card — animated icon per tier
-   ────────────────────────────────────────────────────────── */
-function DonationIconCard({ tier }: { tier: number }) {
-  const [displayTier, setDisplayTier] = useState(tier)
-  const [animating, setAnimating] = useState(false)
-  const prevTier = useRef(tier)
-
-  useEffect(() => {
-    if (tier !== prevTier.current) {
-      setAnimating(true)
-      const timeout = setTimeout(() => {
-        setDisplayTier(tier)
-        setAnimating(false)
-      }, 200)
-      prevTier.current = tier
-      return () => clearTimeout(timeout)
-    }
-  }, [tier])
-
-  const DisplayIcon = donationTiers[displayTier].icon
-  const displayLabel = donationTiers[displayTier].iconLabel
-
-  return (
-    <div className="flex items-center justify-center">
-      <div className="flex flex-col items-center gap-6">
-        <div
-          className={`transition-all duration-200 ${
-            animating
-              ? 'opacity-0 translate-y-4 scale-90'
-              : 'opacity-100 translate-y-0 scale-100'
-          }`}
-        >
-          <DisplayIcon className="h-28 w-28 sm:h-36 sm:w-36 text-primary" strokeWidth={1.2} />
-        </div>
-        <div
-          className={`text-center transition-all duration-200 ${
-            animating ? 'opacity-0' : 'opacity-100'
-          }`}
-        >
-          <div className="text-2xl font-serif font-semibold text-foreground">{displayLabel}</div>
-          <div className="text-base text-muted-foreground mt-1">{donationTiers[displayTier].label}/mo</div>
-        </div>
-
-        {/* Dots */}
-        <div className="flex gap-1.5">
-          {donationTiers.map((_, i) => (
-            <div
-              key={i}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === displayTier ? 'w-4 bg-primary' : 'w-1.5 bg-primary/20'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function TrustItem({ text }: { text: string }) {
   return (

@@ -142,7 +142,7 @@ const fallbackHealthMetrics = [
   { name: 'Emotional Wellbeing', value: 76, description: 'Tracked through counseling' },
 ]
 
-const VALID_TABS = ['overview', 'education', 'health', 'safehouses', 'funding'] as const
+const VALID_TABS = ['overview', 'education', 'health', 'safehouses'] as const
 type TabValue = typeof VALID_TABS[number]
 
 export function ImpactDashboard() {
@@ -198,8 +198,6 @@ export function ImpactDashboard() {
 
   // Separate monthly vs annual summary snapshots
   const monthlySnapshots = parsedSnapshots.filter(s => s.metrics.type !== 'annual_summary')
-  const annualSnapshots  = parsedSnapshots.filter(s => s.metrics.type === 'annual_summary')
-    .sort((a, b) => (a.metrics.year ?? 0) - (b.metrics.year ?? 0))
 
   // Build chart data from monthly snapshots only
   const residentsOverTime = monthlySnapshots.map(s => ({
@@ -213,37 +211,6 @@ export function ImpactDashboard() {
     healthScore: s.metrics.avgHealthScore ?? s.metrics.avg_health_score ?? 0,
     sessions: Math.round((s.metrics.counselingSessions ?? 0) / 10),
   }))
-
-  // Funding timeline — monthly donations vs target
-  const fundingOverTime = monthlySnapshots
-    .filter(s => s.metrics.donations_total_php !== undefined)
-    .map(s => ({
-      month: new Date(s.snapshotDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-      donated: Math.round(s.metrics.donations_total_php ?? 0),
-      target: s.metrics.monthly_operating_cost_php ?? 11000,
-    }))
-
-  // Aggregate allocation breakdown across all monthly snapshots
-  const allocationTotals: Record<string, number> = {}
-  const areaLabels: Record<string, string> = {
-    Education:   'Education & Schooling',
-    Operations:  'Org Operations',
-    Wellbeing:   'Counseling & Health',
-    Maintenance: 'Facility Maintenance',
-    Transport:   'Transportation',
-    Outreach:    'Community Outreach',
-  }
-  monthlySnapshots.forEach(s => {
-    const bd = s.metrics.allocation_breakdown
-    if (!bd) return
-    Object.entries(bd).forEach(([k, v]) => {
-      allocationTotals[k] = (allocationTotals[k] ?? 0) + (v ?? 0)
-    })
-  })
-  const allocationData = Object.entries(allocationTotals).map(([key, value]) => ({
-    name: areaLabels[key] ?? key,
-    value: Math.round(value),
-  })).sort((a, b) => b.value - a.value)
 
   // Get education programs from latest snapshot payload or fallback
   const latestParsed = monthlySnapshots[monthlySnapshots.length - 1]
@@ -312,12 +279,11 @@ export function ImpactDashboard() {
           onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })}
           className="mt-8"
         >
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="education">Education</TabsTrigger>
             <TabsTrigger value="health">Health</TabsTrigger>
             <TabsTrigger value="safehouses">Safehouses</TabsTrigger>
-            <TabsTrigger value="funding">Funding</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-8 space-y-8">
@@ -578,180 +544,6 @@ export function ImpactDashboard() {
                 </Card>
               )}
             </div>
-          </TabsContent>
-          <TabsContent value="funding" className="mt-8 space-y-8">
-            {/* Monthly donations vs target */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Donations vs. Operating Target</CardTitle>
-                <CardDescription>
-                  PHP 11,000 is needed each month to fully fund all 9 safehouses. The gap between
-                  the bars is what limits services.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {fundingOverTime.length > 0 ? (
-                  <div className="h-[320px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={fundingOverTime} barGap={2}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                        <XAxis dataKey="month" className="text-xs fill-muted-foreground" interval={2} />
-                        <YAxis className="text-xs fill-muted-foreground" tickFormatter={(v: number) => `₱${(v/1000).toFixed(0)}k`} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
-                          formatter={(value) => [`₱${Number(value).toLocaleString()}`, '']}
-                        />
-                        <Legend />
-                        <Bar dataKey="target" name="Monthly Target (₱11,000)" fill={CHART_COLORS[3]} radius={[4,4,0,0]} opacity={0.4} />
-                        <Bar dataKey="donated" name="Donated" fill={CHART_COLORS[0]} radius={[4,4,0,0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground py-8 text-center">No funding timeline data available.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Allocation breakdown */}
-            <div className="grid gap-8 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Where Donations Go</CardTitle>
-                  <CardDescription>
-                    Cumulative allocation across all months — every peso tracked by program area.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {allocationData.length > 0 ? (
-                    <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={allocationData}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            label={({ name, percent }: { name?: string; percent?: number }) =>
-                              `${(name ?? '').split(' ')[0]} ${((percent ?? 0) * 100).toFixed(0)}%`
-                            }
-                            labelLine={false}
-                          >
-                            {allocationData.map((_entry, index) => (
-                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
-                            formatter={(value) => [`₱${Number(value).toLocaleString()}`, '']}
-                          />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground py-8 text-center">No allocation data available.</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Program Area Breakdown</CardTitle>
-                  <CardDescription>Total allocated per area across all recorded months</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {allocationData.length > 0 ? (() => {
-                    const total = allocationData.reduce((sum, d) => sum + d.value, 0)
-                    return allocationData.map((area, index) => (
-                      <div key={area.name} className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-medium text-foreground">{area.name}</span>
-                          <span className="text-muted-foreground">
-                            ₱{area.value.toLocaleString()} · {((area.value / total) * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${(area.value / total) * 100}%`,
-                              backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  })() : (
-                    <p className="text-sm text-muted-foreground">No data available.</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Annual report cards */}
-            {annualSnapshots.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-4">Annual Reports</h3>
-                <div className="grid gap-6 lg:grid-cols-3">
-                  {annualSnapshots.map(snap => {
-                    const m = snap.metrics
-                    const pct = m.funding_coverage_pct ?? 0
-                    const gap = m.funding_gap_php ?? 0
-                    const hardMonths = m.months_below_50pct_funding ?? 0
-                    const color = pct >= 85 ? 'text-green-600' : pct >= 60 ? 'text-amber-600' : 'text-red-600'
-                    const bgColor = pct >= 85 ? 'bg-green-50 border-green-200' : pct >= 60 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
-                    return (
-                      <Card key={snap.snapshotId} className={`border ${bgColor}`}>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-baseline justify-between">
-                            <CardTitle className="text-xl">{m.year}</CardTitle>
-                            <span className={`text-2xl font-bold font-serif ${color}`}>{pct.toFixed(0)}%</span>
-                          </div>
-                          <CardDescription>of ₱{((m.annual_operating_budget_php ?? 132000) / 1000).toFixed(0)}k annual budget funded</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="h-2 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                width: `${Math.min(pct, 100)}%`,
-                                backgroundColor: pct >= 85 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626',
-                              }}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <p className="text-muted-foreground">Funding gap</p>
-                              <p className="font-semibold text-foreground">₱{Math.round(gap).toLocaleString()}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Hard months</p>
-                              <p className="font-semibold text-foreground">{hardMonths} / 12</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">New admissions</p>
-                              <p className="font-semibold text-foreground">{m.new_admissions ?? '—'}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Peak residents</p>
-                              <p className="font-semibold text-foreground">{m.peak_residents ?? '—'}</p>
-                            </div>
-                          </div>
-                          {m.challenge && (
-                            <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-3">
-                              {m.challenge}
-                            </p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
           </TabsContent>
         </Tabs>
 
