@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, ArrowRight, Loader2, Mic, Pencil, Trash2, Brain } from 'lucide-react'
+import { Plus, ArrowRight, Loader2, Mic, Pencil, Trash2, Brain, Search } from 'lucide-react'
 import {
   Table,
   TableHeader,
@@ -43,6 +43,7 @@ import { api, ApiError } from '@/lib/api'
 import { sanitize } from '@/lib/sanitize'
 import { TablePagination } from '@/components/TablePagination'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useAuth } from '@/context/AuthContext'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -182,12 +183,14 @@ const blankForm = {
 
 export function ProcessRecording() {
   usePageTitle('Process Recording')
+  const { authSession } = useAuth()
+  const isAdmin = authSession.roles.includes('Admin')
   const [sessions, setSessions] = useState<Session[]>([])
   const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const [selectedResident, setSelectedResident] = useState('all')
+  const [search, setSearch] = useState('')
   const [viewingSession, setViewingSession] = useState<Session | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -247,12 +250,22 @@ export function ProcessRecording() {
     fetchData()
   }, [fetchData])
 
-  useEffect(() => { setCurrentPage(1) }, [selectedResident])
+  useEffect(() => { setCurrentPage(1) }, [search])
 
-  const filteredSessions =
-    selectedResident === 'all'
-      ? sessions
-      : sessions.filter((s) => String(s.residentId) === selectedResident)
+  const chronologicallySortedSessions = [...sessions].sort((a, b) => {
+    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime()
+    if (dateDiff !== 0) return dateDiff
+    return b.id - a.id
+  })
+
+  const filteredSessions = chronologicallySortedSessions.filter((s) => {
+    const q = search.trim().toLowerCase()
+    const matchesSearch =
+      !q
+      || s.residentName.toLowerCase().includes(q)
+      || String(s.residentId).includes(q)
+    return matchesSearch
+  })
 
   const totalPages = Math.ceil(filteredSessions.length / itemsPerPage)
   const paginatedSessions = filteredSessions.slice(
@@ -434,24 +447,18 @@ export function ProcessRecording() {
         </Button>
       </div>
 
-      {/* Resident filter */}
-      <div className="flex items-center gap-4">
-        <Label className="text-muted-foreground whitespace-nowrap">
-          Filter by Resident
-        </Label>
-        <Select value={selectedResident} onValueChange={setSelectedResident}>
-          <SelectTrigger className="w-[240px]">
-            <SelectValue placeholder="All residents" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Residents</SelectItem>
-            {residents.map((r) => (
-              <SelectItem key={r.id} value={String(r.id)}>
-                {r.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Search */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 sm:max-w-xl">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search resident (e.g. LS-0027)..."
+            aria-label="Search resident sessions"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
       </div>
 
       {/* Session list */}
@@ -465,13 +472,13 @@ export function ProcessRecording() {
               <TableHead className="text-muted-foreground">Social Worker</TableHead>
               <TableHead className="text-muted-foreground">Duration</TableHead>
               <TableHead className="text-muted-foreground">Emotional State</TableHead>
-              <TableHead className="text-right text-muted-foreground">Actions</TableHead>
+              {isAdmin && <TableHead className="text-right text-muted-foreground">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedSessions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 7 : 6} className="h-24 text-center text-muted-foreground">
                   No sessions found.
                 </TableCell>
               </TableRow>
@@ -510,32 +517,34 @@ export function ProcessRecording() {
                       </Badge>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); openEdit(session) }}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-600 dark:text-red-400" onClick={(e) => e.stopPropagation()}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Session</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete this counseling session for <span className="font-semibold">{session.residentName}</span>? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(session.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); openEdit(session) }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-600 dark:text-red-400" onClick={(e) => e.stopPropagation()}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Session</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this counseling session for <span className="font-semibold">{session.residentName}</span>? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(session.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -858,17 +867,19 @@ export function ProcessRecording() {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setViewingSession(null)}>Close</Button>
-            <Button
-              className="bg-violet-700 hover:bg-violet-800"
-              onClick={() => {
-                const session = viewingSession
-                setViewingSession(null)
-                if (session) openEdit(session)
-              }}
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
+            {isAdmin && (
+              <Button
+                className="bg-violet-700 hover:bg-violet-800"
+                onClick={() => {
+                  const session = viewingSession
+                  setViewingSession(null)
+                  if (session) openEdit(session)
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

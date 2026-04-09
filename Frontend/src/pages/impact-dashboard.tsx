@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import {
   Loader2,
   ChevronLeft,
@@ -146,6 +146,7 @@ type TabValue = typeof VALID_TABS[number]
 
 export function ImpactDashboard() {
   usePageTitle('Our Impact')
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
   const activeTab: TabValue = (VALID_TABS as readonly string[]).includes(tabParam ?? '') ? tabParam as TabValue : 'overview'
@@ -157,6 +158,7 @@ export function ImpactDashboard() {
 
   useEffect(() => {
     async function fetchData() {
+      setLoading(true)
       try {
         const [snapshotsRes, statsRes] = await Promise.all([
           api.get<ImpactSnapshot[]>('/api/public/impact-snapshots'),
@@ -164,22 +166,34 @@ export function ImpactDashboard() {
         ])
         setSnapshots(snapshotsRes)
         setStats(statsRes)
+        // Unblock initial paint as soon as public impact data is ready.
+        setLoading(false)
 
-        // Try to fetch safehouse occupancy; it may require auth
-        try {
-          const safehouseRes = await api.get<SafehouseOccupancy[]>('/api/safehouses/occupancy')
-          setSafehouses(safehouseRes)
-        } catch {
-          // Auth required or endpoint unavailable -- leave empty, will use stats fallback
-        }
+        // Fetch safehouse occupancy in background; this may require auth.
+        void (async () => {
+          try {
+            const safehouseRes = await api.get<SafehouseOccupancy[]>('/api/safehouses/occupancy')
+            setSafehouses(safehouseRes)
+          } catch {
+            // Auth required or endpoint unavailable -- leave empty, will use stats fallback.
+          }
+        })()
       } catch (err) {
         console.error('Failed to fetch impact data:', err)
-      } finally {
         setLoading(false)
       }
     }
     fetchData()
   }, [])
+
+  // Ensure deep links like /impact#top reliably land at the top even with lazy loading.
+  useEffect(() => {
+    if (location.hash !== '#top') return
+    const t = window.setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [location.hash])
 
   // Parse metric payloads from snapshots
   const parsedSnapshots = snapshots
@@ -235,7 +249,7 @@ export function ImpactDashboard() {
   const impactStories = listPublicImpactJourneyStories()
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" id="top">
       <section className="border-b border-border bg-background">
         <div className="mx-auto max-w-7xl px-6 py-8 text-center lg:px-8 lg:py-10">
           <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight sm:text-3xl">
@@ -272,7 +286,7 @@ export function ImpactDashboard() {
             </div>
             <div className="flex shrink-0 lg:justify-end">
               <Button asChild className="h-12 w-full rounded-full px-7 text-base sm:w-auto">
-                <Link to="/impact">Get involved</Link>
+                <Link to="/donate">Get involved</Link>
               </Button>
             </div>
           </div>
