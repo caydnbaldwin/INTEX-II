@@ -335,8 +335,10 @@ function compactResidentLabel(placement: BoardingPlacement | null) {
 
 function tileResidentLabel(placement: BoardingPlacement | null) {
   if (!placement) return 'Open'
+  if (placement.residentInternalCode) return placement.residentInternalCode
+  if (placement.residentCaseControlNo) return placement.residentCaseControlNo
   if (placement.residentId != null) return `Resident ${placement.residentId}`
-  return placement.residentInternalCode ?? placement.residentCaseControlNo ?? 'Pending'
+  return 'Pending'
 }
 
 function residentTitleLabel(placement: BoardingPlacement) {
@@ -889,7 +891,7 @@ function placementUpdatePayload(placement: BoardingPlacement) {
 }
 
 export function BoardingManagement() {
-  usePageTitle('Boarding')
+  usePageTitle('Safehouse Operations')
 
   const { authSession } = useAuth()
   const isAdmin = authSession.roles.includes('Admin')
@@ -1482,7 +1484,7 @@ export function BoardingManagement() {
     <div className="space-y-6">
       <div className="space-y-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Boarding</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Safehouse Operations</h1>
           <p className="mt-1 max-w-3xl text-sm text-zinc-500">
             Expand a safehouse to manage beds, review action items, and update placements.
           </p>
@@ -1608,7 +1610,7 @@ export function BoardingManagement() {
                   className="w-full text-left"
                   aria-expanded={isExpanded}
                 >
-                  <CardHeader className="border-b border-zinc-200 bg-linear-to-r from-white via-emerald-50/35 to-sky-50/35 transition hover:bg-zinc-50/70">
+                  <CardHeader className="border-b border-zinc-200 bg-white transition hover:bg-zinc-50/70">
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                       <div className="flex items-start gap-3">
                         {isExpanded ? (

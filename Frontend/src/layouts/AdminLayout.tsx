@@ -5,7 +5,6 @@ import {
   Users,
   FileText,
   Home,
-  Heart,
   BarChart3,
   Shield,
   ShieldAlert,
@@ -46,7 +45,6 @@ const adminNav = [
   { name: 'Caseload', href: '/admin/caseload', icon: Users },
   { name: 'Process Recording', href: '/admin/process-recording', icon: FileText },
   { name: 'Home Visitation', href: '/admin/visitation', icon: Home },
-  { name: 'Donors', href: '/admin/donors', icon: Heart },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
 ]
 
@@ -58,10 +56,10 @@ const securityNav = [
   { name: 'Manage MFA', href: '/mfa', icon: ShieldCheck },
 ]
 
-const plannedAdminSections = ['Donors', 'Residents', 'Safehouses', 'Initiatives', 'Staff'] as const
+const plannedAdminSections = ['Safehouses'] as const
 const adminSectionNav: Partial<Record<(typeof plannedAdminSections)[number], { name: string; href: string; icon: LucideIcon }[]>> = {
   Safehouses: [
-    { name: 'Boarding', href: '/admin/safehouses/boarding', icon: BedDouble },
+    { name: 'Safehouse Operations', href: '/admin/safehouses/boarding', icon: BedDouble },
   ],
 }
 
