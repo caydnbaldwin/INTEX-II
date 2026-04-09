@@ -1,74 +1,47 @@
 import { Button } from '@/components/ui/button'
 
 type TeamMember = {
-  initials: string
   name: string
   title: string
   email: string
-}
-
-type SafehouseRegion = {
-  region: string
-  houses: { name: string; city: string; phone: string }[]
+  /** Public URL under /public (e.g. /images/team/name.png) */
+  photoSrc: string
+  /** Extra classes on the avatar <img> (object-fit, position, scale, etc.) */
+  photoClassName?: string
 }
 
 const teamMembers: TeamMember[] = [
   {
-    initials: 'JH',
     name: 'June Holloway',
     title: 'Founder & Executive Director',
     email: 'june@lunassafehaven.org',
+    photoSrc: '/images/team/june-holloway.png',
+    photoClassName: 'object-[50%_70%] scale-[1.44] origin-center',
   },
   {
-    initials: 'SR',
     name: 'Sofia Reyes',
     title: 'Director of Mental Health & Counseling',
     email: 'counseling@lunassafehaven.org',
+    photoSrc: '/images/team/sofia-reyes.png',
   },
   {
-    initials: 'MC',
     name: 'Maria Cruz',
     title: 'Lead Social Worker & Case Management',
     email: 'cases@lunassafehaven.org',
+    photoSrc: '/images/team/maria-cruz.png',
   },
   {
-    initials: 'LT',
     name: 'Lily Tan',
     title: 'Education Program Director',
     email: 'education@lunassafehaven.org',
+    photoSrc: '/images/team/lily-tan.png',
   },
   {
-    initials: 'JP',
     name: 'James Park',
     title: 'Technology & Operations',
     email: 'tech@lunassafehaven.org',
-  },
-]
-
-const safehouses: SafehouseRegion[] = [
-  {
-    region: 'Luzon',
-    houses: [
-      { name: 'Quezon City House', city: 'Quezon City, Metro Manila', phone: '+63 2 8531-1001' },
-      { name: 'Baguio House', city: 'Baguio City, Cordillera', phone: '+63 74 300-1005' },
-    ],
-  },
-  {
-    region: 'Visayas',
-    houses: [
-      { name: 'Cebu House', city: 'Cebu City, Central Visayas', phone: '+63 32 416-1002' },
-      { name: 'Iloilo House', city: 'Iloilo City, Western Visayas', phone: '+63 33 320-1004' },
-      { name: 'Bacolod House', city: 'Bacolod City, Western Visayas', phone: '+63 34 435-1007' },
-      { name: 'Tacloban House', city: 'Tacloban City, Eastern Visayas', phone: '+63 53 321-1008' },
-    ],
-  },
-  {
-    region: 'Mindanao',
-    houses: [
-      { name: 'Davao House', city: 'Davao City, Davao Region', phone: '+63 82 222-1003' },
-      { name: 'Cagayan de Oro House', city: 'Cagayan de Oro, Northern Mindanao', phone: '+63 88 858-1006' },
-      { name: 'General Santos House', city: 'General Santos, Soccsksargen', phone: '+63 83 552-1009' },
-    ],
+    photoSrc: '/images/team/james-park.png',
+    photoClassName: 'object-[50%_40%]',
   },
 ]
 
@@ -81,128 +54,15 @@ export function ContactPage() {
           <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-semibold text-foreground tracking-tight">
             We&apos;d love to hear from you
           </h1>
-          <p className="mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-            Whether you want to give, volunteer, refer a child, or simply learn more,
-            our team is here to connect you with the right person.
+          <p className="mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto">
+            Donations, volunteering, referrals, or questions—we&apos;re here to help.
           </p>
         </section>
 
-        <section className="mt-10 rounded-2xl border border-red-200 bg-red-50 p-5 sm:p-6">
-          <div className="flex items-start gap-3">
-            <span className="mt-1 h-2.5 w-2.5 rounded-full bg-red-500" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-red-800">In crisis? Help is available right now.</p>
-              <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                <div className="space-y-0.5">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-red-700">United States</p>
-                  <a href="tel:18004224453" className="font-serif text-2xl text-red-900 hover:underline">1-800-422-4453</a>
-                  <p className="text-xs text-red-700">Childhelp National Child Abuse Hotline</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-red-700">Philippines</p>
-                  <a href="tel:1383" className="font-serif text-2xl text-red-900 hover:underline">1383</a>
-                  <p className="text-xs text-red-700">Makabata Helpline</p>
-                </div>
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-red-800/90">
-                For immediate physical danger, call <strong>911</strong> (US) or <strong>117</strong> (PH).
-                Do not use the contact form below for urgent safety concerns.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-10">
-          <h2 className="font-serif text-2xl font-semibold text-foreground">Organization contact</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <article className="rounded-xl border border-border bg-card p-5">
-              <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">United States (HQ)</p>
-              <div className="mt-4 space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Phone</p>
-                <p className="text-sm text-foreground">(801) 831-3323</p>
-              </div>
-              <div className="mt-3 space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Email</p>
-                <a href="mailto:info@lunassafehaven.org" className="text-sm text-primary hover:underline">
-                  info@lunassafehaven.org
-                </a>
-              </div>
-              <div className="mt-3 space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Mailing address</p>
-                <p className="text-sm text-foreground leading-relaxed">P.O. Box 4812<br />Provo, UT 84601</p>
-              </div>
-            </article>
-
-            <article className="rounded-xl border border-border bg-card p-5">
-              <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">Philippines (Operations)</p>
-              <div className="mt-4 space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Phone</p>
-                <p className="text-sm text-foreground">+63 2 8531-0000</p>
-              </div>
-              <div className="mt-3 space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Email</p>
-                <a href="mailto:ph@lunassafehaven.org" className="text-sm text-primary hover:underline">
-                  ph@lunassafehaven.org
-                </a>
-              </div>
-              <div className="mt-3 space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Operations office</p>
-                <p className="text-sm text-foreground leading-relaxed">Unit 4B, Quezon City<br />Metro Manila, Philippines</p>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section className="mt-10">
-          <h2 className="font-serif text-2xl font-semibold text-foreground">Leadership &amp; team</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {teamMembers.map((member) => (
-              <article key={member.initials} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
-                  {member.initials}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.title}</p>
-                  <a href={`mailto:${member.email}`} className="mt-1 block text-xs text-primary hover:underline">
-                    {member.email}
-                  </a>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-10">
-          <h2 className="font-serif text-2xl font-semibold text-foreground">Our safehouses</h2>
-          <div className="mt-4 space-y-6">
-            {safehouses.map((region) => (
-              <div key={region.region}>
-                <p className="text-xs uppercase tracking-[0.15em] text-primary">{region.region}</p>
-                <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                  {region.houses.map((house) => (
-                    <article key={house.name} className="rounded-xl border border-border bg-card p-4 flex gap-3">
-                      <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{house.name}</p>
-                        <p className="text-xs text-muted-foreground">{house.city}</p>
-                        <p className="mt-1 text-xs text-primary">{house.phone}</p>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-            Safehouse addresses are not publicly listed to protect the privacy and safety of residents.
-            These numbers connect to regional program coordinators only.
-          </p>
-        </section>
-
-        <section className="mt-10">
-          <h2 className="font-serif text-2xl font-semibold text-foreground">Send us a message</h2>
-          <form className="mt-4 rounded-xl border border-border bg-card p-5 sm:p-6 space-y-4">
+        <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(240px,300px)] lg:items-start lg:gap-12">
+          <section>
+            <h2 className="font-serif text-2xl font-semibold text-foreground">Send us a message</h2>
+            <form className="mt-4 rounded-xl border border-border bg-card p-5 sm:p-6 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <label htmlFor="firstName" className="text-xs text-muted-foreground">First name</label>
@@ -243,11 +103,84 @@ export function ContactPage() {
             </div>
 
             <p className="text-xs leading-relaxed text-muted-foreground">
-              We typically respond within 2 business days. For urgent child safety concerns,
-              please use the emergency lines above and do not use this form.
+              We typically respond within 2 business days.
             </p>
             <Button type="button">Send message</Button>
-          </form>
+            </form>
+          </section>
+
+          <aside className="lg:sticky lg:top-24">
+            <h2 className="font-serif text-xl font-semibold text-foreground">Leadership &amp; team</h2>
+            <div className="mt-4 flex flex-col gap-3">
+              {teamMembers.map((member) => (
+                <article
+                  key={member.email}
+                  className="rounded-xl border border-border bg-card p-4 flex items-start gap-3"
+                >
+                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-muted ring-2 ring-border">
+                    <img
+                      src={member.photoSrc}
+                      alt=""
+                      className={`h-full w-full object-cover ${member.photoClassName ?? 'object-center'}`}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">{member.name}</p>
+                    <p className="text-xs text-muted-foreground leading-snug">{member.title}</p>
+                    <a
+                      href={`mailto:${member.email}`}
+                      className="mt-1 block truncate text-xs text-primary hover:underline"
+                    >
+                      {member.email}
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </aside>
+        </div>
+
+        <section className="mt-14 border-t border-border pt-12">
+          <h2 className="font-serif text-2xl font-semibold text-foreground">Organization contact</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <article className="rounded-xl border border-border bg-card p-5">
+              <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">United States (HQ)</p>
+              <div className="mt-4 space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Phone</p>
+                <p className="text-sm text-foreground">(801) 831-3323</p>
+              </div>
+              <div className="mt-3 space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Email</p>
+                <a href="mailto:info@lunassafehaven.org" className="text-sm text-primary hover:underline">
+                  info@lunassafehaven.org
+                </a>
+              </div>
+              <div className="mt-3 space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Mailing address</p>
+                <p className="text-sm text-foreground leading-relaxed">P.O. Box 4812<br />Provo, UT 84601</p>
+              </div>
+            </article>
+
+            <article className="rounded-xl border border-border bg-card p-5">
+              <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">Philippines (Operations)</p>
+              <div className="mt-4 space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Phone</p>
+                <p className="text-sm text-foreground">+63 2 8531-0000</p>
+              </div>
+              <div className="mt-3 space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Email</p>
+                <a href="mailto:ph@lunassafehaven.org" className="text-sm text-primary hover:underline">
+                  ph@lunassafehaven.org
+                </a>
+              </div>
+              <div className="mt-3 space-y-1">
+                <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">Operations office</p>
+                <p className="text-sm text-foreground leading-relaxed">Unit 4B, Quezon City<br />Metro Manila, Philippines</p>
+              </div>
+            </article>
+          </div>
         </section>
       </div>
     </div>
