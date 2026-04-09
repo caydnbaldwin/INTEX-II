@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, Users, UserCheck, Banknote, Trash2, Pencil, AlertTriangle, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
 import {
@@ -37,6 +37,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Select,
   SelectTrigger,
@@ -207,6 +215,10 @@ function typeBadgeClass(type: DonorType | string): string {
   }
 }
 
+function donationTypeLabel(type: string): string {
+  return type === 'InKind' ? 'In-Kind' : type
+}
+
 // ---------------------------------------------------------------------------
 // Blank form
 // ---------------------------------------------------------------------------
@@ -231,8 +243,9 @@ export function DonorsManagement() {
   const [donations, setDonations] = useState<Donation[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filterType, setFilterType] = useState('all')
-  const [filterStatus, setFilterStatus] = useState('all')
+  const [donationSearch, setDonationSearch] = useState('')
+  const [filterType, setFilterType] = useState<DonorType[]>([])
+  const [filterStatus, setFilterStatus] = useState<DonorStatus | 'all'>('all')
   const [atRiskDonors, setAtRiskDonors] = useState<DonorChurnResult[]>([])
   const [viewingDonor, setViewingDonor] = useState<Donor | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -242,6 +255,14 @@ export function DonorsManagement() {
   const [donorsPage, setDonorsPage] = useState(1)
   const [donationsPage, setDonationsPage] = useState(1)
   const [atRiskPage, setAtRiskPage] = useState(1)
+  const [filterAllocationSafehouse, setFilterAllocationSafehouse] = useState<string[]>([])
+  const [filterAllocationProgramArea, setFilterAllocationProgramArea] = useState<string[]>([])
+  const [typeFilterOpen, setTypeFilterOpen] = useState(false)
+  const [safehouseFilterOpen, setSafehouseFilterOpen] = useState(false)
+  const [programAreaFilterOpen, setProgramAreaFilterOpen] = useState(false)
+  const [draftFilterType, setDraftFilterType] = useState<DonorType[]>([])
+  const [draftFilterAllocationSafehouse, setDraftFilterAllocationSafehouse] = useState<string[]>([])
+  const [draftFilterAllocationProgramArea, setDraftFilterAllocationProgramArea] = useState<string[]>([])
   const itemsPerPage = 15
 
   // Donation creation state
@@ -279,8 +300,8 @@ export function DonorsManagement() {
 
   // Allocation expansion state
   const [expandedDonationId, setExpandedDonationId] = useState<number | null>(null)
-  const [allocations, setAllocations] = useState<AllocationResponse[]>([])
   const [allocationsLoading, setAllocationsLoading] = useState(false)
+  const [allocationByDonation, setAllocationByDonation] = useState<Map<number, AllocationResponse[]>>(new Map())
 
   async function fetchAllocations(donationId: number) {
     if (expandedDonationId === donationId) {
@@ -290,10 +311,19 @@ export function DonorsManagement() {
     setAllocationsLoading(true)
     setExpandedDonationId(donationId)
     try {
+      const cached = allocationByDonation.get(donationId)
+      if (cached) {
+        return
+      }
+
       const data = await api.get<AllocationResponse[]>(`/api/donations/${donationId}/allocations`)
-      setAllocations(data)
+      setAllocationByDonation((prev) => {
+        const next = new Map(prev)
+        next.set(donationId, data)
+        return next
+      })
     } catch {
-      setAllocations([])
+      // no-op; expanded row will show empty state for this donation
     } finally {
       setAllocationsLoading(false)
     }
@@ -351,13 +381,32 @@ export function DonorsManagement() {
 
       setDonations(mappedDonations)
 
-      // Fetch ML churn predictions (non-blocking)
-      try {
-        const churnResults = await api.get<DonorChurnResult[]>('/api/pipeline-results/donor-churn')
-        setAtRiskDonors(churnResults.filter((r) => r.label === 'AtRisk'))
-      } catch {
-        console.warn('ML pipeline data unavailable')
-      }
+      // Reset allocation cache immediately, then hydrate it in the background.
+      // This avoids blocking initial page render behind N allocation API calls.
+      setAllocationByDonation(new Map())
+      void (async () => {
+        const allocationEntries = await Promise.all(
+          mappedDonations.map(async (d) => {
+            try {
+              const data = await api.get<AllocationResponse[]>(`/api/donations/${d.id}/allocations`)
+              return [d.id, data] as const
+            } catch {
+              return [d.id, []] as const
+            }
+          }),
+        )
+        setAllocationByDonation(new Map(allocationEntries))
+      })()
+
+      // Fetch ML churn predictions in background so UI becomes interactive sooner.
+      void (async () => {
+        try {
+          const churnResults = await api.get<DonorChurnResult[]>('/api/pipeline-results/donor-churn')
+          setAtRiskDonors(churnResults.filter((r) => r.label === 'AtRisk'))
+        } catch {
+          console.warn('ML pipeline data unavailable')
+        }
+      })()
     } catch (err) {
       console.error('Failed to load donors data:', err)
     } finally {
@@ -379,18 +428,101 @@ export function DonorsManagement() {
     const q = search.toLowerCase()
     const matchesSearch =
       !q || d.name.toLowerCase().includes(q) || d.email.toLowerCase().includes(q)
-    const matchesType = filterType === 'all' || d.type === filterType
+    const matchesType = filterType.length === 0 || filterType.includes(d.type)
     const matchesStatus = filterStatus === 'all' || d.status === filterStatus
     return matchesSearch && matchesType && matchesStatus
   })
 
   // Reset pagination when filters change
   useEffect(() => { setDonorsPage(1) }, [search, filterType, filterStatus])
+  useEffect(() => { setDonationsPage(1) }, [donationSearch, filterAllocationSafehouse, filterAllocationProgramArea])
 
   const donorsTotalPages = Math.ceil(filteredDonors.length / itemsPerPage)
   const paginatedDonors = filteredDonors.slice((donorsPage - 1) * itemsPerPage, donorsPage * itemsPerPage)
-  const donationsTotalPages = Math.ceil(donations.length / itemsPerPage)
-  const paginatedDonations = donations.slice((donationsPage - 1) * itemsPerPage, donationsPage * itemsPerPage)
+
+  const allocationSafehouseOptions = Array.from(
+    new Set(
+      Array.from(allocationByDonation.values()).flatMap((list) =>
+        list.map((a) => String(a.safehouseId)),
+      ),
+    ),
+  ).sort((a, b) => Number(a) - Number(b))
+
+  const allocationProgramAreaOptions = Array.from(
+    new Set(
+      Array.from(allocationByDonation.values()).flatMap((list) =>
+        list.map((a) => a.programArea).filter(Boolean),
+      ),
+    ),
+  ).sort((a, b) => a.localeCompare(b))
+
+  const filteredDonations = donations.filter((donation) => {
+    const q = donationSearch.toLowerCase()
+    const matchesSearch =
+      !q
+      || donation.donorName.toLowerCase().includes(q)
+      || donation.type.toLowerCase().includes(q)
+      || donation.description.toLowerCase().includes(q)
+
+    const donationAllocations = allocationByDonation.get(donation.id) ?? []
+    const matchesSafehouse =
+      filterAllocationSafehouse.length === 0
+      || donationAllocations.some((a) => filterAllocationSafehouse.includes(String(a.safehouseId)))
+    const matchesProgramArea =
+      filterAllocationProgramArea.length === 0
+      || donationAllocations.some((a) => filterAllocationProgramArea.includes(a.programArea))
+    return matchesSearch && matchesSafehouse && matchesProgramArea
+  })
+
+  const donationsTotalPages = Math.ceil(filteredDonations.length / itemsPerPage)
+  const paginatedDonations = filteredDonations.slice((donationsPage - 1) * itemsPerPage, donationsPage * itemsPerPage)
+
+  function toggleSelection<T extends string>(list: T[], value: T, setList: React.Dispatch<React.SetStateAction<T[]>>) {
+    setList((prev) =>
+      prev.includes(value)
+        ? prev.filter((v) => v !== value)
+        : [...prev, value],
+    )
+  }
+
+  function formatFilterLabel(base: string, selectedValues: string[], formatter?: (value: string) => string): string {
+    if (selectedValues.length === 0) return `All ${base}`
+    if (selectedValues.length === 1) {
+      const value = selectedValues[0]
+      return formatter ? formatter(value) : value
+    }
+    return `${base} (${selectedValues.length})`
+  }
+
+  function handleTypeFilterOpenChange(open: boolean) {
+    if (open) {
+      setDraftFilterType(filterType)
+      setTypeFilterOpen(true)
+      return
+    }
+    setFilterType(draftFilterType)
+    setTypeFilterOpen(false)
+  }
+
+  function handleSafehouseFilterOpenChange(open: boolean) {
+    if (open) {
+      setDraftFilterAllocationSafehouse(filterAllocationSafehouse)
+      setSafehouseFilterOpen(true)
+      return
+    }
+    setFilterAllocationSafehouse(draftFilterAllocationSafehouse)
+    setSafehouseFilterOpen(false)
+  }
+
+  function handleProgramAreaFilterOpenChange(open: boolean) {
+    if (open) {
+      setDraftFilterAllocationProgramArea(filterAllocationProgramArea)
+      setProgramAreaFilterOpen(true)
+      return
+    }
+    setFilterAllocationProgramArea(draftFilterAllocationProgramArea)
+    setProgramAreaFilterOpen(false)
+  }
 
   function openAdd() {
     setEditingId(null)
@@ -445,15 +577,6 @@ export function DonorsManagement() {
       await fetchAll()
     } catch (err) {
       console.error('Failed to delete supporter:', err)
-    }
-  }
-
-  async function handleDeleteDonation(id: number) {
-    try {
-      await api.delete(`/api/donations/${id}`)
-      await fetchAll()
-    } catch (err) {
-      console.error('Failed to delete donation:', err)
     }
   }
 
@@ -566,21 +689,43 @@ export function DonorsManagement() {
                     className="pl-9"
                   />
                 </div>
-                <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
+                <DropdownMenu open={typeFilterOpen} onOpenChange={handleTypeFilterOpenChange}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-[170px] justify-between font-normal">
+                      {formatFilterLabel('Types', filterType, (value) => DONOR_TYPE_LABELS[value as DonorType] ?? value)}
+                      <ChevronDown className="h-4 w-4 opacity-60" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-[220px]">
+                    <DropdownMenuLabel>Donor Types</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
                     {DONOR_TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>
+                      <DropdownMenuCheckboxItem
+                        key={t}
+                        checked={draftFilterType.includes(t)}
+                        onSelect={(e) => e.preventDefault()}
+                        onCheckedChange={() => toggleSelection(draftFilterType, t, setDraftFilterType)}
+                      >
                         {DONOR_TYPE_LABELS[t]}
-                      </SelectItem>
+                      </DropdownMenuCheckboxItem>
                     ))}
-                  </SelectContent>
-                </Select>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[140px]">
+                    <DropdownMenuSeparator />
+                    <div className="p-1">
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          setFilterType(draftFilterType)
+                          setTypeFilterOpen(false)
+                        }}
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as DonorStatus | 'all')}>
+                  <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -668,7 +813,7 @@ export function DonorsManagement() {
                       <TableCell className="text-right font-medium text-foreground">
                         {formatPHP(donor.totalAmount)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"
@@ -728,7 +873,89 @@ export function DonorsManagement() {
 
         {/* Donations Tab */}
         <TabsContent value="donations">
-          <div className="mb-4 flex justify-end">
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-1 sm:mr-4">
+              <div className="relative sm:flex-1 sm:max-w-xl">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search donations..."
+                  aria-label="Search donations"
+                  value={donationSearch}
+                  onChange={(e) => setDonationSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <DropdownMenu open={safehouseFilterOpen} onOpenChange={handleSafehouseFilterOpenChange}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-[190px] justify-between font-normal">
+                    {formatFilterLabel('Safehouses', filterAllocationSafehouse, (value) => `Safehouse ${value}`)}
+                    <ChevronDown className="h-4 w-4 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[210px]">
+                  <DropdownMenuLabel>Safehouses</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {allocationSafehouseOptions.map((safehouseId) => (
+                    <DropdownMenuCheckboxItem
+                      key={safehouseId}
+                      checked={draftFilterAllocationSafehouse.includes(safehouseId)}
+                      onSelect={(e) => e.preventDefault()}
+                      onCheckedChange={() => toggleSelection(draftFilterAllocationSafehouse, safehouseId, setDraftFilterAllocationSafehouse)}
+                    >
+                      Safehouse {safehouseId}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <div className="p-1">
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setFilterAllocationSafehouse(draftFilterAllocationSafehouse)
+                        setSafehouseFilterOpen(false)
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu open={programAreaFilterOpen} onOpenChange={handleProgramAreaFilterOpenChange}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-[230px] justify-between font-normal">
+                    {formatFilterLabel('Program Areas', filterAllocationProgramArea)}
+                    <ChevronDown className="h-4 w-4 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[260px]">
+                  <DropdownMenuLabel>Program Areas</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {allocationProgramAreaOptions.map((programArea) => (
+                    <DropdownMenuCheckboxItem
+                      key={programArea}
+                      checked={draftFilterAllocationProgramArea.includes(programArea)}
+                      onSelect={(e) => e.preventDefault()}
+                      onCheckedChange={() => toggleSelection(draftFilterAllocationProgramArea, programArea, setDraftFilterAllocationProgramArea)}
+                    >
+                      {programArea}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <div className="p-1">
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setFilterAllocationProgramArea(draftFilterAllocationProgramArea)
+                        setProgramAreaFilterOpen(false)
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <Button onClick={() => setDonationDialogOpen(true)} className="gap-2 bg-violet-700 hover:bg-violet-800">
               <Plus className="h-4 w-4" />
               Record Donation
@@ -746,14 +973,13 @@ export function DonorsManagement() {
                   <TableHead className="text-right text-muted-foreground">
                     Amount
                   </TableHead>
-                  <TableHead className="w-12 text-muted-foreground"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDonations.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={6}
                       className="h-24 text-center text-muted-foreground"
                     >
                       No donations found.
@@ -761,9 +987,8 @@ export function DonorsManagement() {
                   </TableRow>
                 ) : (
                   paginatedDonations.map((donation) => (
-                    <>
+                    <Fragment key={donation.id}>
                     <TableRow
-                      key={donation.id}
                       className="cursor-pointer hover:bg-muted"
                       onClick={() => fetchAllocations(donation.id)}
                     >
@@ -789,7 +1014,7 @@ export function DonorsManagement() {
                           variant="outline"
                           className={typeBadgeClass(donation.type)}
                         >
-                          {DONOR_TYPE_LABELS[donation.type as DonorType] ?? donation.type}
+                          {DONOR_TYPE_LABELS[donation.type as DonorType] ?? donationTypeLabel(donation.type)}
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[280px] truncate text-muted-foreground">
@@ -798,68 +1023,39 @@ export function DonorsManagement() {
                       <TableCell className="text-right font-medium text-foreground">
                         {formatPHP(donation.amount)}
                       </TableCell>
-                      <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button className="rounded p-1 text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:text-red-400">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Donation</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently remove this {formatPHP(donation.amount)} donation. This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteDonation(donation.id)} className="bg-red-600 hover:bg-red-700">
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
                     </TableRow>
                     {expandedDonationId === donation.id && (
-                      <TableRow key={`alloc-${donation.id}`}>
-                        <TableCell colSpan={7} className="bg-muted/50 px-8 py-4">
+                      <TableRow>
+                        <TableCell colSpan={6} className="bg-muted/50 px-8 py-4">
                           {allocationsLoading ? (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Loader2 className="h-4 w-4 animate-spin" /> Loading allocations...
                             </div>
-                          ) : allocations.length === 0 ? (
+                          ) : (allocationByDonation.get(donation.id) ?? []).length === 0 ? (
                             <p className="text-sm text-muted-foreground">No allocations recorded for this donation.</p>
                           ) : (
                             <div className="space-y-2">
                               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Allocation Breakdown</p>
-                              <Table>
-                                <TableHeader>
-                                  <TableRow className="hover:bg-transparent">
-                                    <TableHead className="text-muted-foreground">Program Area</TableHead>
-                                    <TableHead className="text-muted-foreground">Safehouse</TableHead>
-                                    <TableHead className="text-right text-muted-foreground">Amount</TableHead>
-                                    <TableHead className="text-muted-foreground">Notes</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {allocations.map((a) => (
-                                    <TableRow key={a.allocationId}>
-                                      <TableCell className="text-foreground/80">{a.programArea}</TableCell>
-                                      <TableCell className="text-muted-foreground">Safehouse {a.safehouseId}</TableCell>
-                                      <TableCell className="text-right font-medium text-foreground">{formatPHP(a.amountAllocated)}</TableCell>
-                                      <TableCell className="text-muted-foreground">{a.allocationNotes || '—'}</TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
+                              <div className="space-y-3">
+                                {(allocationByDonation.get(donation.id) ?? []).map((a) => (
+                                  <div key={a.allocationId} className="rounded-md border border-border bg-background px-3 py-2 text-sm">
+                                    <p><span className="font-medium text-foreground">Program Area:</span> <span className="text-muted-foreground">{a.programArea}</span></p>
+                                    <p><span className="font-medium text-foreground">Safehouse:</span> <span className="text-muted-foreground">Safehouse {a.safehouseId}</span></p>
+                                    <p>
+                                      <span className="font-medium text-foreground">
+                                        {donation.type === 'Time' || donation.type === 'InKind' ? 'Estimated Value:' : 'Amount:'}
+                                      </span>{' '}
+                                      <span className="text-muted-foreground">{formatPHP(a.amountAllocated)}</span>
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </TableCell>
                       </TableRow>
                     )}
-                    </>
+                    </Fragment>
                   ))
                 )}
               </TableBody>
@@ -1088,7 +1284,7 @@ export function DonorsManagement() {
                   <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                   <SelectContent>
                     {['Monetary', 'InKind', 'Time', 'Skills', 'SocialMedia'].map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                      <SelectItem key={t} value={t}>{donationTypeLabel(t)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

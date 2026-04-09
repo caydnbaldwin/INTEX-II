@@ -22,6 +22,21 @@ export function PublicLayout() {
     setMobileMenuOpen(false)
   }, [location])
 
+  // Ensure SPA navigations start at top (unless a hash anchor is present).
+  useEffect(() => {
+    if (!location.hash) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+      return
+    }
+
+    // Hash navigation needs manual scrolling in an SPA after the new route renders.
+    const id = location.hash.replace('#', '')
+    const t = window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [location.pathname, location.hash])
+
   const { theme, setTheme, canSetTheme } = useTheme()
   const isAdmin = authSession.roles.includes('Admin')
   const isDonor = authSession.roles.includes('Donor')

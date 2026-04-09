@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import type { FormEvent } from 'react'
 
 type TeamMember = {
   name: string
@@ -46,6 +48,14 @@ const teamMembers: TeamMember[] = [
 ]
 
 export function ContactPage() {
+  const [showSentMessage, setShowSentMessage] = useState(false)
+
+  function handleMessageSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    e.currentTarget.reset()
+    setShowSentMessage(true)
+  }
+
   return (
     <div className="bg-background">
       <div className="mx-auto max-w-5xl px-6 py-12 sm:py-16 lg:px-8">
@@ -62,7 +72,10 @@ export function ContactPage() {
         <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(240px,300px)] lg:items-start lg:gap-12">
           <section>
             <h2 className="font-serif text-2xl font-semibold text-foreground">Send us a message</h2>
-            <form className="mt-4 rounded-xl border border-border bg-card p-5 sm:p-6 space-y-4">
+            <form
+              onSubmit={handleMessageSubmit}
+              className="mt-4 rounded-xl border border-border bg-card p-5 sm:p-6 space-y-4"
+            >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <label htmlFor="firstName" className="text-xs text-muted-foreground">First name</label>
@@ -105,7 +118,12 @@ export function ContactPage() {
             <p className="text-xs leading-relaxed text-muted-foreground">
               We typically respond within 2 business days.
             </p>
-            <Button type="button">Send message</Button>
+            {showSentMessage && (
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                Your message was sent.
+              </p>
+            )}
+            <Button type="submit">Send message</Button>
             </form>
           </section>
 
