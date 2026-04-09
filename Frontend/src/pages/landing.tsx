@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { ChevronDown, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { StoriesOfTransformationSection } from '@/components/impact/StoriesOfTransformationSection'
+import { listPublicImpactJourneyStories } from '@/lib/publicResidentStories'
 import { usePageTitle } from '@/hooks/usePageTitle'
 
 export function LandingPage() {
@@ -44,6 +46,8 @@ export function LandingPage() {
   const scrollToContent = () => {
     document.getElementById('crisis')?.scrollIntoView({ behavior: 'smooth' })
   }
+
+  const impactStories = listPublicImpactJourneyStories()
 
   return (
     <div className="flex flex-col">
@@ -116,6 +120,11 @@ export function LandingPage() {
                 Philippines experience sexual abuse before turning 18 — and most have
                 nowhere to go.
               </p>
+              <Button asChild className="mt-8 rounded-full px-7 text-base">
+                <Link to="/impact#top">
+                  Our Impact
+                </Link>
+              </Button>
             </div>
           </div>
 
@@ -163,7 +172,7 @@ export function LandingPage() {
                 We built nine safe houses across the Philippines — providing shelter, counseling, and education where none existed before.
               </p>
               <Button asChild className="mt-8 rounded-full px-7 text-base">
-                <Link to="/impact#top">
+                <Link to="/impact#impact-map">
                   See Our Locations
                 </Link>
               </Button>
@@ -173,6 +182,7 @@ export function LandingPage() {
         </div>
       </section>
 
+      <StoriesOfTransformationSection stories={impactStories} />
 
       {/* ───────────────── Trust Indicators ───────────────── */}
       <section className="py-12 bg-background border-t border-border">
@@ -185,6 +195,26 @@ export function LandingPage() {
             <TrustItem text="Transparent Reporting" />
             <span className="hidden sm:inline text-border">|</span>
             <TrustItem text="Annual Audits" />
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-10 w-full border-y border-border bg-[#e8e2f4]">
+        <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8 lg:py-12">
+          <div className="flex flex-col items-stretch gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
+            <div className="max-w-2xl text-left">
+              <h2 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                Ready to change a life?
+              </h2>
+              <p className="mt-3 max-w-2xl text-muted-foreground">
+                Your gift gives a girl a safe home and a future.
+              </p>
+            </div>
+            <div className="flex shrink-0 lg:justify-end">
+              <Button asChild className="h-12 w-full rounded-full px-7 text-base sm:w-auto">
+                <Link to="/donate">Donate</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
