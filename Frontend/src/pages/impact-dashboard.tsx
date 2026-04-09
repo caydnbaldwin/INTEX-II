@@ -1,14 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
-  Heart,
   Loader2,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
 import { HeroStatsBar } from '@/components/impact/HeroStatsBar'
 import { InteractiveMap } from '@/components/impact/InteractiveMap'
-import { ImpactTimeline } from '@/components/impact/ImpactTimeline'
 import { ResidentStoryCard } from '@/components/impact/ResidentStoryCard'
 import {
   LineChart,
@@ -25,6 +23,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
@@ -142,7 +141,7 @@ const fallbackHealthMetrics = [
   { name: 'Emotional Wellbeing', value: 76, description: 'Tracked through counseling' },
 ]
 
-const VALID_TABS = ['overview', 'education', 'health', 'safehouses', 'funding'] as const
+const VALID_TABS = ['overview', 'education', 'health', 'safehouses'] as const
 type TabValue = typeof VALID_TABS[number]
 
 export function ImpactDashboard() {
@@ -198,8 +197,6 @@ export function ImpactDashboard() {
 
   // Separate monthly vs annual summary snapshots
   const monthlySnapshots = parsedSnapshots.filter(s => s.metrics.type !== 'annual_summary')
-  const annualSnapshots  = parsedSnapshots.filter(s => s.metrics.type === 'annual_summary')
-    .sort((a, b) => (a.metrics.year ?? 0) - (b.metrics.year ?? 0))
 
   // Build chart data from monthly snapshots only
   const residentsOverTime = monthlySnapshots.map(s => ({
@@ -214,37 +211,6 @@ export function ImpactDashboard() {
     sessions: Math.round((s.metrics.counselingSessions ?? 0) / 10),
   }))
 
-  // Funding timeline — monthly donations vs target
-  const fundingOverTime = monthlySnapshots
-    .filter(s => s.metrics.donations_total_php !== undefined)
-    .map(s => ({
-      month: new Date(s.snapshotDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-      donated: Math.round(s.metrics.donations_total_php ?? 0),
-      target: s.metrics.monthly_operating_cost_php ?? 11000,
-    }))
-
-  // Aggregate allocation breakdown across all monthly snapshots
-  const allocationTotals: Record<string, number> = {}
-  const areaLabels: Record<string, string> = {
-    Education:   'Education & Schooling',
-    Operations:  'Org Operations',
-    Wellbeing:   'Counseling & Health',
-    Maintenance: 'Facility Maintenance',
-    Transport:   'Transportation',
-    Outreach:    'Community Outreach',
-  }
-  monthlySnapshots.forEach(s => {
-    const bd = s.metrics.allocation_breakdown
-    if (!bd) return
-    Object.entries(bd).forEach(([k, v]) => {
-      allocationTotals[k] = (allocationTotals[k] ?? 0) + (v ?? 0)
-    })
-  })
-  const allocationData = Object.entries(allocationTotals).map(([key, value]) => ({
-    name: areaLabels[key] ?? key,
-    value: Math.round(value),
-  })).sort((a, b) => b.value - a.value)
-
   // Get education programs from latest snapshot payload or fallback
   const latestParsed = monthlySnapshots[monthlySnapshots.length - 1]
   const educationPrograms = latestParsed?.metrics.educationPrograms ?? fallbackEducationPrograms
@@ -258,17 +224,6 @@ export function ImpactDashboard() {
     occupancy: sh.currentOccupancy,
   }))
 
-  // Region distribution from safehouse data or stats
-  const regionCounts: Record<string, number> = {}
-  safehouses.forEach(s => {
-    regionCounts[s.region] = (regionCounts[s.region] ?? 0) + 1
-  })
-  const regionData = Object.entries(regionCounts).map(([name, value]) => ({ name, value }))
-  // If no safehouse data, use stats to show aggregate
-  if (regionData.length === 0 && stats) {
-    regionData.push({ name: 'All Regions', value: stats.safehousesOperating })
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -281,6 +236,20 @@ export function ImpactDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      <section className="border-b border-border bg-background">
+        <div className="mx-auto max-w-7xl px-6 py-8 text-center lg:px-8 lg:py-10">
+          <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight sm:text-3xl">
+            Our Work:
+          </h1>
+          <p className="mt-4 text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
+            Thousands of girls in the Philippines lose their childhoods to trafficking and exploitation.
+            <br />
+            With your support, we&apos;ve given over 150 survivors a safe home and a future — and we&apos;re just
+            getting started.
+          </p>
+        </div>
+      </section>
+
       {/* Hero Stats Bar */}
       <HeroStatsBar stats={stats} />
 
@@ -290,8 +259,25 @@ export function ImpactDashboard() {
       {/* Resident Stories Carousel */}
       <StoriesCarousel stories={impactStories} />
 
-      {/* Impact Timeline */}
-      <ImpactTimeline />
+      <section className="mt-10 w-full border-y border-border bg-[#e8e2f4]">
+        <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8 lg:py-12">
+          <div className="flex flex-col items-stretch gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
+            <div className="max-w-2xl text-left">
+              <h2 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                Ready to change a life?
+              </h2>
+              <p className="mt-3 max-w-2xl text-muted-foreground">
+                Your gift gives a girl a safe home and a future.
+              </p>
+            </div>
+            <div className="flex shrink-0 lg:justify-end">
+              <Button asChild className="h-12 w-full rounded-full px-7 text-base sm:w-auto">
+                <Link to="/impact">Get involved</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Detailed Dashboard */}
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
@@ -312,12 +298,11 @@ export function ImpactDashboard() {
           onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })}
           className="mt-8"
         >
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="education">Education</TabsTrigger>
             <TabsTrigger value="health">Health</TabsTrigger>
             <TabsTrigger value="safehouses">Safehouses</TabsTrigger>
-            <TabsTrigger value="funding">Funding</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-8 space-y-8">
@@ -365,50 +350,6 @@ export function ImpactDashboard() {
                 </CardContent>
               </Card>
             </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Regional Distribution</CardTitle>
-                <CardDescription>Safehouse locations across the Philippines</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-6 sm:grid-cols-3">
-                  {regionData.map((region, index) => (
-                    <div key={region.name} className="flex items-center gap-4">
-                      <div className="h-16 w-16 rounded-xl flex items-center justify-center text-2xl font-bold text-primary-foreground" style={{ backgroundColor: CHART_COLORS[index] }}>
-                        {region.value}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-foreground">{region.name}</div>
-                        <div className="text-sm text-muted-foreground">{region.value} safehouses</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Representative journeys</CardTitle>
-                <CardDescription>
-                  Progress snapshots identified by privacy-safe labels only. Labels are pseudonyms, not real
-                  names.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
-                {listPublicImpactJourneyStories().map((story) => (
-                  <div
-                    key={story.residentId}
-                    className="rounded-lg border border-border bg-card/50 p-4"
-                  >
-                    <div className="font-mono text-sm font-semibold text-primary">{story.pseudonym}</div>
-                    <div className="mt-2 text-sm font-medium text-foreground">{story.headline}</div>
-                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{story.description}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="education" className="mt-8 space-y-8">
@@ -579,195 +520,7 @@ export function ImpactDashboard() {
               )}
             </div>
           </TabsContent>
-          <TabsContent value="funding" className="mt-8 space-y-8">
-            {/* Monthly donations vs target */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Donations vs. Operating Target</CardTitle>
-                <CardDescription>
-                  PHP 11,000 is needed each month to fully fund all 9 safehouses. The gap between
-                  the bars is what limits services.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {fundingOverTime.length > 0 ? (
-                  <div className="h-[320px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={fundingOverTime} barGap={2}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                        <XAxis dataKey="month" className="text-xs fill-muted-foreground" interval={2} />
-                        <YAxis className="text-xs fill-muted-foreground" tickFormatter={(v: number) => `₱${(v/1000).toFixed(0)}k`} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
-                          formatter={(value) => [`₱${Number(value).toLocaleString()}`, '']}
-                        />
-                        <Legend />
-                        <Bar dataKey="target" name="Monthly Target (₱11,000)" fill={CHART_COLORS[3]} radius={[4,4,0,0]} opacity={0.4} />
-                        <Bar dataKey="donated" name="Donated" fill={CHART_COLORS[0]} radius={[4,4,0,0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground py-8 text-center">No funding timeline data available.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Allocation breakdown */}
-            <div className="grid gap-8 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Where Donations Go</CardTitle>
-                  <CardDescription>
-                    Cumulative allocation across all months — every peso tracked by program area.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {allocationData.length > 0 ? (
-                    <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={allocationData}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            label={({ name, percent }: { name?: string; percent?: number }) =>
-                              `${(name ?? '').split(' ')[0]} ${((percent ?? 0) * 100).toFixed(0)}%`
-                            }
-                            labelLine={false}
-                          >
-                            {allocationData.map((_entry, index) => (
-                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
-                            formatter={(value) => [`₱${Number(value).toLocaleString()}`, '']}
-                          />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground py-8 text-center">No allocation data available.</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Program Area Breakdown</CardTitle>
-                  <CardDescription>Total allocated per area across all recorded months</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {allocationData.length > 0 ? (() => {
-                    const total = allocationData.reduce((sum, d) => sum + d.value, 0)
-                    return allocationData.map((area, index) => (
-                      <div key={area.name} className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-medium text-foreground">{area.name}</span>
-                          <span className="text-muted-foreground">
-                            ₱{area.value.toLocaleString()} · {((area.value / total) * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${(area.value / total) * 100}%`,
-                              backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  })() : (
-                    <p className="text-sm text-muted-foreground">No data available.</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Annual report cards */}
-            {annualSnapshots.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-foreground mb-4">Annual Reports</h3>
-                <div className="grid gap-6 lg:grid-cols-3">
-                  {annualSnapshots.map(snap => {
-                    const m = snap.metrics
-                    const pct = m.funding_coverage_pct ?? 0
-                    const gap = m.funding_gap_php ?? 0
-                    const hardMonths = m.months_below_50pct_funding ?? 0
-                    const color = pct >= 85 ? 'text-green-600' : pct >= 60 ? 'text-amber-600' : 'text-red-600'
-                    const bgColor = pct >= 85 ? 'bg-green-50 border-green-200' : pct >= 60 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
-                    return (
-                      <Card key={snap.snapshotId} className={`border ${bgColor}`}>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-baseline justify-between">
-                            <CardTitle className="text-xl">{m.year}</CardTitle>
-                            <span className={`text-2xl font-bold font-serif ${color}`}>{pct.toFixed(0)}%</span>
-                          </div>
-                          <CardDescription>of ₱{((m.annual_operating_budget_php ?? 132000) / 1000).toFixed(0)}k annual budget funded</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="h-2 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                width: `${Math.min(pct, 100)}%`,
-                                backgroundColor: pct >= 85 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626',
-                              }}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <p className="text-muted-foreground">Funding gap</p>
-                              <p className="font-semibold text-foreground">₱{Math.round(gap).toLocaleString()}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Hard months</p>
-                              <p className="font-semibold text-foreground">{hardMonths} / 12</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">New admissions</p>
-                              <p className="font-semibold text-foreground">{m.new_admissions ?? '—'}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Peak residents</p>
-                              <p className="font-semibold text-foreground">{m.peak_residents ?? '—'}</p>
-                            </div>
-                          </div>
-                          {m.challenge && (
-                            <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-3">
-                              {m.challenge}
-                            </p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </TabsContent>
         </Tabs>
-
-        <Card className="mt-12 bg-primary/5 border-primary/20">
-          <CardContent className="flex flex-col items-center py-12 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <Heart className="h-8 w-8 text-primary" />
-            </div>
-            <h3 className="mt-6 text-2xl font-bold text-foreground">Support Our Mission</h3>
-            <p className="mt-2 max-w-md text-muted-foreground">
-              Your donations directly fund shelter, education, healthcare, and counseling
-              for survivors. {stats?.totalDonors ?? '—'} recurring donors have already
-              contributed over PHP {stats ? (stats.totalDonationAmount / 1000000).toFixed(1) : '—'}M.
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
@@ -785,49 +538,48 @@ function StoriesCarousel({ stories }: { stories: ReturnType<typeof listPublicImp
   const visible = stories.slice(page * perPage, page * perPage + perPage)
 
   return (
-    <section className="pt-16 pb-10 sm:pt-20 sm:pb-12 bg-muted/30">
+    <section className="pt-8 pb-10 sm:pt-10 sm:pb-12 bg-muted/30">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="flex items-end justify-between mb-10">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary mb-3">
-              Real Progress
-            </p>
-            <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-              Stories of Transformation
-            </h2>
-            <p className="mt-3 text-muted-foreground max-w-2xl">
-              Each name is a privacy-safe pseudonym. Each milestone is real.
-            </p>
-          </div>
+        <div className="mb-8">
+          <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+            Stories of Transformation
+          </h2>
+          <p className="mt-3 text-muted-foreground max-w-2xl">
+            Each name is a privacy-safe pseudonym. Each milestone is real.
+          </p>
+        </div>
 
-          {/* Arrow buttons */}
-          <div className="hidden sm:flex items-center gap-2">
+        {/* Arrows vertically centered with the story cards */}
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-4 lg:gap-6">
+          <div className="hidden sm:flex shrink-0 items-center justify-center sm:justify-end lg:w-10">
             <button
               type="button"
               onClick={() => goTo(page - 1)}
               disabled={page === 0}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               aria-label="Previous stories"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
+          </div>
+
+          <div className="min-w-0 flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {visible.map((story) => (
+              <ResidentStoryCard key={story.residentId} story={story} />
+            ))}
+          </div>
+
+          <div className="hidden sm:flex shrink-0 items-center justify-center sm:justify-start lg:w-10">
             <button
               type="button"
               onClick={() => goTo(page + 1)}
               disabled={page >= totalPages - 1}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               aria-label="Next stories"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-        </div>
-
-        {/* 3-card grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {visible.map((story) => (
-            <ResidentStoryCard key={story.residentId} story={story} />
-          ))}
         </div>
 
         {/* Dot indicators */}

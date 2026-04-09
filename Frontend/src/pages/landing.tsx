@@ -1,44 +1,8 @@
 import { Link } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
-import { ArrowRight, ChevronDown, Heart, CheckCircle2, Pill, Utensils, Stethoscope, Users, Home, ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
 import { usePageTitle } from '@/hooks/usePageTitle'
-
-const AREA_COLORS: Record<string, string> = {
-  'Education':   'oklch(0.45 0.18 280)',
-  'Operations':  'oklch(0.55 0.15 280)',
-  'Wellbeing':   'oklch(0.35 0.12 280)',
-  'Maintenance': 'oklch(0.65 0.10 280)',
-  'Transport':   'oklch(0.70 0.08 280)',
-  'Outreach':    'oklch(0.75 0.06 280)',
-}
-const AREA_LABELS: Record<string, string> = {
-  Education:   'Education',
-  Operations:  'Operations',
-  Wellbeing:   'Counseling',
-  Maintenance: 'Maintenance',
-  Transport:   'Transport',
-  Outreach:    'Outreach',
-}
-
-interface AnnualPayload {
-  type: string
-  year: number
-  funding_coverage_pct: number
-  funding_gap_php: number
-  allocation_breakdown: Record<string, number>
-  challenge: string
-  months_below_50pct_funding: number
-}
-
-const donationTiers = [
-  { amount: 15, label: '$15', description: 'Provides essential vitamins for a child', icon: Pill, iconLabel: 'Vitamins' },
-  { amount: 50, label: '$50', description: 'Feeds a child for an entire month', icon: Utensils, iconLabel: 'Meals' },
-  { amount: 100, label: '$100', description: 'Covers medical, dental, and educational needs', icon: Stethoscope, iconLabel: 'Healthcare' },
-  { amount: 300, label: '$300', description: 'Employs a professional caregiver for many children', icon: Users, iconLabel: 'Caregivers' },
-  { amount: 1500, label: '$1,500', description: 'Pays the mortgage that provides refuge for all children', icon: Home, iconLabel: 'Shelter' },
-]
 
 export function LandingPage() {
   usePageTitle('Home')
@@ -47,23 +11,6 @@ export function LandingPage() {
   const [dbStatus, setDbStatus] = useState('')
   const [isCheckingBackend, setIsCheckingBackend] = useState(false)
   const [isCheckingDb, setIsCheckingDb] = useState(false)
-  const [donationTier, setDonationTier] = useState(0)
-  const [latestAnnual, setLatestAnnual] = useState<AnnualPayload | null>(null)
-
-  useEffect(() => {
-    fetch(`${API}/api/public/impact-snapshots`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then((snapshots: Array<{ metricPayloadJson: string }> | null) => {
-        if (!snapshots) return
-        const annual = snapshots
-          .map(s => { try { return JSON.parse(s.metricPayloadJson) as AnnualPayload } catch { return null } })
-          .filter((p): p is AnnualPayload => p?.type === 'annual_summary')
-          .sort((a, b) => b.year - a.year)
-        if (annual.length > 0) setLatestAnnual(annual[0])
-      })
-      .catch(() => { /* non-critical — transparency strip stays hidden */ })
-  }, [API])
-
   async function verifyBackend() {
     setBackendStatus('Checking backend...')
     setIsCheckingBackend(true)
@@ -97,8 +44,6 @@ export function LandingPage() {
   const scrollToContent = () => {
     document.getElementById('crisis')?.scrollIntoView({ behavior: 'smooth' })
   }
-
-  const currentTier = donationTiers[donationTier]
 
   return (
     <div className="flex flex-col">
@@ -499,65 +444,6 @@ export function PhilippinesMap() {
   )
 }
 
-/* ──────────────────────────────────────────────────────────
-   Donation Icon Card — animated icon per tier
-   ────────────────────────────────────────────────────────── */
-function DonationIconCard({ tier }: { tier: number }) {
-  const [displayTier, setDisplayTier] = useState(tier)
-  const [animating, setAnimating] = useState(false)
-  const prevTier = useRef(tier)
-
-  useEffect(() => {
-    if (tier !== prevTier.current) {
-      setAnimating(true)
-      const timeout = setTimeout(() => {
-        setDisplayTier(tier)
-        setAnimating(false)
-      }, 200)
-      prevTier.current = tier
-      return () => clearTimeout(timeout)
-    }
-  }, [tier])
-
-  const DisplayIcon = donationTiers[displayTier].icon
-  const displayLabel = donationTiers[displayTier].iconLabel
-
-  return (
-    <div className="flex items-center justify-center">
-      <div className="flex flex-col items-center gap-6">
-        <div
-          className={`transition-all duration-200 ${
-            animating
-              ? 'opacity-0 translate-y-4 scale-90'
-              : 'opacity-100 translate-y-0 scale-100'
-          }`}
-        >
-          <DisplayIcon className="h-28 w-28 sm:h-36 sm:w-36 text-primary" strokeWidth={1.2} aria-hidden="true" />
-        </div>
-        <div
-          className={`text-center transition-all duration-200 ${
-            animating ? 'opacity-0' : 'opacity-100'
-          }`}
-        >
-          <div className="text-2xl font-serif font-semibold text-foreground">{displayLabel}</div>
-          <div className="text-base text-muted-foreground mt-1">{donationTiers[displayTier].label}/mo</div>
-        </div>
-
-        {/* Dots */}
-        <div className="flex gap-1.5">
-          {donationTiers.map((_, i) => (
-            <div
-              key={i}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === displayTier ? 'w-4 bg-primary' : 'w-1.5 bg-primary/20'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function TrustItem({ text }: { text: string }) {
   return (

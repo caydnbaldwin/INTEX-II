@@ -36,7 +36,7 @@ export function InteractiveMap() {
   }, {})
 
   return (
-    <section className="py-10 sm:py-12 bg-background">
+    <section className="pt-10 pb-5 sm:pt-12 sm:pb-6 bg-background">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-3xl rounded-2xl overflow-hidden shadow-lg border border-border">
           <MapContainer

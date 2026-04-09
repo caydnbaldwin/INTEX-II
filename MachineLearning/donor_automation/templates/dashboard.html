@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Donor Upgrade Candidates — Lunas Foundation</title>
 <link rel="stylesheet" href="/static/styles.css"/>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -35,6 +34,9 @@
       <div class="automation-actions">
         <button class="btn btn-run-now" id="btnRunNow" onclick="runNow()">
           ▶ Run Now
+        </button>
+        <button class="btn btn-send-test" id="btnSendTest" onclick="sendTestEmail()">
+          ✉ Send Test Email
         </button>
         <button class="btn btn-automate" id="btnAutomate" onclick="toggleAutomation()">
           Loading...
@@ -102,12 +104,6 @@
         <select id="filterChannel" onchange="renderTable()">
           <option value="">All Channels</option>
         </select>
-        <select id="filterOutcome" onchange="renderTable()">
-          <option value="">All Outcomes</option>
-          <option value="none">Never Contacted</option>
-          <option value="converted">Converted</option>
-          <option value="declined">Declined</option>
-        </select>
         <input id="searchBox" type="text" placeholder="Search name..." oninput="renderTable()"/>
       </div>
     </div>
@@ -125,80 +121,52 @@
             <th onclick="sortBy('latest_donation')">Latest Donation</th>
             <th>Channel</th>
             <th>Last Contacted</th>
-            <th>Outcome</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="12" class="loading-cell">Loading donors...</td></tr>
+          <tr><td colspan="11" class="loading-cell">Loading donors...</td></tr>
         </tbody>
       </table>
     </div>
     <div class="table-footer" id="rowCount"></div>
   </div>
 
-  <!-- ── Charts ──────────────────────────────────────────────────────────── -->
-  <div class="chart-grid">
-    <div class="card chart-box">
-      <h3>Upgrade Candidates by Acquisition Channel</h3>
-      <canvas id="chartChannel"></canvas>
+  <!-- ── Email Templates ───────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2>Email Templates</h2>
+        <p class="card-sub">3 active templates — click a template to expand it</p>
+      </div>
     </div>
-    <div class="card chart-box">
-      <h3>Model Accuracy Over Time <span class="chart-note">(improves as feedback is recorded)</span></h3>
-      <canvas id="chartAccuracy"></canvas>
+    <div id="templatesList" style="padding: 0 0 8px 0;">
+      <div class="loading-cell">Loading templates...</div>
     </div>
   </div>
 
-  <!-- ── Email Log ───────────────────────────────────────────────────────── -->
+  <!-- ── Email Log (collapsed by default) ─────────────────────────────────── -->
   <div class="card">
-    <div class="card-header collapsible" onclick="toggleEmailLog()">
-      <div>
-        <h2>Simulated Email Log <span class="badge badge-gray" id="emailCount">0</span></h2>
-        <p class="card-sub">Every email the system would send — previewed here before going live</p>
+    <div class="card-header collapsible email-log-toggle" onclick="toggleEmailLog()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEmailLog();}">
+      <div class="email-log-toggle-inner">
+        <span class="chevron-down" id="emailLogChevron" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+        <h2 class="email-log-title">Email Log</h2>
+        <span class="badge badge-gray" id="emailSentBadge">0 emails sent</span>
       </div>
-      <span class="collapse-icon" id="emailLogIcon">▼</span>
     </div>
-    <div id="emailLogBody">
-      <div class="email-list" id="emailList">
+    <div id="emailLogBody" class="email-log-body" style="display:none">
+      <div class="email-log-table-wrap" id="emailList">
         <div class="loading-cell">Loading email log...</div>
       </div>
     </div>
-  </div>
-
-  <!-- ── Feedback Loop Note ──────────────────────────────────────────────── -->
-  <div class="pipeline-note">
-    <strong>How the feedback loop works:</strong>
-    When you mark a donor as <em>Converted ✓</em> or <em>Declined ✗</em> using the outcome buttons,
-    that signal is saved to <code>feedback_log.json</code>. The next time the pipeline runs,
-    it reads those labels and uses them to retrain the model — so donors who actually upgrade
-    become positive training examples. Over time, this makes the upgrade_probability scores
-    more accurate than the rule-based labels alone.
   </div>
 
 </main>
 
 <!-- ── Toast ─────────────────────────────────────────────────────────────────── -->
 <div class="toast" id="toast"></div>
-
-<!-- ── Outcome Modal ─────────────────────────────────────────────────────────── -->
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <h3>Record Outcome</h3>
-    <p id="modalDonorName" class="modal-sub"></p>
-    <input type="hidden" id="modalDonorId"/>
-    <div class="outcome-buttons">
-      <button class="btn btn-converted" onclick="recordOutcome('converted')">
-        ✓ Converted — they donated again
-      </button>
-      <button class="btn btn-declined" onclick="recordOutcome('declined')">
-        ✗ Declined — they said no
-      </button>
-    </div>
-    <div style="text-align:right;margin-top:12px">
-      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
-    </div>
-  </div>
-</div>
 
 <!-- ── Email Preview Modal ───────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="previewOverlay">
@@ -217,19 +185,10 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 let donors       = [];
 let emailLog     = [];
-let feedbackLog  = [];
+let recentEmailSlice = [];
 let automationOn = false;
 let sortKey      = 'rank';
 let sortAsc      = true;
-let channelChart = null;
-let accuracyChart = null;
-
-// ── Bootstrap ─────────────────────────────────────────────────────────────────
-async function init() {
-  // Load emails and feedback first so wasEmailedRecently() works when donors render
-  await Promise.all([loadEmails(), loadFeedback(), loadState()]);
-  await loadDonors();
-}
 
 // ── API calls ─────────────────────────────────────────────────────────────────
 async function loadDonors() {
@@ -263,7 +222,6 @@ async function loadDonors() {
     });
 
     renderTable();
-    renderChannelChart(d.candidates);
     document.getElementById('lastUpdated').textContent =
       'Last refreshed: ' + new Date().toLocaleTimeString();
   } catch(e) {
@@ -279,7 +237,6 @@ async function loadState() {
     updateAutomationUI(s);
     document.getElementById('statRuns').textContent = (s.runs || []).length;
     document.getElementById('statEmailsWeek').textContent = s.emails_this_week || 0;
-    renderAccuracyChart(s.runs || []);
   } catch(e) { console.error('loadState', e); }
 }
 
@@ -289,13 +246,6 @@ async function loadEmails() {
     emailLog = await r.json();
     renderEmailLog();
   } catch(e) { console.error('loadEmails', e); }
-}
-
-async function loadFeedback() {
-  try {
-    const r = await fetch('/api/feedback');
-    feedbackLog = await r.json();
-  } catch(e) { console.error('loadFeedback', e); }
 }
 
 // ── Automation ────────────────────────────────────────────────────────────────
@@ -357,6 +307,31 @@ async function runNow() {
   }
 }
 
+async function sendTestEmail() {
+  const btn = document.getElementById('btnSendTest');
+  btn.disabled = true;
+  btn.textContent = '✉ Sending...';
+  try {
+    const r = await fetch('/api/send-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'ethansmithxela23@gmail.com' })
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast('Test email sent! Message ID: ' + d.message_id);
+    } else {
+      showToast('Send failed: ' + (d.error || 'Unknown error'), 'error');
+    }
+    await loadEmails();
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✉ Send Test Email';
+  }
+}
+
 async function sendInvite(donorId, donorName) {
   // Block if automation is on — it will handle outreach
   if (automationOn) {
@@ -381,35 +356,6 @@ async function sendInvite(donorId, donorName) {
   }
 }
 
-// ── Feedback modal ────────────────────────────────────────────────────────────
-function openFeedback(donorId, donorName) {
-  document.getElementById('modalDonorId').value    = donorId;
-  document.getElementById('modalDonorName').textContent = 'Recording outcome for ' + donorName;
-  document.getElementById('modalOverlay').classList.add('open');
-}
-
-function closeModal() {
-  document.getElementById('modalOverlay').classList.remove('open');
-}
-
-async function recordOutcome(outcome) {
-  const id   = parseInt(document.getElementById('modalDonorId').value);
-  const name = document.getElementById('modalDonorName').textContent.replace('Recording outcome for ', '');
-  try {
-    await fetch('/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ donor_id: id, donor_name: name, outcome })
-    });
-    closeModal();
-    await loadFeedback();
-    renderTable();
-    showToast(outcome === 'converted' ? name + ' marked as Converted ✓' : name + ' marked as Declined ✗');
-  } catch(e) {
-    showToast('Error: ' + e.message, 'error');
-  }
-}
-
 // ── Table rendering ───────────────────────────────────────────────────────────
 function sortBy(key) {
   sortAsc = (sortKey === key) ? !sortAsc : true;
@@ -429,12 +375,6 @@ function daysSinceContacted(donorId) {
   return Math.floor((new Date() - new Date(ts)) / (1000 * 60 * 60 * 24));
 }
 
-function getFeedbackOutcome(donorId) {
-  const entries = feedbackLog.filter(f => f.donor_id === donorId);
-  if (!entries.length) return null;
-  return entries[entries.length - 1].outcome;
-}
-
 function getLastContacted(donorId) {
   const entries = emailLog.filter(e => e.donor_id === donorId);
   if (!entries.length) return null;
@@ -444,20 +384,15 @@ function getLastContacted(donorId) {
 function renderTable() {
   const filterScore   = document.getElementById('filterScore').value;
   const filterChannel = document.getElementById('filterChannel').value;
-  const filterOutcome = document.getElementById('filterOutcome').value;
   const search        = document.getElementById('searchBox').value.toLowerCase();
 
   let rows = donors.map(d => {
-    const outcome   = getFeedbackOutcome(d.supporter_id);
     const contacted = getLastContacted(d.supporter_id);
-    return { ...d, _outcome: outcome, _contacted: contacted };
+    return { ...d, _contacted: contacted };
   });
 
   if (filterScore)   rows = rows.filter(r => r.upgrade_score === filterScore);
   if (filterChannel) rows = rows.filter(r => r.acquisition_channel === filterChannel);
-  if (filterOutcome === 'none')      rows = rows.filter(r => !r._outcome);
-  if (filterOutcome === 'converted') rows = rows.filter(r => r._outcome === 'converted');
-  if (filterOutcome === 'declined')  rows = rows.filter(r => r._outcome === 'declined');
   if (search) rows = rows.filter(r => r.display_name.toLowerCase().includes(search));
 
   rows.sort((a, b) => {
@@ -468,28 +403,21 @@ function renderTable() {
 
   const tbody = document.getElementById('tableBody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="12" class="loading-cell">No donors match the current filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="loading-cell">No donors match the current filters.</td></tr>';
     document.getElementById('rowCount').textContent = 'No results';
     return;
   }
 
   tbody.innerHTML = rows.map(r => {
     const isCandidate = r.upgrade_candidate === 1;
-    const outcome     = r._outcome;
     const contacted   = r._contacted;
-    const rowClass    = outcome === 'converted' ? 'row-converted'
-                      : isCandidate ? 'row-candidate' : 'row-non-cand';
+    const rowClass    = isCandidate ? 'row-candidate' : 'row-non-cand';
 
     const scoreBadge = '<span class="badge badge-' + r.upgrade_score.toLowerCase() + '">' + r.upgrade_score + '</span>';
 
     const contactedCell = contacted
       ? '<span class="contacted-date">' + fmtDt(contacted) + '</span>'
       : '<span class="never">Never</span>';
-
-    let outcomeCell = '<span class="never">—</span>';
-    if (outcome === 'converted') outcomeCell = '<span class="outcome-converted">Converted ✓</span>';
-    else if (outcome === 'declined') outcomeCell = '<span class="outcome-declined">Declined ✗</span>';
-    else if (contacted) outcomeCell = '<span class="outcome-pending">Pending</span>';
 
     let actionBtn;
     if (!isCandidate) {
@@ -500,10 +428,7 @@ function renderTable() {
       const d = daysSinceContacted(r.supporter_id);
       actionBtn = '<button class="btn btn-gray" disabled title="Wait ' + (7 - d) + ' more day(s)">Sent ' + d + 'd ago</button>';
     } else {
-      actionBtn = '<div class="action-btns">' +
-        '<button class="btn btn-invite" onclick="sendInvite(' + r.supporter_id + ',\'' + r.display_name.replace("'", "\\'") + '\')">Send Invite</button>' +
-        '<button class="btn btn-outcome" onclick="openFeedback(' + r.supporter_id + ',\'' + r.display_name.replace("'", "\\'") + '\')">Outcome</button>' +
-        '</div>';
+      actionBtn = '<button class="btn btn-invite" onclick="sendInvite(' + r.supporter_id + ',\'' + r.display_name.replace("'", "\\'") + '\')">Send Invite</button>';
     }
 
     return '<tr class="' + rowClass + '">' +
@@ -517,7 +442,6 @@ function renderTable() {
       '<td class="date-cell">' + r.latest_donation + '</td>' +
       '<td><span class="channel-tag">' + r.acquisition_channel + '</span></td>' +
       '<td>' + contactedCell + '</td>' +
-      '<td>' + outcomeCell + '</td>' +
       '<td>' + actionBtn + '</td>' +
       '</tr>';
   }).join('');
@@ -529,37 +453,47 @@ function renderTable() {
 // ── Email log ─────────────────────────────────────────────────────────────────
 function toggleEmailLog() {
   const body = document.getElementById('emailLogBody');
-  const icon = document.getElementById('emailLogIcon');
+  const chev = document.getElementById('emailLogChevron');
   const isHidden = body.style.display === 'none';
-  body.style.display = isHidden ? '' : 'none';
-  icon.textContent = isHidden ? '▲' : '▼';
+  body.style.display = isHidden ? 'block' : 'none';
+  if (chev) chev.classList.toggle('chevron-open', isHidden);
 }
 
 function renderEmailLog() {
   const list  = document.getElementById('emailList');
-  const count = document.getElementById('emailCount');
-  count.textContent = emailLog.length;
-  const recent = emailLog.slice(0, 10);
-  if (!recent.length) {
-    list.innerHTML = '<div class="loading-cell">No emails logged yet.</div>';
+  const badge = document.getElementById('emailSentBadge');
+  const sentCount = emailLog.filter(function(e) { return e.status === 'sent'; }).length;
+  badge.textContent = sentCount + (sentCount === 1 ? ' email sent' : ' emails sent');
+  recentEmailSlice = emailLog.slice(0, 10);
+  if (!recentEmailSlice.length) {
+    list.innerHTML = '<div class="loading-cell email-log-empty">No emails logged yet.</div>';
     return;
   }
-  list.innerHTML = recent.map((e, i) =>
-    '<div class="email-entry">' +
-    '<div class="email-meta">' +
-      '<span class="email-name">' + e.donor_name + '</span>' +
-      '<span class="email-addr">' + e.email + '</span>' +
-      '<span class="email-ts">' + fmtDt(e.timestamp) + '</span>' +
-      '<span class="badge badge-sim">simulated</span>' +
-    '</div>' +
-    '<div class="email-subject">' + e.subject + '</div>' +
-    '<button class="btn btn-preview" onclick="previewEmail(' + i + ')">Preview Body ▸</button>' +
-    '</div>'
-  ).join('');
+  var rows = recentEmailSlice.map(function(e, i) {
+    return '<tr>' +
+      '<td class="email-td-name">' + escapeHtml(e.donor_name || '') + '</td>' +
+      '<td class="email-td-ts">' + fmtDt(e.timestamp) + '</td>' +
+      '<td class="email-td-subj">' + escapeHtml(e.subject || '') + '</td>' +
+      '<td class="email-td-preview"><button type="button" class="btn btn-preview" onclick="previewEmailAtIndex(' + i + ')">Preview</button></td>' +
+      '</tr>';
+  }).join('');
+  list.innerHTML =
+    '<table class="email-log-table">' +
+    '<thead><tr><th>Donor</th><th>Timestamp</th><th>Subject</th><th></th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>';
 }
 
-function previewEmail(idx) {
-  const e = emailLog[idx];
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function previewEmailAtIndex(idx) {
+  var e = recentEmailSlice[idx];
+  if (!e) return;
   document.getElementById('previewSubject').textContent = e.subject;
   document.getElementById('previewMeta').textContent    = 'To: ' + e.donor_name + ' <' + e.email + '>  |  ' + fmtDt(e.timestamp);
   document.getElementById('previewBody').textContent    = e.body;
@@ -568,65 +502,6 @@ function previewEmail(idx) {
 
 function closePreview() {
   document.getElementById('previewOverlay').classList.remove('open');
-}
-
-// ── Charts ────────────────────────────────────────────────────────────────────
-function renderChannelChart() {
-  const candidates = donors.filter(d => d.upgrade_candidate === 1);
-  const byChannel  = {};
-  candidates.forEach(d => {
-    byChannel[d.acquisition_channel] = (byChannel[d.acquisition_channel] || 0) + 1;
-  });
-  const labels = Object.keys(byChannel).sort();
-  const data   = labels.map(l => byChannel[l]);
-
-  if (channelChart) channelChart.destroy();
-  channelChart = new Chart(document.getElementById('chartChannel'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{ label: 'Candidates', data, backgroundColor: '#7C3AED', borderRadius: 6 }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, ticks: { stepSize: 1 } },
-        x: { grid: { display: false } }
-      }
-    }
-  });
-}
-
-function renderAccuracyChart(runs) {
-  const labels = runs.map((r, i) => 'Run ' + (i + 1));
-  const data   = runs.map(r => r.model_accuracy || 0);
-
-  if (accuracyChart) accuracyChart.destroy();
-  accuracyChart = new Chart(document.getElementById('chartAccuracy'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Model Accuracy (%)',
-        data,
-        borderColor: '#7C3AED',
-        backgroundColor: 'rgba(124,58,237,0.08)',
-        tension: 0.3,
-        fill: true,
-        pointRadius: 5,
-        pointBackgroundColor: '#7C3AED',
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { min: 0, max: 100, ticks: { callback: v => v + '%' } },
-        x: { grid: { display: false } }
-      }
-    }
-  });
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -652,15 +527,84 @@ function showToast(msg, type) {
   setTimeout(() => { t.className = 'toast'; }, 4000);
 }
 
-// Close modals on overlay click
-document.getElementById('modalOverlay').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
+// Close preview modal on overlay click
 document.getElementById('previewOverlay').addEventListener('click', function(e) {
   if (e.target === this) closePreview();
 });
 
+// ── Templates ─────────────────────────────────────────────────────────────────
+const TEMPLATE_LABELS = {
+  loyal:      { color: '#7C3AED', bg: '#f5f3ff', label: 'Loyal' },
+  first_time: { color: '#0ea5e9', bg: '#f0f9ff', label: 'First-Time' },
+  win_back:   { color: '#f59e0b', bg: '#fffbeb', label: 'Win-Back' },
+};
+
+async function loadTemplates() {
+  try {
+    const r = await fetch('/api/templates');
+    const d = await r.json();
+    renderTemplates(d.templates || []);
+  } catch(e) {
+    document.getElementById('templatesList').innerHTML =
+      '<div class="loading-cell">Failed to load templates.</div>';
+  }
+}
+
+function renderTemplates(templates) {
+  const container = document.getElementById('templatesList');
+  if (!templates.length) {
+    container.innerHTML = '<div class="loading-cell">No templates found.</div>';
+    return;
+  }
+  container.innerHTML = templates.map((t, i) => {
+    const meta = TEMPLATE_LABELS[t.id] || { color: '#64748b', bg: '#f8fafc', label: t.id };
+    const bodyEscaped = escapeHtml(t.body || '');
+    const editedInfo  = t.last_edited
+      ? 'Last edited ' + fmtDt(t.last_edited) + (t.last_edited_by ? ' by ' + escapeHtml(t.last_edited_by) : '')
+      : 'Not yet edited';
+    return (
+      '<div class="tmpl-card" id="tmpl-card-' + i + '">' +
+        '<div class="tmpl-header" onclick="toggleTemplate(' + i + ')" role="button" tabindex="0"' +
+          ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleTemplate(' + i + ')}">' +
+          '<div class="tmpl-header-left">' +
+            '<span class="tmpl-badge" style="background:' + meta.bg + ';color:' + meta.color + ';border:1px solid ' + meta.color + '40">' + meta.label + '</span>' +
+            '<div>' +
+              '<div class="tmpl-name">' + escapeHtml(t.name) + '</div>' +
+              '<div class="tmpl-trigger">Trigger: <code>' + escapeHtml(t.trigger || '') + '</code>' +
+                (t.note ? ' — <em>' + escapeHtml(t.note) + '</em>' : '') + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<svg class="tmpl-chevron" id="tmpl-chev-' + i + '" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' +
+        '</div>' +
+        '<div class="tmpl-body" id="tmpl-body-' + i + '" style="display:none">' +
+          '<div class="tmpl-subject-row">' +
+            '<span class="tmpl-field-label">Subject</span>' +
+            '<span class="tmpl-subject-text">' + escapeHtml(t.subject || '') + '</span>' +
+          '</div>' +
+          '<div class="tmpl-placeholders">' +
+            (t.placeholders || []).map(p => '<code class="ph-chip">{{' + p + '}}</code>').join('') +
+          '</div>' +
+          '<pre class="tmpl-body-text">' + bodyEscaped + '</pre>' +
+          '<div class="tmpl-meta">' + editedInfo + '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+}
+
+function toggleTemplate(i) {
+  const body = document.getElementById('tmpl-body-' + i);
+  const chev = document.getElementById('tmpl-chev-' + i);
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  chev.style.transform = open ? '' : 'rotate(180deg)';
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────────
+async function init() {
+  await Promise.all([loadEmails(), loadState(), loadTemplates()]);
+  await loadDonors();
+}
 init();
 </script>
 {% endraw %}
