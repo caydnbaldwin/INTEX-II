@@ -1,0 +1,40 @@
+- [ ] target donors on the words that are given -> make sure that appeals to the donors
+- [ ] lunas name -> doesn’t actually explain what the company does
+- [ ] symbol isn’t widely known
+- [ ] subtext is too long for the explanation
+- [ ] remove the hope in philippines because it’s confusing.
+- [ ] make sure to have the donate button stick out the most. Make that the biggest flow button.
+- [ ] remove the explore button -> cognitive interference for the page.
+- [ ] too much text on the map row.
+- [ ] remove the source from graph
+- [ ] alignment issue with the 295%
+- [ ] Make sure to decrease the amounts of fonts so it match for each of the sections.
+- [ ] keep to two lines of text on the hero -> so it’s not right aligned. potentially keep it center aligned instead of right aligned.
+- [ ] potentially have social media buttons for the button.
+- [ ] make the donate button match the call to action at the top.
+- [ ] make sure to have the call to actions with each of the sections.
+- [ ] locations shouldn’t be in the top component -> where should we add that.
+- [ ] too busy on the emergency contact. -> get rid of it. It’s not for the girls to get on this site, it’s for the donors.
+- [ ] remove locations and sections, just include the base contact page.
+- [ ] personalize the information about the people -> making it personal and inviting.
+- [ ] have the leadership on the side, but the contact form front and center.
+- [ ] keep the “we’d love to hear from you” -> invite people.
+- [ ] keep the number, but not the plus -> don’t
+- [ ] remove the cities at the bottom.
+- [ ] make the click on the dot to make it more visible so they can see it.
+- [ ] take a look into how important it is to have each of these pieces of information -> how many donors will actually want that deep of a dive to see where their money is going. Pull the specific metrics out to actually get donations.
+- [ ] look at other non profits to understand how they explain the splits of the data -> maybe not include so much information about where we were and what we need. Switch it with how far you are on your current goal and how close are you to your current project. Convince them to help now and make every dollar feel like it’s helping a specific purpose.
+- [ ] potentially add a donate page -> tab explains the difference
+- [ ] have the options for how much to donate -> move the slider component to the donation page.
+- [ ] donate first, then the secondary is for gaining more information “what is your money going for”
+- [ ] show the three headings directly -> biggest things first, then underneath the other items. give the three headings for main value points.
+- [ ] remove total safehouses there. -> risk alerts very much.
+- [ ] the number that you care about most -> miniature chart. green or red for the chart.
+- [ ] change recent donations to the current amount of donations you can use, with simple green arrow showing you the trend.
+- [ ] have the dashboard focus on those three business numbers the most
+- [ ] graphs for donors, girls falling through cracks, initiatives.
+- [ ] visually groups under headers and groups -> don’t make things actually clickable if it doesn’t do anything.
+- [ ] anything that looks like a button should be clickable. Have it go straight to the record it’s talking about.
+- [ ] home visitation -> don’t combine database, ml, and dashboard. Have them split up into different spots in the nav bar.
+- [ ] process recordings -> separate places for those. Look up is separate than recording new sessions.
+- [ ] risk level medium button color needs to be changed
