@@ -16,6 +16,8 @@ import {
   X,
   Sun,
   Moon,
+  BedDouble,
+  type LucideIcon,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -56,6 +58,13 @@ const securityNav = [
   { name: 'Manage MFA', href: '/mfa', icon: ShieldCheck },
 ]
 
+const plannedAdminSections = ['Donors', 'Residents', 'Safehouses', 'Initiatives', 'Staff'] as const
+const adminSectionNav: Partial<Record<(typeof plannedAdminSections)[number], { name: string; href: string; icon: LucideIcon }[]>> = {
+  Safehouses: [
+    { name: 'Boarding', href: '/admin/safehouses/boarding', icon: BedDouble },
+  ],
+}
+
 export function AdminLayout() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -64,6 +73,8 @@ export function AdminLayout() {
   const { theme, setTheme, canSetTheme } = useTheme()
   const isAdmin = authSession.roles.includes('Admin')
   const navItems = isAdmin ? adminNav : donorNav
+  const sectionItems = Object.values(adminSectionNav).flat()
+  const activeHeaderItem = [...navItems, ...securityNav, ...sectionItems].find((item) => item.href === location.pathname)
 
   const [showMfaBanner, setShowMfaBanner] = useState(false)
 
@@ -144,6 +155,31 @@ export function AdminLayout() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+
+          {isAdmin && plannedAdminSections.map((section) => (
+            <SidebarGroup key={section}>
+              <SidebarGroupLabel>{section}</SidebarGroupLabel>
+              {(adminSectionNav[section] ?? []).length ? (
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {(adminSectionNav[section] ?? []).map((item) => {
+                      const isActive = location.pathname === item.href
+                      return (
+                        <SidebarMenuItem key={item.name}>
+                          <SidebarMenuButton asChild isActive={isActive}>
+                            <Link to={item.href}>
+                              <item.icon className="size-4" />
+                              <span>{item.name}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              ) : null}
+            </SidebarGroup>
+          ))}
         </SidebarContent>
 
         <SidebarFooter>
@@ -180,7 +216,7 @@ export function AdminLayout() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <span className="text-sm font-medium text-muted-foreground flex-1">
-            {[...navItems, ...securityNav].find((item) => item.href === location.pathname)?.name ?? 'Dashboard'}
+            {activeHeaderItem?.name ?? 'Dashboard'}
           </span>
           <TooltipProvider>
             <Tooltip>

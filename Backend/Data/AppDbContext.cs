@@ -19,6 +19,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         // auto-generated identity columns so we can insert the CSV values directly.
         modelBuilder.Entity<Safehouse>().Property(e => e.SafehouseId).ValueGeneratedNever();
         modelBuilder.Entity<Resident>().Property(e => e.ResidentId).ValueGeneratedNever();
+        modelBuilder.Entity<BoardingPlacement>().Property(e => e.BoardingPlacementId).ValueGeneratedNever();
+        modelBuilder.Entity<BoardingStandingOrder>().Property(e => e.BoardingStandingOrderId).ValueGeneratedNever();
         modelBuilder.Entity<Donation>().Property(e => e.DonationId).ValueGeneratedNever();
         modelBuilder.Entity<DonationAllocation>().Property(e => e.AllocationId).ValueGeneratedNever();
         modelBuilder.Entity<EducationRecord>().Property(e => e.EducationRecordId).ValueGeneratedNever();
@@ -36,6 +38,24 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Supporter>().Property(e => e.SupporterId).ValueGeneratedNever();
         modelBuilder.Entity<PipelineResult>().Property(e => e.PipelineResultId).ValueGeneratedNever();
         modelBuilder.Entity<PipelineResult>().Property(e => e.Score).HasPrecision(18, 6);
+
+        modelBuilder.Entity<BoardingPlacement>()
+            .HasOne<Resident>()
+            .WithMany()
+            .HasForeignKey(e => e.ResidentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<BoardingPlacement>()
+            .HasOne<Safehouse>()
+            .WithMany()
+            .HasForeignKey(e => e.SafehouseId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<BoardingStandingOrder>()
+            .HasOne<BoardingPlacement>()
+            .WithMany()
+            .HasForeignKey(e => e.BoardingPlacementId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Explicit SQL precision prevents EF Core from falling back to provider defaults
         // that can silently truncate money, ratios, and measurement data.
@@ -91,6 +111,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Safehouse> Safehouses { get; set; }
     public DbSet<Resident> Residents { get; set; }
+    public DbSet<BoardingPlacement> BoardingPlacements { get; set; }
+    public DbSet<BoardingStandingOrder> BoardingStandingOrders { get; set; }
     public DbSet<Donation> Donations { get; set; }
     public DbSet<DonationAllocation> DonationAllocations { get; set; }
     public DbSet<EducationRecord> EducationRecords { get; set; }

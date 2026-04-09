@@ -73,6 +73,37 @@ public static class TestAuthHelper
     }
 
     /// <summary>
+    /// Registers a fresh user, assigns the Staff role, logs in, and returns
+    /// the authenticated client.
+    /// </summary>
+    public static async Task<HttpClient> CreateStaffClientAsync(
+        CustomWebApplicationFactory factory)
+    {
+        var email = $"staff-{Guid.NewGuid():N}@test.local";
+        const string password = "StaffTestPassword1234!!";
+
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = HttpsBase,
+            HandleCookies = true
+        });
+
+        await RegisterAsync(client, email, password);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider
+                .GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByEmailAsync(email);
+            if (user is not null)
+                await userManager.AddToRoleAsync(user, AuthRoles.Staff);
+        }
+
+        await LoginAsync(client, email, password);
+        return client;
+    }
+
+    /// <summary>
     /// Registers a fresh user with no role and logs in.
     /// Represents an authenticated user who has not yet been assigned a role
     /// (e.g., a self-registered account pending admin approval).
