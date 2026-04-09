@@ -211,7 +211,6 @@ export function HomeVisitation() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(blankForm)
   const [formErrors, setFormErrors] = useState<FormFieldErrors>({})
-  const [hasAttemptedSave, setHasAttemptedSave] = useState(false)
 
   // ML prediction state
   const [predForm, setPredForm] = useState({
@@ -370,7 +369,6 @@ export function HomeVisitation() {
       followUpNeeded: visit.followUpNeeded,
     })
     setFormErrors({})
-    setHasAttemptedSave(false)
     setDialogOpen(true)
   }
 
@@ -385,7 +383,6 @@ export function HomeVisitation() {
   }
 
   async function handleSave() {
-    setHasAttemptedSave(true)
     const nextErrors: FormFieldErrors = {}
     if (!form.residentId) nextErrors.residentId = 'Resident is required.'
     if (!form.date) nextErrors.date = 'Visit date is required.'
@@ -433,7 +430,6 @@ export function HomeVisitation() {
       setEditingId(null)
       setForm(blankForm)
       setFormErrors({})
-      setHasAttemptedSave(false)
       await fetchData()
       if (wasEditing) {
         scrollToConferenceRecords()
@@ -493,7 +489,6 @@ export function HomeVisitation() {
             setEditingId(null)
             setForm(blankForm)
             setFormErrors({})
-            setHasAttemptedSave(false)
             setDialogOpen(true)
           }}
           className="gap-2 bg-violet-700 hover:bg-violet-800"

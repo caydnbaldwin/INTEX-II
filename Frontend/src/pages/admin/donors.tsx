@@ -391,7 +391,7 @@ export function DonorsManagement() {
               const data = await api.get<AllocationResponse[]>(`/api/donations/${d.id}/allocations`)
               return [d.id, data] as const
             } catch {
-              return [d.id, []] as const
+              return [d.id, [] as AllocationResponse[]] as const
             }
           }),
         )
@@ -477,7 +477,7 @@ export function DonorsManagement() {
   const donationsTotalPages = Math.ceil(filteredDonations.length / itemsPerPage)
   const paginatedDonations = filteredDonations.slice((donationsPage - 1) * itemsPerPage, donationsPage * itemsPerPage)
 
-  function toggleSelection<T extends string>(list: T[], value: T, setList: React.Dispatch<React.SetStateAction<T[]>>) {
+  function toggleSelection<T extends string>(value: T, setList: React.Dispatch<React.SetStateAction<T[]>>) {
     setList((prev) =>
       prev.includes(value)
         ? prev.filter((v) => v !== value)
@@ -704,7 +704,7 @@ export function DonorsManagement() {
                         key={t}
                         checked={draftFilterType.includes(t)}
                         onSelect={(e) => e.preventDefault()}
-                        onCheckedChange={() => toggleSelection(draftFilterType, t, setDraftFilterType)}
+                        onCheckedChange={() => toggleSelection(t, setDraftFilterType)}
                       >
                         {DONOR_TYPE_LABELS[t]}
                       </DropdownMenuCheckboxItem>
@@ -900,7 +900,7 @@ export function DonorsManagement() {
                       key={safehouseId}
                       checked={draftFilterAllocationSafehouse.includes(safehouseId)}
                       onSelect={(e) => e.preventDefault()}
-                      onCheckedChange={() => toggleSelection(draftFilterAllocationSafehouse, safehouseId, setDraftFilterAllocationSafehouse)}
+                      onCheckedChange={() => toggleSelection(safehouseId, setDraftFilterAllocationSafehouse)}
                     >
                       Safehouse {safehouseId}
                     </DropdownMenuCheckboxItem>
@@ -935,7 +935,7 @@ export function DonorsManagement() {
                       key={programArea}
                       checked={draftFilterAllocationProgramArea.includes(programArea)}
                       onSelect={(e) => e.preventDefault()}
-                      onCheckedChange={() => toggleSelection(draftFilterAllocationProgramArea, programArea, setDraftFilterAllocationProgramArea)}
+                      onCheckedChange={() => toggleSelection(programArea, setDraftFilterAllocationProgramArea)}
                     >
                       {programArea}
                     </DropdownMenuCheckboxItem>
