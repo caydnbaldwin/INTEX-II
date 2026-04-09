@@ -1,0 +1,65 @@
+Template 1 — VIP (8+ gifts)
+Subject: {{first_name}}, you've changed everything for these girls
+Hi {{first_name}},
+
+You've shown up {{frequency}} times for the girls at Lunas Foundation.
+That kind of consistency doesn't go unnoticed — it's what keeps our
+doors open and our girls safe.
+
+Your generosity has gone directly toward {{program_area}} — helping
+girls who had nowhere else to turn find stability, education, and hope.
+
+We'd love to invite you to go one step further this month. Even a small
+increase in your gift makes a measurable difference.
+
+With deep gratitude,
+The Lunas Foundation Team
+
+Template 2 — Mid-tier (3-7 gifts)
+Subject: Because of you, {{first_name}} — here's what happened
+Hi {{first_name}},
+
+You've given {{frequency}} times to Lunas Foundation, and we want
+you to know exactly what that's meant.
+
+Your support has helped fund {{program_area}} for girls who needed
+it most. Every contribution you've made has been felt.
+
+Would you consider giving again this month? Your next gift continues
+what you've already started.
+
+Thank you for being part of this,
+The Lunas Foundation Team
+
+Template 3 — First-time (1 gift)
+Subject: {{first_name}}, your first gift already made a difference
+Hi {{first_name}},
+
+Thank you for your first gift to Lunas Foundation. It meant more
+than you know.
+
+Your donation went toward {{program_area}} — directly supporting
+girls in our care who needed exactly that kind of help.
+
+We'd love for this to be the start of something. Would you consider
+giving again? Even once more doubles your impact.
+
+So glad you found us,
+The Lunas Foundation Team
+
+Template 4 — Win-back (90+ days since last gift)
+Subject: We've been thinking of you, {{first_name}}
+Hi {{first_name}},
+
+It's been a little while since we've heard from you, and we just
+wanted to reach out.
+
+A lot has happened at Lunas Foundation since your last gift.
+Girls have found safety, started school, and begun rebuilding
+their lives — in part because of supporters like you.
+
+Whenever you're ready, we'd love to welcome you back.
+No pressure — just gratitude.
+
+Warmly,
+The Lunas Foundation Team

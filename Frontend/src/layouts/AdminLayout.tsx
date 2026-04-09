@@ -86,7 +86,7 @@ export function AdminLayout() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild>
-                <Link to="/">
+                <Link to="/" aria-label="Home">
                   <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                     <Shield className="size-4" />
                   </div>
@@ -104,7 +104,7 @@ export function AdminLayout() {
 
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupLabel aria-label="Admin navigation">Navigation</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {navItems.map((item) => {
@@ -192,7 +192,7 @@ export function AdminLayout() {
                   disabled={!canSetTheme}
                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 >
-                  {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {theme === 'dark' ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -206,7 +206,7 @@ export function AdminLayout() {
 
         {showMfaBanner && (
           <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
-            <ShieldAlert className="h-4 w-4 flex-shrink-0" />
+            <ShieldAlert className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
             <span className="flex-1">
               Your account is not protected with two-factor authentication.{' '}
               <Link to="/mfa" className="font-medium underline hover:no-underline">

@@ -404,6 +404,10 @@ export function DonorsManagement() {
   }
 
   async function handleSave() {
+    if (!form.name?.trim()) { alert('Display Name is required.'); return }
+    if (!form.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { alert('A valid email address is required.'); return }
+    if (!form.type) { alert('Supporter Type is required.'); return }
+
     setSaving(true)
     try {
       const payload = {
@@ -435,6 +439,15 @@ export function DonorsManagement() {
       await fetchAll()
     } catch (err) {
       console.error('Failed to delete supporter:', err)
+    }
+  }
+
+  async function handleDeleteDonation(id: number) {
+    try {
+      await api.delete(`/api/donations/${id}`)
+      await fetchAll()
+    } catch (err) {
+      console.error('Failed to delete donation:', err)
     }
   }
 
@@ -644,7 +657,7 @@ export function DonorsManagement() {
                 {paginatedDonors.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="h-24 text-center text-zinc-400"
                     >
                       No donors found.
@@ -774,13 +787,14 @@ export function DonorsManagement() {
                   <TableHead className="text-right text-zinc-500">
                     Amount
                   </TableHead>
+                  <TableHead className="w-12 text-zinc-500"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedDonations.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="h-24 text-center text-zinc-400"
                     >
                       No donations found.
@@ -825,10 +839,33 @@ export function DonorsManagement() {
                       <TableCell className="text-right font-medium text-zinc-900">
                         {formatPHP(donation.amount)}
                       </TableCell>
+                      <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Donation</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently remove this {formatPHP(donation.amount)} donation. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteDonation(donation.id)} className="bg-red-600 hover:bg-red-700">
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
                     </TableRow>
                     {expandedDonationId === donation.id && (
                       <TableRow key={`alloc-${donation.id}`}>
-                        <TableCell colSpan={6} className="bg-zinc-50/50 px-8 py-4">
+                        <TableCell colSpan={7} className="bg-zinc-50/50 px-8 py-4">
                           {allocationsLoading ? (
                             <div className="flex items-center gap-2 text-sm text-zinc-400">
                               <Loader2 className="h-4 w-4 animate-spin" /> Loading allocations...

@@ -1,14 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
-  Heart,
   Loader2,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
 import { HeroStatsBar } from '@/components/impact/HeroStatsBar'
 import { InteractiveMap } from '@/components/impact/InteractiveMap'
-import { ImpactTimeline } from '@/components/impact/ImpactTimeline'
 import { ResidentStoryCard } from '@/components/impact/ResidentStoryCard'
 import {
   LineChart,
@@ -25,6 +23,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
@@ -225,17 +224,6 @@ export function ImpactDashboard() {
     occupancy: sh.currentOccupancy,
   }))
 
-  // Region distribution from safehouse data or stats
-  const regionCounts: Record<string, number> = {}
-  safehouses.forEach(s => {
-    regionCounts[s.region] = (regionCounts[s.region] ?? 0) + 1
-  })
-  const regionData = Object.entries(regionCounts).map(([name, value]) => ({ name, value }))
-  // If no safehouse data, use stats to show aggregate
-  if (regionData.length === 0 && stats) {
-    regionData.push({ name: 'All Regions', value: stats.safehousesOperating })
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -248,6 +236,20 @@ export function ImpactDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      <section className="border-b border-border bg-background">
+        <div className="mx-auto max-w-7xl px-6 py-8 text-center lg:px-8 lg:py-10">
+          <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight sm:text-3xl">
+            Our Work:
+          </h1>
+          <p className="mt-4 text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
+            Thousands of girls in the Philippines lose their childhoods to trafficking and exploitation.
+            <br />
+            With your support, we&apos;ve given over 150 survivors a safe home and a future — and we&apos;re just
+            getting started.
+          </p>
+        </div>
+      </section>
+
       {/* Hero Stats Bar */}
       <HeroStatsBar stats={stats} />
 
@@ -257,8 +259,25 @@ export function ImpactDashboard() {
       {/* Resident Stories Carousel */}
       <StoriesCarousel stories={impactStories} />
 
-      {/* Impact Timeline */}
-      <ImpactTimeline />
+      <section className="mt-10 w-full border-y border-border bg-[#e8e2f4]">
+        <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8 lg:py-12">
+          <div className="flex flex-col items-stretch gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
+            <div className="max-w-2xl text-left">
+              <h2 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                Ready to change a life?
+              </h2>
+              <p className="mt-3 max-w-2xl text-muted-foreground">
+                Your gift gives a girl a safe home and a future.
+              </p>
+            </div>
+            <div className="flex shrink-0 lg:justify-end">
+              <Button asChild className="h-12 w-full rounded-full px-7 text-base sm:w-auto">
+                <Link to="/impact">Get involved</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Detailed Dashboard */}
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
@@ -331,50 +350,6 @@ export function ImpactDashboard() {
                 </CardContent>
               </Card>
             </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Regional Distribution</CardTitle>
-                <CardDescription>Safehouse locations across the Philippines</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-6 sm:grid-cols-3">
-                  {regionData.map((region, index) => (
-                    <div key={region.name} className="flex items-center gap-4">
-                      <div className="h-16 w-16 rounded-xl flex items-center justify-center text-2xl font-bold text-primary-foreground" style={{ backgroundColor: CHART_COLORS[index] }}>
-                        {region.value}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-foreground">{region.name}</div>
-                        <div className="text-sm text-muted-foreground">{region.value} safehouses</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Representative journeys</CardTitle>
-                <CardDescription>
-                  Progress snapshots identified by privacy-safe labels only. Labels are pseudonyms, not real
-                  names.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
-                {listPublicImpactJourneyStories().map((story) => (
-                  <div
-                    key={story.residentId}
-                    className="rounded-lg border border-border bg-card/50 p-4"
-                  >
-                    <div className="font-mono text-sm font-semibold text-primary">{story.pseudonym}</div>
-                    <div className="mt-2 text-sm font-medium text-foreground">{story.headline}</div>
-                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{story.description}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="education" className="mt-8 space-y-8">
@@ -546,20 +521,6 @@ export function ImpactDashboard() {
             </div>
           </TabsContent>
         </Tabs>
-
-        <Card className="mt-12 bg-primary/5 border-primary/20">
-          <CardContent className="flex flex-col items-center py-12 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <Heart className="h-8 w-8 text-primary" />
-            </div>
-            <h3 className="mt-6 text-2xl font-bold text-foreground">Support Our Mission</h3>
-            <p className="mt-2 max-w-md text-muted-foreground">
-              Your donations directly fund shelter, education, healthcare, and counseling
-              for survivors. {stats?.totalDonors ?? '—'} recurring donors have already
-              contributed over PHP {stats ? (stats.totalDonationAmount / 1000000).toFixed(1) : '—'}M.
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
@@ -577,49 +538,48 @@ function StoriesCarousel({ stories }: { stories: ReturnType<typeof listPublicImp
   const visible = stories.slice(page * perPage, page * perPage + perPage)
 
   return (
-    <section className="pt-16 pb-10 sm:pt-20 sm:pb-12 bg-muted/30">
+    <section className="pt-8 pb-10 sm:pt-10 sm:pb-12 bg-muted/30">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="flex items-end justify-between mb-10">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary mb-3">
-              Real Progress
-            </p>
-            <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-              Stories of Transformation
-            </h2>
-            <p className="mt-3 text-muted-foreground max-w-2xl">
-              Each name is a privacy-safe pseudonym. Each milestone is real.
-            </p>
-          </div>
+        <div className="mb-8">
+          <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+            Stories of Transformation
+          </h2>
+          <p className="mt-3 text-muted-foreground max-w-2xl">
+            Each name is a privacy-safe pseudonym. Each milestone is real.
+          </p>
+        </div>
 
-          {/* Arrow buttons */}
-          <div className="hidden sm:flex items-center gap-2">
+        {/* Arrows vertically centered with the story cards */}
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-4 lg:gap-6">
+          <div className="hidden sm:flex shrink-0 items-center justify-center sm:justify-end lg:w-10">
             <button
               type="button"
               onClick={() => goTo(page - 1)}
               disabled={page === 0}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               aria-label="Previous stories"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
+          </div>
+
+          <div className="min-w-0 flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {visible.map((story) => (
+              <ResidentStoryCard key={story.residentId} story={story} />
+            ))}
+          </div>
+
+          <div className="hidden sm:flex shrink-0 items-center justify-center sm:justify-start lg:w-10">
             <button
               type="button"
               onClick={() => goTo(page + 1)}
               disabled={page >= totalPages - 1}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               aria-label="Next stories"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-        </div>
-
-        {/* 3-card grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {visible.map((story) => (
-            <ResidentStoryCard key={story.residentId} story={story} />
-          ))}
         </div>
 
         {/* Dot indicators */}
