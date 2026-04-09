@@ -23,7 +23,7 @@ const defaultIcon = L.divIcon({
 
 export function InteractiveMap() {
   return (
-    <section className="py-10 sm:py-12 bg-background">
+    <section className="pt-10 pb-5 sm:pt-12 sm:pb-6 bg-background">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-3xl rounded-2xl overflow-hidden shadow-lg border border-border">
           <MapContainer
@@ -74,13 +74,7 @@ export function InteractiveMap() {
           </MapContainer>
         </div>
 
-        {/* Region summary */}
-        <div className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
-          <span><span className="font-semibold text-foreground">Luzon</span> — 2 shelters</span>
-          <span><span className="font-semibold text-foreground">Visayas</span> — 4 shelters</span>
-          <span><span className="font-semibold text-foreground">Mindanao</span> — 3 shelters</span>
-        </div>
-        <p className="mt-2 text-center text-xs text-muted-foreground">
+        <p className="mt-5 text-center text-sm font-medium text-muted-foreground">
           Click on a dot to view shelter details.
         </p>
       </div>

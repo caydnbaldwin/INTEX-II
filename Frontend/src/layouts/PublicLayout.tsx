@@ -1,11 +1,10 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Menu, X, ChevronDown } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/context/AuthContext'
 import { logout } from '@/lib/authApi'
-import { safehouses } from '@/lib/safehouseData'
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -17,10 +16,6 @@ export function PublicLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const location = useLocation()
   const { isAuthenticated, authSession, refreshAuthState } = useAuth()
-  const locationLinks = safehouses.map((safehouse) => ({
-    label: `${safehouse.city}, ${safehouse.province}`,
-    href: `/impact/safehouse/${safehouse.id}`,
-  }))
 
   useEffect(() => {
     setMobileMenuOpen(false)
@@ -84,33 +79,6 @@ export function PublicLayout() {
                   </Link>
                 )
               })}
-              <div className="relative group">
-                <button
-                  type="button"
-                  className={`relative inline-flex items-center gap-1 text-base font-medium transition-colors ${
-                    location.pathname.startsWith('/impact/safehouse/')
-                      ? 'text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Locations
-                  <ChevronDown className="h-4 w-4" aria-hidden="true" />
-                  {location.pathname.startsWith('/impact/safehouse/') && (
-                    <span className="absolute -bottom-4 left-0 right-0 h-0.5 bg-foreground rounded-full" />
-                  )}
-                </button>
-                <div className="invisible absolute left-0 top-full mt-2 w-64 rounded-md border border-border bg-background p-2 opacity-0 shadow-md transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-                  {locationLinks.map((item) => (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      className="block rounded-sm px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -171,26 +139,6 @@ export function PublicLayout() {
                   {item.name}
                 </Link>
               ))}
-              <div className="pt-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Locations
-                </p>
-                <div className="mt-2 space-y-1">
-                  {locationLinks.map((item) => (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      className={`block py-1.5 pl-3 text-sm transition-colors ${
-                        location.pathname === item.href
-                          ? 'text-foreground'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
               <Separator className="my-4" />
               <div className="flex flex-col gap-2">
                 {isAuthenticated ? (
