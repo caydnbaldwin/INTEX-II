@@ -20,6 +20,7 @@ import {
   DollarSign,
   Heart,
   Share2,
+  MapPin,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -60,6 +61,7 @@ const residentCareNav = [
 
 const outreachNav = [
   { name: 'Social Media', href: '/admin/reports?tab=social', icon: Share2 },
+  { name: 'Expansion', href: '/admin/expansion', icon: MapPin },
 ]
 
 const donorNav = [
