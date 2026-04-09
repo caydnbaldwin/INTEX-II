@@ -163,7 +163,7 @@ export function LandingPage() {
                 We built nine safe houses across the Philippines — providing shelter, counseling, and education where none existed before.
               </p>
               <Button asChild className="mt-8 rounded-full px-7 text-base">
-                <Link to="/impact?tab=map">
+                <Link to="/impact#top">
                   See Our Locations
                 </Link>
               </Button>

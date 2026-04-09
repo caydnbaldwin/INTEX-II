@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Calendar, Brain, ArrowRight, Loader2, Mic, Pencil, Trash2 } from 'lucide-react'
+import { Plus, ArrowRight, Loader2, Mic, Pencil, Trash2, Brain, Search } from 'lucide-react'
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from '@/components/ui/card'
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from '@/components/ui/table'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,7 +28,6 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -41,6 +43,7 @@ import { api, ApiError } from '@/lib/api'
 import { sanitize } from '@/lib/sanitize'
 import { TablePagination } from '@/components/TablePagination'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useAuth } from '@/context/AuthContext'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -146,15 +149,15 @@ function emotionBadgeClass(state: EmotionalState): string {
   switch (state) {
     case 'Calm':
     case 'Hopeful':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
     case 'Neutral':
-      return 'border-zinc-200 bg-zinc-50 text-zinc-600'
+      return 'border-border bg-muted text-muted-foreground'
     case 'Anxious':
     case 'Withdrawn':
-      return 'border-amber-200 bg-amber-50 text-amber-700'
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
     case 'Distressed':
     case 'Angry':
-      return 'border-red-200 bg-red-50 text-red-700'
+      return 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
   }
 }
 
@@ -180,12 +183,15 @@ const blankForm = {
 
 export function ProcessRecording() {
   usePageTitle('Process Recording')
+  const { authSession } = useAuth()
+  const isAdmin = authSession.roles.includes('Admin')
   const [sessions, setSessions] = useState<Session[]>([])
   const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const [selectedResident, setSelectedResident] = useState('all')
+  const [search, setSearch] = useState('')
+  const [viewingSession, setViewingSession] = useState<Session | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(blankForm)
@@ -244,12 +250,22 @@ export function ProcessRecording() {
     fetchData()
   }, [fetchData])
 
-  useEffect(() => { setCurrentPage(1) }, [selectedResident])
+  useEffect(() => { setCurrentPage(1) }, [search])
 
-  const filteredSessions =
-    selectedResident === 'all'
-      ? sessions
-      : sessions.filter((s) => String(s.residentId) === selectedResident)
+  const chronologicallySortedSessions = [...sessions].sort((a, b) => {
+    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime()
+    if (dateDiff !== 0) return dateDiff
+    return b.id - a.id
+  })
+
+  const filteredSessions = chronologicallySortedSessions.filter((s) => {
+    const q = search.trim().toLowerCase()
+    const matchesSearch =
+      !q
+      || s.residentName.toLowerCase().includes(q)
+      || String(s.residentId).includes(q)
+    return matchesSearch
+  })
 
   const totalPages = Math.ceil(filteredSessions.length / itemsPerPage)
   const paginatedSessions = filteredSessions.slice(
@@ -396,7 +412,7 @@ export function ProcessRecording() {
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-700" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -406,10 +422,10 @@ export function ProcessRecording() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Process Recording
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             Document counseling sessions and track emotional progress.
           </p>
         </div>
@@ -431,134 +447,110 @@ export function ProcessRecording() {
         </Button>
       </div>
 
-      {/* Resident filter */}
-      <Card className="border-zinc-200">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <Label className="text-zinc-600 whitespace-nowrap">
-              Filter by Resident
-            </Label>
-            <Select value={selectedResident} onValueChange={setSelectedResident}>
-              <SelectTrigger className="w-[240px]">
-                <SelectValue placeholder="All residents" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Residents</SelectItem>
-                {residents.map((r) => (
-                  <SelectItem key={r.id} value={String(r.id)}>
-                    {r.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Search */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 sm:max-w-xl">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search resident (e.g. LS-0027)..."
+            aria-label="Search resident sessions"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </div>
 
       {/* Session list */}
-      <div className="space-y-4">
-        {filteredSessions.length === 0 ? (
-          <Card className="border-zinc-200">
-            <CardContent className="flex h-32 items-center justify-center text-zinc-400">
-              No sessions found.
-            </CardContent>
-          </Card>
-        ) : (
-          paginatedSessions.map((session) => (
-            <Card key={session.id} className="border-zinc-200">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-base text-zinc-900">
-                      {session.residentName}
-                    </CardTitle>
-                    <CardDescription className="mt-1 flex flex-wrap items-center gap-3 text-sm">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {new Date(session.date).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </span>
-                      <Badge variant="secondary" className="text-xs">
-                        {session.sessionType}
+      <Card className="border-border">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="text-muted-foreground">Resident</TableHead>
+              <TableHead className="text-muted-foreground">Date</TableHead>
+              <TableHead className="text-muted-foreground">Type</TableHead>
+              <TableHead className="text-muted-foreground">Social Worker</TableHead>
+              <TableHead className="text-muted-foreground">Duration</TableHead>
+              <TableHead className="text-muted-foreground">Emotional State</TableHead>
+              {isAdmin && <TableHead className="text-right text-muted-foreground">Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedSessions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={isAdmin ? 7 : 6} className="h-24 text-center text-muted-foreground">
+                  No sessions found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedSessions.map((session) => (
+                <TableRow key={session.id} className="cursor-pointer hover:bg-muted" onClick={() => setViewingSession(session)}>
+                  <TableCell className="font-medium text-foreground">
+                    {session.residentName}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {new Date(session.date).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="text-xs">
+                      {session.sessionType}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {session.socialWorker || '—'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {session.sessionDurationMinutes ? `${session.sessionDurationMinutes} min` : '—'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className={emotionBadgeClass(session.emotionalStateStart)}>
+                        {session.emotionalStateStart}
                       </Badge>
-                      {session.socialWorker && (
-                        <span className="text-zinc-500">SW: {session.socialWorker}</span>
-                      )}
-                      {session.sessionDurationMinutes && (
-                        <span className="text-zinc-500">{session.sessionDurationMinutes} min</span>
-                      )}
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Badge
-                      variant="outline"
-                      className={emotionBadgeClass(session.emotionalStateStart)}
-                    >
-                      {session.emotionalStateStart}
-                    </Badge>
-                    <ArrowRight className="h-3.5 w-3.5 text-zinc-400" />
-                    <Badge
-                      variant="outline"
-                      className={emotionBadgeClass(session.emotionalStateEnd)}
-                    >
-                      {session.emotionalStateEnd}
-                    </Badge>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-violet-700" onClick={() => openEdit(session)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-red-600">
-                          <Trash2 className="h-3.5 w-3.5" />
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <Badge variant="outline" className={emotionBadgeClass(session.emotionalStateEnd)}>
+                        {session.emotionalStateEnd}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); openEdit(session) }}>
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Session</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete this counseling session for <span className="font-semibold">{session.residentName}</span>? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(session.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              </CardHeader>
-              <Separator />
-              <CardContent className="pt-4 space-y-3">
-                <p className="text-sm leading-relaxed text-zinc-700">
-                  {sanitize(session.narrative)}
-                </p>
-                <div className="flex flex-col gap-2 text-sm sm:flex-row sm:gap-6">
-                  <div>
-                    <span className="font-medium text-zinc-500">
-                      Interventions:{' '}
-                    </span>
-                    <span className="text-zinc-700">
-                      {sanitize(session.interventions)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-zinc-500">
-                      Follow-up:{' '}
-                    </span>
-                    <span className="text-zinc-700">
-                      {sanitize(session.followUpActions)}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-600 dark:text-red-400" onClick={(e) => e.stopPropagation()}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Session</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this counseling session for <span className="font-semibold">{session.residentName}</span>? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(session.id)} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
 
       <TablePagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
@@ -571,15 +563,15 @@ export function ProcessRecording() {
 
           <div className="grid gap-4 py-4">
             {/* Audio Auto-fill */}
-            <div className="space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">
+            <div className="space-y-2 rounded-md border border-border bg-muted p-3">
               <Label htmlFor="sessionAudio" className="flex items-center gap-1.5">
-                <Mic className="h-3.5 w-3.5 text-zinc-400" />
+                <Mic className="h-3.5 w-3.5 text-muted-foreground" />
                 Upload Recording for AI Auto-fill
-                <span className="ml-1 text-xs font-normal text-zinc-400">
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
                   (optional)
                 </span>
               </Label>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-muted-foreground">
                 Audio is processed in memory and never stored. Review all fields before
                 saving.
               </p>
@@ -623,20 +615,20 @@ export function ProcessRecording() {
                     )}
                   </Button>
                   {autoFillConfidence !== null && (
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-muted-foreground">
                       AI confidence: {Math.round(autoFillConfidence * 100)}%
                     </p>
                   )}
                 </div>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground">
                   {audioFile ? audioFile.name : 'No file chosen'}
                 </p>
               </div>
               {autoFillError && (
-                <p className="text-sm text-red-600">{autoFillError}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">{autoFillError}</p>
               )}
               {autoFillMissingFields.length > 0 && (
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-amber-700 dark:text-amber-400">
                   Could not extract:{' '}
                   {autoFillMissingFields.map(formatMissingField).join(', ')}. Please fill
                   in manually.
@@ -716,7 +708,7 @@ export function ProcessRecording() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
-                  <Brain className="h-3.5 w-3.5 text-zinc-400" />
+                  <Brain className="h-3.5 w-3.5 text-muted-foreground" />
                   Emotional State (Start)
                 </Label>
                 <Select
@@ -739,7 +731,7 @@ export function ProcessRecording() {
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
-                  <Brain className="h-3.5 w-3.5 text-zinc-400" />
+                  <Brain className="h-3.5 w-3.5 text-muted-foreground" />
                   Emotional State (End)
                 </Label>
                 <Select
@@ -812,6 +804,82 @@ export function ProcessRecording() {
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Session
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Session Detail Dialog */}
+      <Dialog open={!!viewingSession} onOpenChange={(open) => { if (!open) setViewingSession(null) }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{viewingSession?.residentName} — Session</DialogTitle>
+            <DialogDescription>
+              {viewingSession && new Date(viewingSession.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </DialogDescription>
+          </DialogHeader>
+          {viewingSession && (
+            <div className="space-y-4 py-4 text-sm">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                  <p className="text-muted-foreground mb-1">Session Type</p>
+                  <Badge variant="secondary">{viewingSession.sessionType}</Badge>
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Social Worker</p>
+                  <p className="font-medium text-foreground">{viewingSession.socialWorker || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Duration</p>
+                  <p className="font-medium text-foreground">{viewingSession.sessionDurationMinutes ? `${viewingSession.sessionDurationMinutes} min` : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Emotional State</p>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className={emotionBadgeClass(viewingSession.emotionalStateStart)}>
+                      {viewingSession.emotionalStateStart}
+                    </Badge>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                    <Badge variant="outline" className={emotionBadgeClass(viewingSession.emotionalStateEnd)}>
+                      {viewingSession.emotionalStateEnd}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              {viewingSession.narrative && (
+                <div>
+                  <p className="text-muted-foreground mb-1">Session Narrative</p>
+                  <p className="leading-relaxed text-foreground/80">{sanitize(viewingSession.narrative)}</p>
+                </div>
+              )}
+              {viewingSession.interventions && (
+                <div>
+                  <p className="text-muted-foreground mb-1">Interventions Applied</p>
+                  <p className="text-foreground/80">{sanitize(viewingSession.interventions)}</p>
+                </div>
+              )}
+              {viewingSession.followUpActions && (
+                <div>
+                  <p className="text-muted-foreground mb-1">Follow-up Actions</p>
+                  <p className="text-foreground/80">{sanitize(viewingSession.followUpActions)}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setViewingSession(null)}>Close</Button>
+            {isAdmin && (
+              <Button
+                className="bg-violet-700 hover:bg-violet-800"
+                onClick={() => {
+                  const session = viewingSession
+                  setViewingSession(null)
+                  if (session) openEdit(session)
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

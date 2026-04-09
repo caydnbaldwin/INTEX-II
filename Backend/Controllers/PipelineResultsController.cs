@@ -162,6 +162,42 @@ public class PipelineResultsController(AppDbContext db) : ControllerBase
         return Ok(joined.OrderByDescending(r => r.Score));
     }
 
+    [HttpGet("visitation-outcome")]
+    public async Task<IActionResult> GetVisitationOutcome()
+    {
+        var results = await db.PipelineResults
+            .Where(p => p.PipelineName == "VisitationOutcome" && p.ResultType == "Prediction")
+            .ToListAsync();
+
+        var residentIds = results
+            .Where(r => r.EntityId.HasValue)
+            .Select(r => r.EntityId!.Value)
+            .ToList();
+
+        var residents = await db.Residents
+            .Where(r => residentIds.Contains(r.ResidentId))
+            .ToDictionaryAsync(r => r.ResidentId);
+
+        var joined = results.Select(r => new
+        {
+            r.PipelineResultId,
+            r.EntityId,
+            r.Score,
+            r.Label,
+            r.DetailsJson,
+            Resident = r.EntityId.HasValue && residents.ContainsKey(r.EntityId.Value)
+                ? new
+                {
+                    residents[r.EntityId.Value].CaseControlNo,
+                    residents[r.EntityId.Value].InternalCode,
+                    residents[r.EntityId.Value].SafehouseId
+                }
+                : null
+        });
+
+        return Ok(joined.OrderByDescending(r => r.Score));
+    }
+
     [HttpGet("safehouse-performance")]
     public async Task<IActionResult> GetSafehousePerformance()
     {
@@ -198,4 +234,5 @@ public class PipelineResultsController(AppDbContext db) : ControllerBase
 
         return Ok(joined.OrderByDescending(r => r.Score));
     }
+
 }

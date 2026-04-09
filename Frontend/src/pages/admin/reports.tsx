@@ -164,11 +164,7 @@ export function ReportsAnalytics() {
     recurringCount: t.recurringCount,
   }))
 
-  const campaignPerformance = (summary?.campaigns ?? []).map(c => ({
-    name: c.campaignName,
-    donations: c.count,
-    amount: c.totalAmount,
-  }))
+
 
   const channelSources = channels.map(c => ({
     name: c.channel,
@@ -180,12 +176,13 @@ export function ReportsAnalytics() {
     count: r.count,
   }))
 
-  const socialMediaEffectiveness = socialMedia.map(s => ({
-    platform: s.platform,
-    posts: s.postCount,
-    referrals: s.totalReferrals,
-    estValue: s.totalEstimatedValue,
-  }))
+  const socialMediaEffectiveness = socialMedia
+    .map(s => ({
+      platform: s.platform,
+      referralsPerPost: s.postCount > 0 ? Math.round((s.totalReferrals / s.postCount) * 100) / 100 : 0,
+      avgValue: s.postCount > 0 ? Math.round(s.totalEstimatedValue / s.postCount) : 0,
+    }))
+    .sort((a, b) => b.referralsPerPost - a.referralsPerPost)
 
   // ML pipeline data transformations
   const campaignRoiData = campaignRoi
@@ -200,17 +197,27 @@ export function ReportsAnalytics() {
     })
     .sort((a, b) => b.score - a.score)
 
-  const socialDriversData = socialDrivers
-    .map((r) => {
+  const socialDriversData = (() => {
+    // Group posts by content topic and average their scores
+    const topicMap = new Map<string, { total: number; count: number }>()
+    for (const r of socialDrivers) {
       let details: Record<string, unknown> = {}
       try { details = JSON.parse(r.detailsJson || '{}') } catch { /* ignore */ }
-      return {
-        feature: (details.featureName as string) || (details.feature as string) || `Feature ${r.entityId}`,
-        importance: r.score,
-        coefficient: (details.coefficient as number) ?? r.score,
-      }
-    })
-    .sort((a, b) => b.importance - a.importance)
+      const topic = (details.content_topic as string) || 'Unknown'
+      const existing = topicMap.get(topic) || { total: 0, count: 0 }
+      existing.total += r.score
+      existing.count += 1
+      topicMap.set(topic, existing)
+    }
+    return Array.from(topicMap.entries())
+      .map(([topic, { total, count }]) => ({
+        topic,
+        avgScore: Math.round((total / count) * 100) / 100,
+        posts: count,
+      }))
+      .sort((a, b) => b.avgScore - a.avgScore)
+      .slice(0, 5)
+  })()
 
   const educationRiskData = [...educationRisk].sort((a, b) => b.score - a.score)
   const [eduPage, setEduPage] = useState(1)
@@ -299,35 +306,52 @@ export function ReportsAnalytics() {
                       <XAxis dataKey="month" className="text-xs fill-muted-foreground" />
                       <YAxis className="text-xs fill-muted-foreground" />
                       <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
-                      <Legend />
                       <Line type="monotone" dataKey="totalAmount" name="Total Amount" stroke={CHART_COLORS[0]} strokeWidth={2} />
-                      <Line type="monotone" dataKey="recurringCount" name="Recurring" stroke={CHART_COLORS[1]} strokeWidth={2} strokeDasharray="5 5" />
-                      <Line type="monotone" dataKey="count" name="Count" stroke={CHART_COLORS[2]} strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Campaign Performance</CardTitle>
-                <CardDescription>Donations per named campaign</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={campaignPerformance}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
-                      <YAxis className="text-xs fill-muted-foreground" />
-                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
-                      <Bar dataKey="donations" name="# Donations" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            {campaignRoiData.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Campaign ROI</CardTitle>
+                  <CardDescription>ML-ranked campaigns by predicted return on investment</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={campaignRoiData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
+                        <YAxis className="text-xs fill-muted-foreground" />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                          formatter={(value, _name, item) => {
+                            const num = typeof value === 'number' ? value : Number(value)
+                            if (Number.isNaN(num)) return ['—', 'ROI Score']
+                            const label =
+                              item?.payload && typeof item.payload === 'object' && 'label' in item.payload
+                                ? String((item.payload as { label: string }).label)
+                                : ''
+                            return [`${num.toFixed(2)}${label ? ` (${label})` : ''}`, 'ROI Score']
+                          }}
+                        />
+                        <Bar dataKey="score" name="ROI Score" radius={[4, 4, 0, 0]}>
+                          {campaignRoiData.map((_entry, index) => (
+                            <Cell
+                              key={`roi-${index}`}
+                              fill={CHART_COLORS[index % CHART_COLORS.length]}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <Card>
@@ -351,55 +375,6 @@ export function ReportsAnalytics() {
               </div>
             </CardContent>
           </Card>
-          {/* Campaign ROI Analysis (ML) */}
-          {campaignRoiData.length > 0 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Brain className="h-5 w-5 text-violet-600" />
-                  <CardTitle>Campaign ROI Analysis (ML)</CardTitle>
-                </div>
-                <CardDescription>ML-ranked campaigns by predicted return on investment</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={campaignRoiData} layout="vertical" margin={{ left: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis type="number" className="text-xs fill-muted-foreground" />
-                      <YAxis type="category" dataKey="name" width={140} className="text-xs fill-muted-foreground" />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
-                        formatter={(value, _name, item) => {
-                          const num = typeof value === 'number' ? value : Number(value)
-                          if (Number.isNaN(num)) return ['—', 'ROI Score']
-                          const label =
-                            item?.payload && typeof item.payload === 'object' && 'label' in item.payload
-                              ? String((item.payload as { label: string }).label)
-                              : ''
-                          return [`${num.toFixed(2)}${label ? ` (${label})` : ''}`, 'ROI Score']
-                        }}
-                      />
-                      <Bar dataKey="score" name="ROI Score" radius={[0, 4, 4, 0]}>
-                        {campaignRoiData.map((entry, index) => (
-                          <Cell
-                            key={`roi-${index}`}
-                            fill={
-                              entry.label === 'HighROI'
-                                ? 'oklch(0.55 0.15 145)'
-                                : entry.label === 'MediumROI'
-                                  ? 'oklch(0.65 0.15 85)'
-                                  : 'oklch(0.55 0.18 25)'
-                            }
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         {/* Outcomes Tab */}
@@ -430,7 +405,7 @@ export function ReportsAnalytics() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Brain className="h-5 w-5 text-violet-600" />
+                  <Brain className="h-5 w-5 text-primary" />
                   <CardTitle>Education Completion Risk (ML)</CardTitle>
                 </div>
                 <CardDescription>Residents at risk of non-completion, ranked by ML risk score</CardDescription>
@@ -453,7 +428,7 @@ export function ReportsAnalytics() {
                         <TableCell>
                           <span
                             className={`font-semibold ${
-                              r.score >= 0.7 ? 'text-red-600' : r.score >= 0.4 ? 'text-amber-600' : 'text-emerald-600'
+                              r.score >= 0.7 ? 'text-red-600 dark:text-red-400' : r.score >= 0.4 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
                             }`}
                           >
                             {Math.round(r.score * 100)}%
@@ -464,8 +439,8 @@ export function ReportsAnalytics() {
                             variant="outline"
                             className={
                               r.label === 'AtRisk'
-                                ? 'border-red-200 bg-red-50 text-red-700'
-                                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
+                                : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
                             }
                           >
                             {r.label === 'AtRisk' ? 'At Risk' : 'On Track'}
@@ -485,48 +460,81 @@ export function ReportsAnalytics() {
 
         {/* Social Media Tab */}
         <TabsContent value="social" className="mt-6 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Platform Effectiveness</CardTitle>
-              <CardDescription>Which platforms drive actual donations vs. just engagement</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={socialMediaEffectiveness}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="platform" className="text-xs fill-muted-foreground" />
-                    <YAxis className="text-xs fill-muted-foreground" />
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
-                    <Legend />
-                    <Bar dataKey="posts" name="Posts" fill={CHART_COLORS[3]} radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="referrals" name="Donation Referrals" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-          {/* Donation Drivers (ML) */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Referrals per Post</CardTitle>
+                <CardDescription>Which platforms most efficiently drive donation referrals</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={socialMediaEffectiveness}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="platform" className="text-xs fill-muted-foreground" />
+                      <YAxis className="text-xs fill-muted-foreground" />
+                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                      <Bar dataKey="referralsPerPost" name="Referrals / Post" radius={[4, 4, 0, 0]}>
+                        {socialMediaEffectiveness.map((_e, i) => (
+                          <Cell key={`rpp-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Avg. Donation Value per Post</CardTitle>
+                <CardDescription>Estimated donation value driven per post by platform</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={socialMediaEffectiveness}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="platform" className="text-xs fill-muted-foreground" />
+                      <YAxis className="text-xs fill-muted-foreground" />
+                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
+                      <Bar dataKey="avgValue" name="Avg. Value (PHP)" radius={[4, 4, 0, 0]}>
+                        {socialMediaEffectiveness.map((_e, i) => (
+                          <Cell key={`av-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          {/* Top Content Topics (ML) */}
           {socialDriversData.length > 0 && (
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Brain className="h-5 w-5 text-violet-600" />
-                  <CardTitle>Donation Drivers (ML)</CardTitle>
+                  <Brain className="h-5 w-5 text-primary" />
+                  <CardTitle>Top Content Topics (ML)</CardTitle>
                 </div>
-                <CardDescription>Which post characteristics drive the most donations</CardDescription>
+                <CardDescription>Top 5 content topics by average predicted donation impact</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={socialDriversData} layout="vertical" margin={{ left: 20 }}>
+                    <BarChart data={socialDriversData}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis type="number" className="text-xs fill-muted-foreground" />
-                      <YAxis type="category" dataKey="feature" width={160} className="text-xs fill-muted-foreground" />
+                      <XAxis dataKey="topic" className="text-xs fill-muted-foreground" />
+                      <YAxis className="text-xs fill-muted-foreground" />
                       <Tooltip
                         contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                        formatter={(value) => [`${Number(value).toFixed(2)}`, 'Avg. Impact Score']}
                       />
-                      <Bar dataKey="importance" name="Feature Importance" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="avgScore" name="Avg. Impact Score" radius={[4, 4, 0, 0]}>
+                        {socialDriversData.map((_e, i) => (
+                          <Cell key={`td-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -552,10 +560,10 @@ export function ReportsAnalytics() {
                           variant="outline"
                           className={
                             sh.label === 'HighPerformance'
-                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
                               : sh.label === 'Average'
-                                ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                : 'border-red-200 bg-red-50 text-red-700'
+                                ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
+                                : 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
                           }
                         >
                           {sh.label === 'HighPerformance' ? 'High' : sh.label === 'Average' ? 'Average' : 'Needs Attention'}
@@ -565,15 +573,15 @@ export function ReportsAnalytics() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex items-end gap-1">
-                        <span className="text-3xl font-bold text-zinc-900">{(sh.score * 100).toFixed(0)}</span>
+                        <span className="text-3xl font-bold text-foreground">{(sh.score * 100).toFixed(0)}</span>
                         <span className="mb-1 text-sm text-muted-foreground">/ 100</span>
                       </div>
                       <div className="space-y-1 text-sm">
                         <div className="flex justify-between text-muted-foreground">
                           <span>Occupancy</span>
-                          <span className="font-medium text-zinc-700">{sh.safehouse.currentOccupancy} / {sh.safehouse.capacityGirls} ({occupancyPct}%)</span>
+                          <span className="font-medium text-foreground/80">{sh.safehouse.currentOccupancy} / {sh.safehouse.capacityGirls} ({occupancyPct}%)</span>
                         </div>
-                        <div className="h-2 rounded-full bg-zinc-100">
+                        <div className="h-2 rounded-full bg-muted">
                           <div
                             className={`h-2 rounded-full ${
                               occupancyPct > 90 ? 'bg-red-500' : occupancyPct > 70 ? 'bg-amber-500' : 'bg-emerald-500'

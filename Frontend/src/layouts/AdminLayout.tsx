@@ -6,17 +6,20 @@ import {
   FileText,
   Home,
   BarChart3,
-  Shield,
   ShieldAlert,
   ShieldCheck,
   LogOut,
   ChevronLeft,
+  ChevronDown,
   Gift,
   X,
   Sun,
   Moon,
   BedDouble,
-  type LucideIcon,
+  UserCheck,
+  DollarSign,
+  Heart,
+  Share2,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -24,7 +27,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -40,12 +42,24 @@ import { logout, getMfaStatus } from '@/lib/authApi'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
-const adminNav = [
+const dashboardNav = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+]
+
+const donorFundingNav = [
+  { name: 'Donors', href: '/admin/donors', icon: Heart },
+  { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
+]
+
+const residentCareNav = [
   { name: 'Caseload', href: '/admin/caseload', icon: Users },
   { name: 'Process Recording', href: '/admin/process-recording', icon: FileText },
   { name: 'Home Visitation', href: '/admin/visitation', icon: Home },
-  { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
+  { name: 'Safehouse Operations', href: '/admin/safehouses/boarding', icon: BedDouble },
+]
+
+const outreachNav = [
+  { name: 'Social Media', href: '/admin/reports?tab=social', icon: Share2 },
 ]
 
 const donorNav = [
@@ -56,12 +70,7 @@ const securityNav = [
   { name: 'Manage MFA', href: '/mfa', icon: ShieldCheck },
 ]
 
-const plannedAdminSections = ['Safehouses'] as const
-const adminSectionNav: Partial<Record<(typeof plannedAdminSections)[number], { name: string; href: string; icon: LucideIcon }[]>> = {
-  Safehouses: [
-    { name: 'Safehouse Operations', href: '/admin/safehouses/boarding', icon: BedDouble },
-  ],
-}
+type AdminSectionKey = 'donorsFunding' | 'residentCare' | 'outreach' | 'security'
 
 export function AdminLayout() {
   const location = useLocation()
@@ -70,17 +79,40 @@ export function AdminLayout() {
 
   const { theme, setTheme, canSetTheme } = useTheme()
   const isAdmin = authSession.roles.includes('Admin')
-  const navItems = isAdmin ? adminNav : donorNav
-  const sectionItems = Object.values(adminSectionNav).flat()
-  const activeHeaderItem = [...navItems, ...securityNav, ...sectionItems].find((item) => item.href === location.pathname)
 
   const [showMfaBanner, setShowMfaBanner] = useState(false)
+  const isItemActive = (item: { href: string }) =>
+    location.pathname === item.href
+    || (item.href.includes('?') && location.pathname + location.search === item.href)
+  const allAdminItems = [...dashboardNav, ...donorFundingNav, ...residentCareNav, ...outreachNav]
+  const activeHeaderItem = [...(isAdmin ? allAdminItems : donorNav), ...securityNav].find(isItemActive)
+  const sectionHasActiveItem = (items: { href: string }[]) => items.some(isItemActive)
+  const [openSections, setOpenSections] = useState<Record<AdminSectionKey, boolean>>({
+    donorsFunding: sectionHasActiveItem(donorFundingNav),
+    residentCare: sectionHasActiveItem(residentCareNav),
+    outreach: sectionHasActiveItem(outreachNav),
+    security: sectionHasActiveItem(securityNav),
+  })
 
   useEffect(() => {
     getMfaStatus()
       .then(enabled => { if (!enabled) setShowMfaBanner(true) })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    setOpenSections((prev) => ({
+      ...prev,
+      donorsFunding: prev.donorsFunding || sectionHasActiveItem(donorFundingNav),
+      residentCare: prev.residentCare || sectionHasActiveItem(residentCareNav),
+      outreach: prev.outreach || sectionHasActiveItem(outreachNav),
+      security: prev.security || sectionHasActiveItem(securityNav),
+    }))
+  }, [location.pathname, location.search])
+
+  function toggleSection(section: AdminSectionKey) {
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }))
+  }
 
   async function handleLogout() {
     await logout()
@@ -96,9 +128,11 @@ export function AdminLayout() {
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild>
                 <Link to="/" aria-label="Home">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Shield className="size-4" />
-                  </div>
+                  <img
+                    src="/images/PinwheelLogo-cropped.png"
+                    alt="Lunas logo"
+                    className="size-8 object-contain"
+                  />
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold font-serif">Lunas</span>
                     <span className="truncate text-xs text-muted-foreground">
@@ -112,56 +146,13 @@ export function AdminLayout() {
         </SidebarHeader>
 
         <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel aria-label="Admin navigation">Navigation</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {navItems.map((item) => {
-                  const isActive = location.pathname === item.href
-                  return (
-                    <SidebarMenuItem key={item.name}>
-                      <SidebarMenuButton asChild isActive={isActive}>
-                        <Link to={item.href}>
-                          <item.icon className="size-4" />
-                          <span>{item.name}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          <SidebarGroup>
-            <SidebarGroupLabel>Security</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {securityNav.map((item) => {
-                  const isActive = location.pathname === item.href
-                  return (
-                    <SidebarMenuItem key={item.name}>
-                      <SidebarMenuButton asChild isActive={isActive}>
-                        <Link to={item.href}>
-                          <item.icon className="size-4" />
-                          <span>{item.name}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          {isAdmin && plannedAdminSections.map((section) => (
-            <SidebarGroup key={section}>
-              <SidebarGroupLabel>{section}</SidebarGroupLabel>
-              {(adminSectionNav[section] ?? []).length ? (
+          {isAdmin ? (
+            <>
+              <SidebarGroup>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {(adminSectionNav[section] ?? []).map((item) => {
-                      const isActive = location.pathname === item.href
+                    {dashboardNav.map((item) => {
+                      const isActive = isItemActive(item)
                       return (
                         <SidebarMenuItem key={item.name}>
                           <SidebarMenuButton asChild isActive={isActive}>
@@ -175,29 +166,157 @@ export function AdminLayout() {
                     })}
                   </SidebarMenu>
                 </SidebarGroupContent>
-              ) : null}
+              </SidebarGroup>
+
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton onClick={() => toggleSection('donorsFunding')}>
+                        <DollarSign className="size-4" />
+                        <span className="flex-1 text-left">Donors & Funding</span>
+                        <ChevronDown className={`size-3.5 transition-transform ${openSections.donorsFunding ? 'rotate-180' : ''}`} />
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    {openSections.donorsFunding && donorFundingNav.map((item) => {
+                      const isActive = isItemActive(item)
+                      return (
+                        <SidebarMenuItem key={item.name}>
+                          <SidebarMenuButton asChild isActive={isActive} className="pl-8">
+                            <Link to={item.href}>
+                              <item.icon className="size-4" />
+                              <span>{item.name}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton onClick={() => toggleSection('residentCare')}>
+                        <UserCheck className="size-4" />
+                        <span className="flex-1 text-left">Resident Care</span>
+                        <ChevronDown className={`size-3.5 transition-transform ${openSections.residentCare ? 'rotate-180' : ''}`} />
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    {openSections.residentCare && residentCareNav.map((item) => {
+                      const isActive = isItemActive(item)
+                      return (
+                        <SidebarMenuItem key={item.name}>
+                          <SidebarMenuButton asChild isActive={isActive} className="pl-8">
+                            <Link to={item.href}>
+                              <item.icon className="size-4" />
+                              <span>{item.name}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton onClick={() => toggleSection('outreach')}>
+                        <Share2 className="size-4" />
+                        <span className="flex-1 text-left">Outreach</span>
+                        <ChevronDown className={`size-3.5 transition-transform ${openSections.outreach ? 'rotate-180' : ''}`} />
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    {openSections.outreach && outreachNav.map((item) => {
+                      const isActive = isItemActive(item)
+                      return (
+                        <SidebarMenuItem key={item.name}>
+                          <SidebarMenuButton asChild isActive={isActive} className="pl-8">
+                            <Link to={item.href}>
+                              <item.icon className="size-4" />
+                              <span>{item.name}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </>
+          ) : (
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {donorNav.map((item) => {
+                    const isActive = location.pathname === item.href
+                    return (
+                      <SidebarMenuItem key={item.name}>
+                        <SidebarMenuButton asChild isActive={isActive}>
+                          <Link to={item.href}>
+                            <item.icon className="size-4" />
+                            <span>{item.name}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
             </SidebarGroup>
-          ))}
+          )}
+
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={() => toggleSection('security')}>
+                    <ShieldCheck className="size-4" />
+                    <span className="flex-1 text-left">Security</span>
+                    <ChevronDown className={`size-3.5 transition-transform ${openSections.security ? 'rotate-180' : ''}`} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                {openSections.security && securityNav.map((item) => {
+                  const isActive = isItemActive(item)
+                  return (
+                    <SidebarMenuItem key={item.name}>
+                      <SidebarMenuButton asChild isActive={isActive} className="pl-8">
+                        <Link to={item.href}>
+                          <item.icon className="size-4" />
+                          <span>{item.name}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         </SidebarContent>
 
         <SidebarFooter>
-          <SidebarMenu>
+          <SidebarMenu className="grid grid-cols-2 gap-1">
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
+              <SidebarMenuButton asChild className="text-xs">
                 <Link to="/">
-                  <ChevronLeft className="size-4" />
+                  <ChevronLeft className="size-3.5" />
                   <span>Back to Site</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout}>
-                <LogOut className="size-4" />
+              <SidebarMenuButton onClick={handleLogout} className="text-xs">
+                <LogOut className="size-3.5" />
                 <span>Sign Out</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
-          <div className="px-2 py-2 text-xs text-muted-foreground">
+          <div className="truncate px-2 py-1.5 text-[11px] text-muted-foreground whitespace-nowrap">
             Signed in as {authSession.email ?? authSession.userName}
           </div>
         </SidebarFooter>

@@ -1,7 +1,8 @@
+import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import { Link } from 'react-router-dom'
-import { safehouses } from '@/lib/safehouseData'
+import { fetchSafehouses, type SafehouseData } from '@/lib/safehouseData'
 import 'leaflet/dist/leaflet.css'
 
 const PHILIPPINES_CENTER: L.LatLngExpression = [11.5, 123.0]
@@ -22,6 +23,12 @@ const defaultIcon = L.divIcon({
 })
 
 export function InteractiveMap() {
+  const [safehouses, setSafehouses] = useState<SafehouseData[]>([])
+
+  useEffect(() => {
+    fetchSafehouses().then(setSafehouses).catch(() => {})
+  }, [])
+
   return (
     <section className="pt-10 pb-5 sm:pt-12 sm:pb-6 bg-background">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -74,7 +81,7 @@ export function InteractiveMap() {
           </MapContainer>
         </div>
 
-        <p className="mt-5 text-center text-sm font-medium text-muted-foreground">
+        <p className="mt-4 text-center text-sm text-muted-foreground">
           Click on a dot to view shelter details.
         </p>
       </div>
