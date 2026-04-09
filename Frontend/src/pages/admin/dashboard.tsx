@@ -1,85 +1,43 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
-  Users,
-  Home,
-  AlertTriangle,
-  Heart,
   TrendingUp,
   Calendar,
   FileText,
-  Activity,
   Brain,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react'
 import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { usePageTitle } from '@/hooks/usePageTitle'
 
-const CHART_COLORS = [
-  'oklch(0.45 0.18 280)',
-  'oklch(0.55 0.15 280)',
-  'oklch(0.65 0.12 280)',
-  'oklch(0.75 0.08 280)',
-  'oklch(0.35 0.12 280)',
-]
-
-// API response types
-interface SafehouseOccupancyResponse {
-  safehouseId: number
-  name: string
-  region: string
-  capacityGirls: number
-  currentOccupancy: number
-}
-
-interface RiskDistributionResponse {
-  currentRiskLevel: string
-  count: number
-}
-
-interface IncidentSummaryResponse {
-  unresolvedCount: number
-  recentIncidents: {
-    incidentId: number
-    residentId: number
-    safehouseId: number
-    incidentDate: string
-    incidentType: string
-    severity: string
-    resolved: boolean
-  }[]
-}
-
-interface Resident {
-  residentId: number
-  [key: string]: unknown
-}
-
-interface Safehouse {
-  safehouseId: number
-  status: string
-  [key: string]: unknown
-}
+/* ── API types ── */
 
 interface DonationSummaryResponse {
   totalCount: number
   totalAmount: number
   recurringCount: number
   campaigns: { campaignName: string; count: number; totalAmount: number }[]
+}
+
+interface DonationTrendResponse {
+  month: number
+  year: number
+  totalAmount: number
+  count: number
+  recurringCount: number
 }
 
 interface ResidentRiskResult {
@@ -98,19 +56,19 @@ interface ResidentRiskResult {
   }
 }
 
-interface SafehousePerformanceResult {
+interface DonorChurnResult {
   pipelineResultId: number
   entityId: number
   score: number
   label: string
-  detailsJson: string
-  safehouse: {
-    name: string
-    region: string
-    capacityGirls: number
-    currentOccupancy: number
+  supporter: {
+    displayName: string
+    email: string
+    supporterType: string
+    status: string
   }
 }
+
 
 interface CaseConference {
   planId: number
@@ -119,111 +77,126 @@ interface CaseConference {
   caseConferenceDate: string
 }
 
+interface DonationRecord {
+  donationId: number
+  supporterId: number
+  donationDate: string
+  donationType: string
+  amount: number
+  campaignName?: string
+}
+
+interface Resident {
+  residentId: number
+  reintegrationStatus?: string
+  [key: string]: unknown
+}
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 export function AdminDashboard() {
   usePageTitle('Dashboard')
   const [loading, setLoading] = useState(true)
-  const [safehouseOccupancy, setSafehouseOccupancy] = useState<{ name: string; capacity: number; occupancy: number }[]>([])
-  const [riskDistribution, setRiskDistribution] = useState<{ name: string; value: number }[]>([])
-  const [recentIncidents, setRecentIncidents] = useState<{ id: number; type: string; resident: string; date: string; status: string }[]>([])
-  const [unresolvedCount, setUnresolvedCount] = useState(0)
-  const [totalResidents, setTotalResidents] = useState(0)
-  const [activeSafehouses, setActiveSafehouses] = useState(0)
-  const [totalCapacity, setTotalCapacity] = useState(0)
-  const [totalOccupied, setTotalOccupied] = useState(0)
-  const [riskAlerts, setRiskAlerts] = useState(0)
-  const [riskAlertDesc, setRiskAlertDesc] = useState('')
-  const [donationCount, setDonationCount] = useState(0)
+
+  // Stat card data
   const [donationAmount, setDonationAmount] = useState(0)
+  const [donationCount, setDonationCount] = useState(0)
+  const [recurringCount, setRecurringCount] = useState(0)
+  const [atRiskResidents, setAtRiskResidents] = useState(0)
+  const [atRiskDesc, setAtRiskDesc] = useState('')
+  const [donorsAtRisk, setDonorsAtRisk] = useState(0)
+  const [reintegrationRate, setReintegrationRate] = useState(0)
+  const [reintegrationDesc, setReintegrationDesc] = useState('')
+
+  // Chart data
+  const [donationTrend, setDonationTrend] = useState<{ label: string; amount: number; count: number }[]>([])
+
+  // Secondary sections
   const [mlRiskAlerts, setMlRiskAlerts] = useState<ResidentRiskResult[]>([])
-  const [mlSafehousePerf, setMlSafehousePerf] = useState<SafehousePerformanceResult[]>([])
   const [upcomingConferences, setUpcomingConferences] = useState<CaseConference[]>([])
+  const [recentDonations, setRecentDonations] = useState<DonationRecord[]>([])
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [occupancyData, riskData, incidentData, residents, safehouses, donationSummary] = await Promise.all([
-          api.get<SafehouseOccupancyResponse[]>('/api/safehouses/occupancy'),
-          api.get<RiskDistributionResponse[]>('/api/reports/risk-distribution'),
-          api.get<IncidentSummaryResponse>('/api/reports/incident-summary'),
-          api.get<Resident[]>('/api/residents'),
-          api.get<Safehouse[]>('/api/safehouses'),
+        // Core data — all required
+        const [donationSummary, residents] = await Promise.all([
           api.get<DonationSummaryResponse>('/api/donations/summary'),
+          api.get<Resident[]>('/api/residents'),
         ])
 
-        // Safehouse occupancy chart
-        setSafehouseOccupancy(
-          occupancyData.map((s) => ({
-            name: s.name,
-            capacity: s.capacityGirls,
-            occupancy: s.currentOccupancy,
-          }))
-        )
-
-        // Capacity metrics from occupancy data
-        const cap = occupancyData.reduce((sum, s) => sum + s.capacityGirls, 0)
-        const occ = occupancyData.reduce((sum, s) => sum + s.currentOccupancy, 0)
-        setTotalCapacity(cap)
-        setTotalOccupied(occ)
-
-        // Risk distribution chart
-        setRiskDistribution(
-          riskData.map((r) => ({
-            name: r.currentRiskLevel,
-            value: r.count,
-          }))
-        )
-
-        // Risk alerts: sum of High + Critical
-        const highCount = riskData.find((r) => r.currentRiskLevel === 'High')?.count ?? 0
-        const criticalCount = riskData.find((r) => r.currentRiskLevel === 'Critical')?.count ?? 0
-        setRiskAlerts(highCount + criticalCount)
-        setRiskAlertDesc(`${highCount} high + ${criticalCount} critical`)
-
-        // Recent incidents
-        setUnresolvedCount(incidentData.unresolvedCount)
-        setRecentIncidents(
-          incidentData.recentIncidents.map((i) => ({
-            id: i.incidentId,
-            type: i.incidentType,
-            resident: `R-${String(i.residentId).padStart(3, '0')}`,
-            date: i.incidentDate.split('T')[0],
-            status: i.resolved ? 'Resolved' : 'Unresolved',
-          }))
-        )
-
-        // Total residents
-        setTotalResidents(residents.length)
-
-        // Active safehouses
-        const active = safehouses.filter((s) => s.status === 'Active')
-        setActiveSafehouses(active.length)
-
         // Donations
-        setDonationCount(donationSummary.totalCount)
         setDonationAmount(donationSummary.totalAmount)
+        setDonationCount(donationSummary.totalCount)
+        setRecurringCount(donationSummary.recurringCount)
 
-        // ML Pipeline data (fetched separately so failures don't break dashboard)
+        // Reintegration rate
+        const completed = residents.filter((r) => r.reintegrationStatus === 'Completed')
+        const inProgress = residents.filter((r) => r.reintegrationStatus && r.reintegrationStatus !== 'Not Started')
+        const rate = inProgress.length > 0 ? (completed.length / inProgress.length) * 100 : 0
+        setReintegrationRate(Math.round(rate * 10) / 10)
+        setReintegrationDesc(`${completed.length} of ${inProgress.length} cases`)
+
+        // Donation trends (real monthly data)
         try {
-          const [riskResults, perfResults] = await Promise.all([
-            api.get<ResidentRiskResult[]>('/api/pipeline-results/resident-risk'),
-            api.get<SafehousePerformanceResult[]>('/api/pipeline-results/safehouse-performance'),
-          ])
-          setMlRiskAlerts(riskResults.slice(0, 5))
-          setMlSafehousePerf(perfResults)
+          const trends = await api.get<DonationTrendResponse[]>('/api/donations/trends')
+          setDonationTrend(
+            trends.map((t) => ({
+              label: `${MONTH_LABELS[t.month - 1]} ${t.year}`,
+              amount: Math.round(t.totalAmount / 1000),
+              count: t.count,
+            }))
+          )
         } catch {
-          console.warn('ML pipeline data unavailable')
+          console.warn('Donation trends unavailable')
         }
 
-        // Upcoming case conferences from real API data
+        // ML: Residents at risk (primary metric — uses ML predictions)
+        try {
+          const riskResults = await api.get<ResidentRiskResult[]>('/api/pipeline-results/resident-risk')
+          const highRisk = riskResults.filter((r) => r.label === 'Critical' || r.label === 'High')
+          setAtRiskResidents(highRisk.length)
+          const critical = highRisk.filter((r) => r.label === 'Critical').length
+          const high = highRisk.filter((r) => r.label === 'High').length
+          setAtRiskDesc(`${critical} critical, ${high} high risk`)
+          setMlRiskAlerts(highRisk.slice(0, 5))
+        } catch {
+          console.warn('ML risk data unavailable')
+          setAtRiskDesc('Pipeline unavailable')
+        }
+
+        // ML: Donors at risk of churning
+        try {
+          const churnResults = await api.get<DonorChurnResult[]>('/api/pipeline-results/donor-churn')
+          const atRisk = churnResults.filter((r) => r.label === 'AtRisk' || r.label === 'High' || r.score > 0.5)
+          setDonorsAtRisk(atRisk.length)
+        } catch {
+          console.warn('Donor churn data unavailable')
+        }
+
+        // Upcoming case conferences
         try {
           const conferences = await api.get<CaseConference[]>('/api/residents/case-conferences')
           const today = new Date().toISOString().split('T')[0]
-          const upcoming = conferences
-            .filter((c) => c.caseConferenceDate && c.caseConferenceDate >= today)
-            .slice(0, 5)
-          setUpcomingConferences(upcoming)
+          setUpcomingConferences(
+            conferences
+              .filter((c) => c.caseConferenceDate && c.caseConferenceDate >= today)
+              .slice(0, 5)
+          )
         } catch {
           console.warn('Case conference data unavailable')
+        }
+
+        // Recent donations
+        try {
+          const donations = await api.get<DonationRecord[]>('/api/donations')
+          setRecentDonations(
+            [...donations]
+              .sort((a, b) => b.donationDate.localeCompare(a.donationDate))
+              .slice(0, 5)
+          )
+        } catch {
+          console.warn('Recent donations unavailable')
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err)
@@ -237,11 +210,8 @@ export function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of operations across all safehouses.</p>
-        </div>
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <div className="flex items-center justify-center py-20 text-muted-foreground">
           Loading dashboard data...
         </div>
@@ -250,260 +220,254 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Overview of operations across all safehouses.</p>
-      </div>
-
-      {/* Key Metrics */}
+    <div className="space-y-6">
+      {/* ── Stat Cards (3 pillars + OKR) ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Total Residents" value={String(totalResidents)} description={`${totalOccupied} occupied across safehouses`} icon={Users} />
-        <MetricCard title="Active Safehouses" value={String(activeSafehouses)} description={`${totalCapacity} total capacity, ${totalOccupied} occupied`} icon={Home} />
-        <MetricCard title="Risk Alerts" value={String(riskAlerts)} description={riskAlertDesc} icon={AlertTriangle} trend="destructive" />
-        <MetricCard title="Recent Donations" value={String(donationCount)} description={`This month — PHP ${(donationAmount / 1000).toFixed(0)}K`} icon={Heart} />
+        {/* Pillar 1: Donor Funding */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardDescription className="text-xs font-medium">Total Donations</CardDescription>
+              <TrendBadge value={recurringCount} label={`${recurringCount} recurring`} positive />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tracking-tight">
+              {formatPHP(donationAmount)}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {donationCount} contributions · {donorsAtRisk > 0 ? `${donorsAtRisk} donors at risk` : 'Donor base stable'}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Pillar 2: Residents at Risk (ML-driven) */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardDescription className="text-xs font-medium">Residents at Risk</CardDescription>
+              <TrendBadge value={atRiskResidents} label={atRiskResidents > 0 ? 'Needs attention' : 'Stable'} positive={atRiskResidents === 0} />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tracking-tight">{atRiskResidents}</div>
+            <p className="mt-1 text-xs text-muted-foreground">{atRiskDesc}</p>
+          </CardContent>
+        </Card>
+
+        {/* Pillar 3: Donor Retention */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardDescription className="text-xs font-medium">Donors at Risk</CardDescription>
+              <TrendBadge value={donorsAtRisk} label={donorsAtRisk > 0 ? 'May churn' : 'Healthy'} positive={donorsAtRisk === 0} />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tracking-tight">{donorsAtRisk}</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Predicted to lapse (ML)
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* OKR: Reintegration */}
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardDescription className="text-xs font-medium">Reintegration Rate</CardDescription>
+              <TrendBadge value={reintegrationRate} label="OKR" positive />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tracking-tight">{reintegrationRate}%</div>
+            <p className="mt-1 text-xs text-muted-foreground">{reintegrationDesc}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Safehouse Occupancy</CardTitle>
-            <CardDescription>Current occupancy vs. capacity across all safehouses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
+      {/* ── Donation Trend Chart ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base font-semibold">Donation Trends</CardTitle>
+          <CardDescription>Monthly donations over time (₱ thousands)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            {donationTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={safehouseOccupancy} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis type="number" className="text-xs fill-muted-foreground" />
-                  <YAxis dataKey="name" type="category" width={110} className="text-xs fill-muted-foreground" />
-                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
-                  <Legend />
-                  <Bar dataKey="capacity" name="Capacity" fill={CHART_COLORS[3]} radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="occupancy" name="Occupied" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} />
-                </BarChart>
+                <AreaChart data={donationTrend}>
+                  <defs>
+                    <linearGradient id="donationGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="oklch(0.45 0.18 280)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="oklch(0.45 0.18 280)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    className="text-xs fill-muted-foreground"
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    className="text-xs fill-muted-foreground"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => `${v}K`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                    formatter={(value, name) => [
+                      name === 'amount' ? `₱${value}K` : value,
+                      name === 'amount' ? 'Amount' : 'Donations',
+                    ]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="oklch(0.45 0.18 280)"
+                    strokeWidth={2}
+                    fill="url(#donationGradient)"
+                  />
+                </AreaChart>
               </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Risk Level Distribution</CardTitle>
-            <CardDescription>Current risk levels across all active residents</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={riskDistribution}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {riskDistribution.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Activity Row */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Unresolved Incidents */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-destructive" />
-                Recent Incidents
-              </CardTitle>
-              <CardDescription>{unresolvedCount} total unresolved incidents</CardDescription>
-            </div>
-            <Badge variant="destructive">{unresolvedCount} unresolved</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentIncidents.map((incident) => (
-                <div key={incident.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex items-center gap-3">
-                    <Badge variant={incident.status === 'Unresolved' ? 'destructive' : 'secondary'} className="text-xs">
-                      {incident.type}
-                    </Badge>
-                    <span className="text-sm font-mono text-muted-foreground">{incident.resident}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{incident.date}</span>
-                    <Badge variant={incident.status === 'Unresolved' ? 'outline' : 'secondary'} className="text-xs">
-                      {incident.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Upcoming Conferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Upcoming Case Conferences
-            </CardTitle>
-            <CardDescription>Scheduled intervention reviews</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {upcomingConferences.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">No upcoming conferences scheduled.</p>
-              ) : (
-                upcomingConferences.map((conf) => (
-                  <div key={conf.planId} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-mono text-muted-foreground">R-{String(conf.residentId).padStart(3, '0')}</span>
-                      <Badge variant="outline" className="text-xs">{conf.planCategory}</Badge>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(conf.caseConferenceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <Separator className="my-4" />
-
-            {/* OKR Metric */}
-            <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">Key Metric: Reintegration Success Rate</span>
+            ) : (
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                No trend data available
               </div>
-              <div className="text-3xl font-bold text-primary font-serif">63.3%</div>
-              <p className="text-xs text-muted-foreground mt-1">19 of 30 completed cases successfully reintegrated</p>
-              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                This is Lunas's primary OKR because it captures the ultimate outcome of every service we provide — shelter, counseling, education, and case management — in a single metric. A higher rate means more girls are leaving our care with the support systems needed to thrive independently.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* ML Pipeline Insights */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* ML Risk Alerts */}
+      {/* ── Secondary: ML Alerts, Conferences, Recent Donations ── */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* ML Risk Predictions */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
-              ML Risk Alerts
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Brain className="h-4 w-4 text-primary" />
+              Residents at Risk
             </CardTitle>
-            <CardDescription>Top predicted high-risk residents from ML pipeline</CardDescription>
+            <CardDescription>ML-predicted high-risk residents</CardDescription>
           </CardHeader>
           <CardContent>
             {mlRiskAlerts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pipeline data available</p>
+              <p className="text-sm text-muted-foreground">No at-risk residents detected</p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {mlRiskAlerts.map((r) => (
-                  <div key={r.pipelineResultId} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-mono text-foreground">
-                        {r.resident?.internalCode || r.resident?.caseControlNo || `ID-${r.entityId}`}
+                  <Link
+                    key={r.pipelineResultId}
+                    to="/admin/caseload"
+                    className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-muted/50 rounded px-1 -mx-1 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-mono">
+                        {r.resident?.internalCode || `ID-${r.entityId}`}
                       </span>
                       <Badge
                         variant="outline"
                         className={
                           r.label === 'Critical'
-                            ? 'border-red-300 bg-red-50 text-red-700'
-                            : r.label === 'High'
-                              ? 'border-orange-300 bg-orange-50 text-orange-700'
-                              : r.label === 'Medium'
-                                ? 'border-yellow-300 bg-yellow-50 text-yellow-700'
-                                : 'border-green-300 bg-green-50 text-green-700'
+                            ? 'border-red-300 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400'
+                            : 'border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-400'
                         }
                       >
                         {r.label}
                       </Badge>
                     </div>
-                    <span className="text-sm font-semibold text-foreground">
-                      {(r.score * 100).toFixed(1)}%
-                    </span>
-                  </div>
+                    <span className="text-sm font-semibold">{(r.score * 100).toFixed(0)}%</span>
+                  </Link>
                 ))}
               </div>
             )}
+            <Button variant="ghost" size="sm" asChild className="w-full mt-3 text-xs">
+              <Link to="/admin/caseload">View all residents →</Link>
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Safehouse Performance (ML) */}
+        {/* Upcoming Case Conferences */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
-              Safehouse Performance (ML)
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Calendar className="h-4 w-4 text-primary" />
+              Upcoming Conferences
             </CardTitle>
-            <CardDescription>ML-ranked safehouse performance scores</CardDescription>
+            <CardDescription>Scheduled intervention reviews</CardDescription>
           </CardHeader>
           <CardContent>
-            {mlSafehousePerf.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pipeline data available</p>
+            {upcomingConferences.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No upcoming conferences</p>
             ) : (
-              <div className="space-y-3">
-                {mlSafehousePerf.map((s) => (
-                  <div key={s.pipelineResultId} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-foreground">
-                          {s.safehouse?.name || `Safehouse ${s.entityId}`}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{s.safehouse?.region}</span>
-                        <Badge
-                          variant="outline"
-                          className={
-                            s.label === 'HighPerforming'
-                              ? 'border-green-300 bg-green-50 text-green-700'
-                              : s.label === 'Average'
-                                ? 'border-yellow-300 bg-yellow-50 text-yellow-700'
-                                : 'border-red-300 bg-red-50 text-red-700'
-                          }
-                        >
-                          {s.label === 'HighPerforming' ? 'High Performing' : s.label === 'NeedsAttention' ? 'Needs Attention' : s.label}
-                        </Badge>
-                      </div>
-                      <span className="text-sm font-semibold text-foreground">
-                        {(s.score * 100).toFixed(1)}%
-                      </span>
+              <div className="space-y-2">
+                {upcomingConferences.map((conf) => (
+                  <Link
+                    key={conf.planId}
+                    to="/admin/visitation"
+                    className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-muted/50 rounded px-1 -mx-1 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-sm font-mono">R-{String(conf.residentId).padStart(3, '0')}</span>
+                      <Badge variant="outline" className="text-xs">{conf.planCategory}</Badge>
                     </div>
-                    <div className="h-2 w-full rounded-full bg-muted">
-                      <div
-                        className={`h-2 rounded-full ${
-                          s.label === 'HighPerforming'
-                            ? 'bg-green-500'
-                            : s.label === 'Average'
-                              ? 'bg-yellow-500'
-                              : 'bg-red-500'
-                        }`}
-                        style={{ width: `${Math.min(s.score * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(conf.caseConferenceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </Link>
                 ))}
               </div>
             )}
+            <Button variant="ghost" size="sm" asChild className="w-full mt-3 text-xs">
+              <Link to="/admin/visitation">View all →</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Recent Donations */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Recent Donations
+            </CardTitle>
+            <CardDescription>Latest contributions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {recentDonations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recent donations</p>
+            ) : (
+              <div className="space-y-2">
+                {recentDonations.map((d) => (
+                  <Link
+                    key={d.donationId}
+                    to="/admin/donors"
+                    className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-muted/50 rounded px-1 -mx-1 transition-colors"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">{d.donationType}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {d.campaignName ?? d.donationDate?.split('T')[0] ?? ''}
+                      </span>
+                    </div>
+                    <span className="text-sm font-semibold">
+                      {formatPHP(d.amount ?? 0)}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+            <Button variant="ghost" size="sm" asChild className="w-full mt-3 text-xs">
+              <Link to="/admin/donors">View all donors →</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -511,29 +475,19 @@ export function AdminDashboard() {
   )
 }
 
-function MetricCard({
-  title,
-  value,
-  description,
-  icon: Icon,
-  trend,
-}: {
-  title: string
-  value: string
-  description: string
-  icon: React.ElementType
-  trend?: string
-}) {
+/* ── Helpers ── */
+
+function formatPHP(value: number): string {
+  if (value >= 1_000_000) return `₱${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `₱${(value / 1_000).toFixed(0)}K`
+  return `₱${value.toLocaleString()}`
+}
+
+function TrendBadge({ label, positive }: { value: number; label: string; positive: boolean }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardDescription className="text-xs uppercase tracking-wider">{title}</CardDescription>
-        <Icon className={`h-4 w-4 ${trend === 'destructive' ? 'text-destructive' : 'text-muted-foreground'}`} />
-      </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold text-foreground">{value}</div>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
-      </CardContent>
-    </Card>
+    <span className={`flex items-center gap-0.5 text-xs font-medium ${positive ? 'text-green-600' : 'text-red-600'}`}>
+      {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+      {label}
+    </span>
   )
 }

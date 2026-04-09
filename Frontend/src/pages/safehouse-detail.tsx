@@ -1,10 +1,12 @@
 import { useParams, Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import L from 'leaflet'
 import { ArrowLeft, Heart, MapPin, Calendar, Users, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getSafehouseById } from '@/lib/safehouseData'
+import type { SafehouseData } from '@/lib/safehouseData'
 import { getStoriesBySafehouseId } from '@/lib/publicResidentStories'
 import 'leaflet/dist/leaflet.css'
 import { usePageTitle } from '@/hooks/usePageTitle'
@@ -26,8 +28,24 @@ const PROGRAM_ICONS: Record<string, React.ElementType> = {
 export function SafehouseDetail() {
   usePageTitle('Safehouse Details')
   const { id } = useParams<{ id: string }>()
-  const safehouse = getSafehouseById(Number(id))
+  const [safehouse, setSafehouse] = useState<SafehouseData | undefined>(undefined)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getSafehouseById(Number(id))
+      .then(setSafehouse)
+      .finally(() => setLoading(false))
+  }, [id])
+
   const stories = safehouse ? getStoriesBySafehouseId(safehouse.id) : []
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    )
+  }
 
   if (!safehouse) {
     return (

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { PublicResidentStory } from '@/lib/publicResidentStories'
 import { getSafehouseById } from '@/lib/safehouseData'
 
@@ -8,8 +9,13 @@ interface ResidentStoryCardProps {
 
 export function ResidentStoryCard({ story, compact }: ResidentStoryCardProps) {
   const flowerName = story.pseudonym.split('-')[0]
-  const safehouse = story.safehouseId ? getSafehouseById(story.safehouseId) : undefined
-  const photoPath = safehouse?.photoPath
+  const [photoPath, setPhotoPath] = useState<string | undefined>()
+
+  useEffect(() => {
+    if (story.safehouseId) {
+      getSafehouseById(story.safehouseId).then((sh) => setPhotoPath(sh?.photoPath))
+    }
+  }, [story.safehouseId])
 
   if (compact) {
     return (

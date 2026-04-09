@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/context/AuthContext'
 import { logout } from '@/lib/authApi'
-import { safehouses } from '@/lib/safehouseData'
+import { fetchSafehouses, type SafehouseData } from '@/lib/safehouseData'
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -15,8 +15,14 @@ const navigation = [
 
 export function PublicLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [safehouses, setSafehouses] = useState<SafehouseData[]>([])
   const location = useLocation()
   const { isAuthenticated, authSession, refreshAuthState } = useAuth()
+
+  useEffect(() => {
+    fetchSafehouses().then(setSafehouses).catch(() => {})
+  }, [])
+
   const locationLinks = safehouses.map((safehouse) => ({
     label: `${safehouse.city}, ${safehouse.province}`,
     href: `/impact/safehouse/${safehouse.id}`,

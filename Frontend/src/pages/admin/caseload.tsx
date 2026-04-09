@@ -232,6 +232,7 @@ export function CaseloadInventory() {
   const [filterSafehouse, setFilterSafehouse] = useState('all')
   const [filterRisk, setFilterRisk] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [filterCategory, setFilterCategory] = useState('all')
 
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 15
@@ -302,11 +303,13 @@ export function CaseloadInventory() {
     const matchesRisk = filterRisk === 'all' || r.riskLevel === filterRisk
     const matchesStatus =
       filterStatus === 'all' || r.caseStatus === filterStatus
-    return matchesSearch && matchesSafehouse && matchesRisk && matchesStatus
+    const matchesCategory =
+      filterCategory === 'all' || r.caseCategory === filterCategory
+    return matchesSearch && matchesSafehouse && matchesRisk && matchesStatus && matchesCategory
   })
 
   // Reset page when filters change
-  useEffect(() => { setCurrentPage(1) }, [search, filterSafehouse, filterRisk, filterStatus])
+  useEffect(() => { setCurrentPage(1) }, [search, filterSafehouse, filterRisk, filterStatus, filterCategory])
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage)
   const paginatedResidents = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -920,6 +923,19 @@ export function CaseloadInventory() {
                 {CASE_STATUSES.map((cs) => (
                   <SelectItem key={cs} value={cs}>
                     {cs}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {CASE_CATEGORIES.map((cc) => (
+                  <SelectItem key={cc} value={cc}>
+                    {cc}
                   </SelectItem>
                 ))}
               </SelectContent>

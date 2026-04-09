@@ -1,7 +1,8 @@
+import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import { Link } from 'react-router-dom'
-import { safehouses } from '@/lib/safehouseData'
+import { fetchSafehouses, type SafehouseData } from '@/lib/safehouseData'
 import 'leaflet/dist/leaflet.css'
 
 const PHILIPPINES_CENTER: L.LatLngExpression = [11.5, 123.0]
@@ -22,6 +23,18 @@ const defaultIcon = L.divIcon({
 })
 
 export function InteractiveMap() {
+  const [safehouses, setSafehouses] = useState<SafehouseData[]>([])
+
+  useEffect(() => {
+    fetchSafehouses().then(setSafehouses).catch(() => {})
+  }, [])
+
+  // Compute region counts dynamically
+  const regionCounts = safehouses.reduce<Record<string, number>>((acc, sh) => {
+    acc[sh.region] = (acc[sh.region] ?? 0) + 1
+    return acc
+  }, {})
+
   return (
     <section className="py-10 sm:py-12 bg-background">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -74,11 +87,13 @@ export function InteractiveMap() {
           </MapContainer>
         </div>
 
-        {/* Region summary */}
+        {/* Region summary — dynamic from API */}
         <div className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm text-muted-foreground">
-          <span><span className="font-semibold text-foreground">Luzon</span> — 2 shelters</span>
-          <span><span className="font-semibold text-foreground">Visayas</span> — 4 shelters</span>
-          <span><span className="font-semibold text-foreground">Mindanao</span> — 3 shelters</span>
+          {Object.entries(regionCounts).map(([region, count]) => (
+            <span key={region}>
+              <span className="font-semibold text-foreground">{region}</span> — {count} {count === 1 ? 'shelter' : 'shelters'}
+            </span>
+          ))}
         </div>
         <p className="mt-2 text-center text-xs text-muted-foreground">
           Click on a dot to view shelter details.

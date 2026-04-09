@@ -7,7 +7,6 @@ import {
   Home,
   Heart,
   BarChart3,
-  Shield,
   ShieldAlert,
   ShieldCheck,
   LogOut,
@@ -16,6 +15,9 @@ import {
   X,
   Sun,
   Moon,
+  DollarSign,
+  UserCheck,
+  Share2,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -39,13 +41,23 @@ import { logout, getMfaStatus } from '@/lib/authApi'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
-const adminNav = [
+const dashboardNav = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+]
+
+const donorFundingNav = [
+  { name: 'Donors', href: '/admin/donors', icon: Heart },
+  { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
+]
+
+const residentCareNav = [
   { name: 'Caseload', href: '/admin/caseload', icon: Users },
   { name: 'Process Recording', href: '/admin/process-recording', icon: FileText },
   { name: 'Home Visitation', href: '/admin/visitation', icon: Home },
-  { name: 'Donors', href: '/admin/donors', icon: Heart },
-  { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
+]
+
+const outreachNav = [
+  { name: 'Social Media', href: '/admin/reports?tab=social', icon: Share2 },
 ]
 
 const donorNav = [
@@ -63,7 +75,7 @@ export function AdminLayout() {
 
   const { theme, setTheme, canSetTheme } = useTheme()
   const isAdmin = authSession.roles.includes('Admin')
-  const navItems = isAdmin ? adminNav : donorNav
+  const allAdminItems = [...dashboardNav, ...donorFundingNav, ...residentCareNav, ...outreachNav]
 
   const [showMfaBanner, setShowMfaBanner] = useState(false)
 
@@ -87,9 +99,11 @@ export function AdminLayout() {
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild>
                 <Link to="/" aria-label="Home">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <Shield className="size-4" />
-                  </div>
+                  <img
+                    src="/images/PinwheelLogo-cropped.png"
+                    alt="Lunas logo"
+                    className="size-8 object-contain"
+                  />
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold font-serif">Lunas</span>
                     <span className="truncate text-xs text-muted-foreground">
@@ -103,26 +117,121 @@ export function AdminLayout() {
         </SidebarHeader>
 
         <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel aria-label="Admin navigation">Navigation</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {navItems.map((item) => {
-                  const isActive = location.pathname === item.href
-                  return (
-                    <SidebarMenuItem key={item.name}>
-                      <SidebarMenuButton asChild isActive={isActive}>
-                        <Link to={item.href}>
-                          <item.icon className="size-4" />
-                          <span>{item.name}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          {isAdmin ? (
+            <>
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {dashboardNav.map((item) => {
+                      const isActive = location.pathname === item.href
+                      return (
+                        <SidebarMenuItem key={item.name}>
+                          <SidebarMenuButton asChild isActive={isActive}>
+                            <Link to={item.href}>
+                              <item.icon className="size-4" />
+                              <span>{item.name}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+
+              <SidebarGroup>
+                <SidebarGroupLabel>
+                  <DollarSign className="size-3 mr-1" />
+                  Donors & Funding
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {donorFundingNav.map((item) => {
+                      const isActive = location.pathname === item.href || (item.href.includes('?') && location.pathname + location.search === item.href)
+                      return (
+                        <SidebarMenuItem key={item.name}>
+                          <SidebarMenuButton asChild isActive={isActive}>
+                            <Link to={item.href}>
+                              <item.icon className="size-4" />
+                              <span>{item.name}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+
+              <SidebarGroup>
+                <SidebarGroupLabel>
+                  <UserCheck className="size-3 mr-1" />
+                  Resident Care
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {residentCareNav.map((item) => {
+                      const isActive = location.pathname === item.href
+                      return (
+                        <SidebarMenuItem key={item.name}>
+                          <SidebarMenuButton asChild isActive={isActive}>
+                            <Link to={item.href}>
+                              <item.icon className="size-4" />
+                              <span>{item.name}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+
+              <SidebarGroup>
+                <SidebarGroupLabel>
+                  <Share2 className="size-3 mr-1" />
+                  Outreach
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {outreachNav.map((item) => {
+                      const isActive = location.pathname + location.search === item.href
+                      return (
+                        <SidebarMenuItem key={item.name}>
+                          <SidebarMenuButton asChild isActive={isActive}>
+                            <Link to={item.href}>
+                              <item.icon className="size-4" />
+                              <span>{item.name}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </>
+          ) : (
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {donorNav.map((item) => {
+                    const isActive = location.pathname === item.href
+                    return (
+                      <SidebarMenuItem key={item.name}>
+                        <SidebarMenuButton asChild isActive={isActive}>
+                          <Link to={item.href}>
+                            <item.icon className="size-4" />
+                            <span>{item.name}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
 
           <SidebarGroup>
             <SidebarGroupLabel>Security</SidebarGroupLabel>
@@ -180,7 +289,7 @@ export function AdminLayout() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <span className="text-sm font-medium text-muted-foreground flex-1">
-            {[...navItems, ...securityNav].find((item) => item.href === location.pathname)?.name ?? 'Dashboard'}
+            {[...(isAdmin ? allAdminItems : donorNav), ...securityNav].find((item) => item.href === location.pathname)?.name ?? 'Dashboard'}
           </span>
           <TooltipProvider>
             <Tooltip>
