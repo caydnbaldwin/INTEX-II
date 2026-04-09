@@ -10,6 +10,8 @@ interface ResidentStoryCardProps {
 export function ResidentStoryCard({ story, compact }: ResidentStoryCardProps) {
   const flowerName = story.pseudonym.split('-')[0]
   const [photoPath, setPhotoPath] = useState<string | undefined>()
+  const imageSrc = story.cardImageSrc ?? photoPath
+  const imageObjectClass = story.cardImageClassName ?? 'object-center'
 
   useEffect(() => {
     if (story.safehouseId) {
@@ -45,8 +47,8 @@ export function ResidentStoryCard({ story, compact }: ResidentStoryCardProps) {
       </div>
       {/* Fixed image height so every card matches */}
       <div className="h-48 w-full shrink-0 overflow-hidden bg-muted">
-        {photoPath ? (
-          <img src={photoPath} alt="" className="h-full w-full object-cover object-center" />
+        {imageSrc ? (
+          <img src={imageSrc} alt="" className={`h-full w-full object-cover ${imageObjectClass}`} />
         ) : null}
       </div>
     </div>

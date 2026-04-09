@@ -13,6 +13,8 @@ export interface PublicRepresentativeJourneyInput {
   safehouseId: number
   /** Card photo matched to milestone theme; falls back to safehouse image if omitted. */
   cardImageSrc: string
+  /** Optional object-position utility for better focal crop in fixed-height cards. */
+  cardImageClassName?: string
   headline: string
   description: string
   longNarrative: string
@@ -24,6 +26,7 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
     residentId: 1,
     safehouseId: 1,
     cardImageSrc: `${T}/counseling-milestone.png`,
+    cardImageClassName: 'object-[50%_62%]',
     headline: 'Counseling milestone',
     description: 'Finished her counseling cycle; now in maintenance care with stronger wellbeing scores.',
     longNarrative:
@@ -33,6 +36,7 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
     residentId: 3,
     safehouseId: 2,
     cardImageSrc: `${T}/education-progress.png`,
+    cardImageClassName: 'object-[48%_58%]',
     headline: 'Education progress',
     description: 'Strong attendance in equivalency studies—on track for this year’s assessment.',
     longNarrative:
@@ -41,7 +45,8 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 7,
     safehouseId: 3,
-    cardImageSrc: `${T}/reintegration-family.png`,
+    cardImageSrc: `${T}/reintegration-planning.png`,
+    cardImageClassName: 'object-[50%_60%]',
     headline: 'Reintegration planning',
     description: 'Reunification assessment underway with supervised visits and her social worker.',
     longNarrative:
@@ -51,6 +56,7 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
     residentId: 2,
     safehouseId: 4,
     cardImageSrc: `${T}/health-growth.png`,
+    cardImageClassName: 'object-[50%_46%]',
     headline: 'Health stabilization',
     description: 'Nutrition and sleep improved with coordinated medical and house support.',
     longNarrative:
@@ -60,6 +66,7 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
     residentId: 5,
     safehouseId: 5,
     cardImageSrc: `${T}/vocational-sewing.png`,
+    cardImageClassName: 'object-[50%_52%]',
     headline: 'Vocational training',
     description: 'Completed sewing and textiles; now mentors younger residents in the workshop.',
     longNarrative:
@@ -69,6 +76,7 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
     residentId: 6,
     safehouseId: 6,
     cardImageSrc: `${T}/art-reflection.png`,
+    cardImageClassName: 'object-[50%_60%]',
     headline: 'Art therapy breakthrough',
     description: 'Built confidence in art therapy and shared her work at a community exhibition.',
     longNarrative:
@@ -78,6 +86,7 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
     residentId: 8,
     safehouseId: 7,
     cardImageSrc: `${T}/achievement-certificate.png`,
+    cardImageClassName: 'object-[50%_42%]',
     headline: 'Literacy achievement',
     description: 'Went from basic literacy to reading on her own in eight months.',
     longNarrative:
@@ -86,7 +95,8 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 9,
     safehouseId: 8,
-    cardImageSrc: `${T}/forward-threshold.png`,
+    cardImageSrc: `${T}/community-leadership.png`,
+    cardImageClassName: 'object-[50%_54%]',
     headline: 'Community leadership',
     description: 'Chosen as a peer mentor to help new residents settle in.',
     longNarrative:
@@ -95,7 +105,8 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 10,
     safehouseId: 9,
-    cardImageSrc: '/images/otherImages/GirlSunset2.png',
+    cardImageSrc: `${T}/independent-living-prep.png`,
+    cardImageClassName: 'object-[50%_62%]',
     headline: 'Independent living preparation',
     description: 'Training in budgeting, cooking, and job readiness for life after the safehouse.',
     longNarrative:
@@ -124,6 +135,7 @@ export interface PublicResidentStory {
   residentId: number
   safehouseId?: number
   cardImageSrc?: string
+  cardImageClassName?: string
   pseudonym: string
   headline: string
   description: string
@@ -137,6 +149,7 @@ export function getPublicResidentStory(residentId: number): PublicResidentStory 
     residentId,
     safehouseId: journey?.safehouseId,
     cardImageSrc: journey?.cardImageSrc,
+    cardImageClassName: journey?.cardImageClassName,
     pseudonym: pseudonymForResidentId(residentId),
     headline: journey?.headline ?? DEFAULT_HEADLINE,
     description: journey?.description ?? DEFAULT_DESCRIPTION,
