@@ -129,6 +129,11 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();
 // ── Gemini Audio Autofill ─────────────────────────────────────────────────────
 builder.Services.AddHttpClient<IAudioAutofillService, AudioAutofillService>();
+
+// ── Email Automation ─────────────────────────────────────────────────────────
+builder.Services.AddHttpClient<IEmailService, ResendEmailService>();
+builder.Services.AddScoped<IDonorScoringService, DonorScoringService>();
+builder.Services.AddHostedService<WeeklyEmailHostedService>();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
