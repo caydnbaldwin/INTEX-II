@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   TrendingUp,
   Calendar,
   FileText,
-  Brain,
+  Building2,
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react'
@@ -89,13 +89,22 @@ interface DonationRecord {
 interface Resident {
   residentId: number
   reintegrationStatus?: string
+  safehouseId: number
+  caseStatus?: string
   [key: string]: unknown
+}
+
+interface Safehouse {
+  safehouseId: number
+  name: string
+  region: string
 }
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 export function AdminDashboard() {
   usePageTitle('Dashboard')
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
 
   // Stat card data
@@ -112,7 +121,7 @@ export function AdminDashboard() {
   const [donationTrend, setDonationTrend] = useState<{ label: string; amount: number; count: number }[]>([])
 
   // Secondary sections
-  const [mlRiskAlerts, setMlRiskAlerts] = useState<ResidentRiskResult[]>([])
+  const [safehouseStats, setSafehouseStats] = useState<{ name: string; active: number; total: number }[]>([])
   const [upcomingConferences, setUpcomingConferences] = useState<CaseConference[]>([])
   const [recentDonations, setRecentDonations] = useState<DonationRecord[]>([])
 
@@ -120,9 +129,10 @@ export function AdminDashboard() {
     async function fetchData() {
       try {
         // Core data — all required
-        const [donationSummary, residents] = await Promise.all([
+        const [donationSummary, residents, safehouses] = await Promise.all([
           api.get<DonationSummaryResponse>('/api/donations/summary'),
           api.get<Resident[]>('/api/residents'),
+          api.get<Safehouse[]>('/api/safehouses'),
         ])
 
         // Donations
@@ -136,6 +146,25 @@ export function AdminDashboard() {
         const rate = inProgress.length > 0 ? (completed.length / inProgress.length) * 100 : 0
         setReintegrationRate(Math.round(rate * 10) / 10)
         setReintegrationDesc(`${completed.length} of ${inProgress.length} cases`)
+
+        // Safehouse overview
+        const safehouseMap = new Map(safehouses.map((s) => [s.safehouseId, s.name]))
+        const statsMap = new Map<string, { active: number; total: number }>()
+        for (const s of safehouses) {
+          statsMap.set(s.name, { active: 0, total: 0 })
+        }
+        for (const r of residents) {
+          const name = safehouseMap.get(r.safehouseId) ?? `Safehouse ${r.safehouseId}`
+          const entry = statsMap.get(name) ?? { active: 0, total: 0 }
+          entry.total++
+          if (r.caseStatus === 'Active') entry.active++
+          statsMap.set(name, entry)
+        }
+        setSafehouseStats(
+          Array.from(statsMap.entries())
+            .map(([name, counts]) => ({ name, ...counts }))
+            .sort((a, b) => b.total - a.total)
+        )
 
         // Donation trends (real monthly data)
         try {
@@ -159,7 +188,6 @@ export function AdminDashboard() {
           const critical = highRisk.filter((r) => r.label === 'Critical').length
           const high = highRisk.filter((r) => r.label === 'High').length
           setAtRiskDesc(`${critical} critical, ${high} high risk`)
-          setMlRiskAlerts(highRisk.slice(0, 5))
         } catch {
           console.warn('ML risk data unavailable')
           setAtRiskDesc('Pipeline unavailable')
@@ -224,7 +252,10 @@ export function AdminDashboard() {
       {/* ── Stat Cards (3 pillars + OKR) ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Pillar 1: Donor Funding */}
-        <Card>
+        <Card
+          className="cursor-pointer transition-shadow hover:shadow-md hover:ring-1 hover:ring-primary/20"
+          onClick={() => navigate('/admin/donors')}
+        >
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardDescription className="text-xs font-medium">Total Donations</CardDescription>
@@ -242,7 +273,10 @@ export function AdminDashboard() {
         </Card>
 
         {/* Pillar 2: Residents at Risk (ML-driven) */}
-        <Card>
+        <Card
+          className="cursor-pointer transition-shadow hover:shadow-md hover:ring-1 hover:ring-primary/20"
+          onClick={() => navigate('/admin/caseload?risk=at-risk')}
+        >
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardDescription className="text-xs font-medium">Residents at Risk</CardDescription>
@@ -256,7 +290,10 @@ export function AdminDashboard() {
         </Card>
 
         {/* Pillar 3: Donor Retention */}
-        <Card>
+        <Card
+          className="cursor-pointer transition-shadow hover:shadow-md hover:ring-1 hover:ring-primary/20"
+          onClick={() => navigate('/admin/donors')}
+        >
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardDescription className="text-xs font-medium">Donors at Risk</CardDescription>
@@ -272,7 +309,10 @@ export function AdminDashboard() {
         </Card>
 
         {/* OKR: Reintegration */}
-        <Card>
+        <Card
+          className="cursor-pointer transition-shadow hover:shadow-md hover:ring-1 hover:ring-primary/20"
+          onClick={() => navigate('/admin/caseload?status=Active')}
+        >
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardDescription className="text-xs font-medium">Reintegration Rate</CardDescription>
@@ -348,42 +388,36 @@ export function AdminDashboard() {
 
       {/* ── Secondary: ML Alerts, Conferences, Recent Donations ── */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* ML Risk Predictions */}
+        {/* Safehouse Overview */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Brain className="h-4 w-4 text-primary" />
-              Residents at Risk
+              <Building2 className="h-4 w-4 text-primary" />
+              Safehouse Overview
             </CardTitle>
-            <CardDescription>ML-predicted high-risk residents</CardDescription>
+            <CardDescription>Active residents across safehouses</CardDescription>
           </CardHeader>
           <CardContent>
-            {mlRiskAlerts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No at-risk residents detected</p>
+            {safehouseStats.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No safehouse data available</p>
             ) : (
               <div className="space-y-2">
-                {mlRiskAlerts.map((r) => (
+                {safehouseStats.map((s) => (
                   <Link
-                    key={r.pipelineResultId}
+                    key={s.name}
                     to="/admin/caseload"
                     className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-muted/50 rounded px-1 -mx-1 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-mono">
-                        {r.resident?.internalCode || `ID-${r.entityId}`}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className={
-                          r.label === 'Critical'
-                            ? 'border-red-300 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400'
-                            : 'border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-400'
-                        }
-                      >
-                        {r.label}
-                      </Badge>
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-sm font-medium">{s.name}</span>
                     </div>
-                    <span className="text-sm font-semibold">{(r.score * 100).toFixed(0)}%</span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                        {s.active} active
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{s.total} total</span>
+                    </div>
                   </Link>
                 ))}
               </div>
@@ -485,7 +519,7 @@ function formatPHP(value: number): string {
 
 function TrendBadge({ label, positive }: { value: number; label: string; positive: boolean }) {
   return (
-    <span className={`flex items-center gap-0.5 text-xs font-medium ${positive ? 'text-green-600' : 'text-red-600'}`}>
+    <span className={`flex items-center gap-0.5 text-xs font-medium ${positive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
       {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
       {label}
     </span>

@@ -234,4 +234,5 @@ public class PipelineResultsController(AppDbContext db) : ControllerBase
 
         return Ok(joined.OrderByDescending(r => r.Score));
     }
+
 }

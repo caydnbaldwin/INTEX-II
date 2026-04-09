@@ -289,7 +289,7 @@ export function AdminLayout() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <span className="text-sm font-medium text-muted-foreground flex-1">
-            {[...(isAdmin ? allAdminItems : donorNav), ...securityNav].find((item) => item.href === location.pathname)?.name ?? 'Dashboard'}
+            {[...(isAdmin ? allAdminItems : donorNav), ...securityNav].find((item) => item.href === location.pathname || (item.href.includes('?') && item.href === location.pathname + location.search))?.name ?? 'Dashboard'}
           </span>
           <TooltipProvider>
             <Tooltip>

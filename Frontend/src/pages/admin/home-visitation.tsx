@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, MapPin, Calendar, Loader2, Brain, ArrowUp, ArrowDown, CalendarCheck, FileText, Trash2 } from 'lucide-react'
+import { Plus, MapPin, Calendar, Loader2, Brain, ArrowUp, ArrowDown, CalendarCheck, Trash2 } from 'lucide-react'
 import {
   Table,
   TableHeader,
@@ -23,6 +23,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
@@ -156,28 +157,28 @@ const COOPERATION_LEVELS: CooperationLevel[] = [
 function cooperationBadgeClass(level: CooperationLevel): string {
   switch (level) {
     case 'Cooperative':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
     case 'Partially Cooperative':
-      return 'border-amber-200 bg-amber-50 text-amber-700'
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
     case 'Uncooperative':
-      return 'border-orange-200 bg-orange-50 text-orange-700'
+      return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-400'
     case 'Hostile':
-      return 'border-red-200 bg-red-50 text-red-700'
+      return 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
   }
 }
 
 function visitTypeBadgeClass(type: VisitType): string {
   switch (type) {
     case 'Emergency':
-      return 'border-red-200 bg-red-50 text-red-700'
+      return 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
     case 'Initial Assessment':
-      return 'border-violet-200 bg-violet-50 text-violet-700'
+      return 'border-violet-200 bg-violet-50 text-primary dark:border-violet-800 dark:bg-violet-950 dark:text-violet-400'
     case 'Reintegration Assessment':
-      return 'border-blue-200 bg-blue-50 text-blue-700'
+      return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-400'
     case 'Post-Placement':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
     case 'Routine Follow-Up':
-      return 'border-zinc-200 bg-zinc-50 text-zinc-600'
+      return 'border-border bg-muted text-muted-foreground'
   }
 }
 
@@ -212,6 +213,7 @@ export function HomeVisitation() {
   const [visitsPage, setVisitsPage] = useState(1)
   const visitsPerPage = 15
 
+  const [viewingVisit, setViewingVisit] = useState<HomeVisit | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState(blankForm)
 
@@ -264,7 +266,7 @@ export function HomeVisitation() {
           cooperationLevel: (v.familyCooperationLevel as CooperationLevel) || 'Cooperative',
           safetyConcerns: v.safetyConcernsNoted ?? '',
           followUpNeeded: v.followUpNeeded ?? false,
-        })),
+        })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
       )
     } catch (err) {
       console.error('Failed to load home visitation data', err)
@@ -347,7 +349,7 @@ export function HomeVisitation() {
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-700" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -357,10 +359,10 @@ export function HomeVisitation() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Home Visitation & Case Conferences
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             Log home visits and track case conference history for residents.
           </p>
         </div>
@@ -378,234 +380,89 @@ export function HomeVisitation() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Visits
             </CardTitle>
-            <MapPin className="h-4 w-4 text-zinc-400" />
+            <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">
+            <div className="text-2xl font-bold text-foreground">
               {totalVisits}
             </div>
           </CardContent>
         </Card>
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Follow-ups Needed
             </CardTitle>
             <Calendar className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">
+            <div className="text-2xl font-bold text-foreground">
               {followUpsNeeded}
             </div>
           </CardContent>
         </Card>
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Emergency Visits
             </CardTitle>
-            <MapPin className="h-4 w-4 text-red-500" />
+            <MapPin className="h-4 w-4 text-red-500 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">
+            <div className="text-2xl font-bold text-foreground">
               {emergencyCount}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Pre-Visit Risk Assessment (ML) */}
-      <Card className="border-zinc-200">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-violet-600" />
-            <CardTitle className="text-lg">Pre-Visit Risk Assessment (ML)</CardTitle>
-          </div>
-          <CardDescription>
-            Predict visit outcome before scheduling — powered by our strongest model (AUC 0.84)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Prediction form */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Resident</Label>
-                <Select
-                  value={predForm.residentId}
-                  onValueChange={(v) => setPredForm({ ...predForm, residentId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select resident" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {residents.map((r) => (
-                      <SelectItem key={r.id} value={String(r.id)}>
-                        {r.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Visit Type</Label>
-                <Select
-                  value={predForm.visitType}
-                  onValueChange={(v) => setPredForm({ ...predForm, visitType: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select visit type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['Initial Assessment', 'Routine Follow-Up', 'Reintegration Assessment', 'Post-Placement Monitoring', 'Emergency'].map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Cooperation Level</Label>
-                <Select
-                  value={predForm.cooperationLevel}
-                  onValueChange={(v) => setPredForm({ ...predForm, cooperationLevel: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select cooperation level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['Highly Cooperative', 'Cooperative', 'Neutral', 'Uncooperative'].map((cl) => (
-                      <SelectItem key={cl} value={cl}>{cl}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={predForm.safetyConcerns}
-                  onCheckedChange={(checked) =>
-                    setPredForm({ ...predForm, safetyConcerns: checked })
-                  }
-                />
-                <Label>Safety Concerns</Label>
-              </div>
-
-              <Button
-                onClick={handlePredict}
-                disabled={predicting || !predForm.residentId || !predForm.visitType || !predForm.cooperationLevel}
-                className="w-full gap-2 bg-violet-700 hover:bg-violet-800"
-              >
-                {predicting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Brain className="h-4 w-4" />
-                )}
-                Predict Outcome
-              </Button>
-            </div>
-
-            {/* Prediction results */}
-            <div className="flex flex-col items-center justify-center">
-              {prediction ? (
-                <div className="w-full space-y-4">
-                  <div className="flex flex-col items-center gap-2 rounded-lg border border-zinc-200 p-6">
-                    <span className="text-sm font-medium text-zinc-500">Favorable Outcome Probability</span>
-                    <span
-                      className={`text-5xl font-bold ${
-                        prediction.favorableProbability >= 0.7
-                          ? 'text-emerald-600'
-                          : prediction.favorableProbability >= 0.4
-                            ? 'text-amber-600'
-                            : 'text-red-600'
-                      }`}
-                    >
-                      {Math.round(prediction.favorableProbability * 100)}%
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={
-                        prediction.favorableProbability >= 0.7
-                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                          : prediction.favorableProbability >= 0.4
-                            ? 'border-amber-200 bg-amber-50 text-amber-700'
-                            : 'border-red-200 bg-red-50 text-red-700'
-                      }
-                    >
-                      {prediction.riskLabel}
-                    </Badge>
-                    <Badge variant="outline" className="mt-1 border-violet-200 bg-violet-50 text-violet-700">
-                      Model AUC: 0.84 | Confidence: {Math.round(prediction.confidence * 100)}%
-                    </Badge>
-                  </div>
-
-                  {prediction.factors.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-sm font-medium text-zinc-600">Contributing Factors</span>
-                      <div className="space-y-1">
-                        {prediction.factors.map((f, i) => (
-                          <div
-                            key={i}
-                            className="flex items-center justify-between rounded-md border border-zinc-100 px-3 py-2 text-sm"
-                          >
-                            <div className="flex items-center gap-2">
-                              {f.impact === 'positive' ? (
-                                <ArrowUp className="h-3.5 w-3.5 text-emerald-500" />
-                              ) : (
-                                <ArrowDown className="h-3.5 w-3.5 text-red-500" />
-                              )}
-                              <span className="text-zinc-700">{f.factor}</span>
-                            </div>
-                            <span className="text-xs text-zinc-400">
-                              {f.weight > 0 ? '+' : ''}{(f.weight * 100).toFixed(0)}%
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center text-sm text-zinc-400">
-                  <Brain className="mx-auto mb-2 h-10 w-10 text-zinc-200" />
-                  Fill out the form and click <strong>Predict Outcome</strong> to see results.
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Case Conference History */}
+      {/* Upcoming Conferences + ML Predictor — side by side */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <CalendarCheck className="h-5 w-5 text-violet-600" />
+              <CalendarCheck className="h-5 w-5 text-primary" />
               Upcoming Case Conferences
             </CardTitle>
             <CardDescription>Scheduled intervention reviews for residents</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {upcomingConferences.length === 0 ? (
-                <p className="text-sm text-zinc-400">No upcoming case conferences scheduled.</p>
+              {upcomingConferences.length === 0 && pastConferences.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No case conferences on record.</p>
+              ) : upcomingConferences.length === 0 ? (
+                <>
+                  <p className="text-xs text-muted-foreground mb-2">No upcoming conferences. Showing most recent:</p>
+                  {pastConferences.slice(0, 5).map((conf) => (
+                    <div key={conf.planId} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-mono text-muted-foreground">{conf.residentName}</span>
+                        {conf.planCategory && (
+                          <Badge variant="outline" className="border-border bg-muted text-muted-foreground">{conf.planCategory}</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        {conf.status && <Badge variant="outline">{conf.status}</Badge>}
+                        <span>{conf.caseConferenceDate ? new Date(conf.caseConferenceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</span>
+                      </div>
+                    </div>
+                  ))}
+                </>
               ) : (
                 upcomingConferences.map((conf) => (
-                  <div key={conf.planId} className="flex items-center justify-between rounded-lg border border-zinc-100 px-4 py-3">
+                  <div key={conf.planId} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-mono text-zinc-500">{conf.residentName}</span>
+                      <span className="text-sm font-mono text-muted-foreground">{conf.residentName}</span>
                       {conf.planCategory && (
-                        <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">{conf.planCategory}</Badge>
+                        <Badge variant="outline" className="border-violet-200 bg-violet-50 text-primary dark:border-violet-800 dark:bg-violet-950 dark:text-violet-400">{conf.planCategory}</Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-zinc-500">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
                       {conf.status && <Badge variant="outline">{conf.status}</Badge>}
                       <span>{conf.caseConferenceDate ? new Date(conf.caseConferenceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
                     </div>
@@ -616,58 +473,131 @@ export function HomeVisitation() {
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-200">
+        <Card className="border-border">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <FileText className="h-5 w-5 text-zinc-500" />
-              Past Case Conferences
-            </CardTitle>
-            <CardDescription>Completed conference records and outcomes</CardDescription>
+            <div className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Pre-Visit Risk Assessment</CardTitle>
+            </div>
+            <CardDescription>Predict visit outcome before scheduling</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {pastConferences.length === 0 ? (
-                <p className="text-sm text-zinc-400">No past case conference records.</p>
-              ) : (
-                pastConferences.slice(0, 10).map((conf) => (
-                  <div key={conf.planId} className="flex items-center justify-between rounded-lg border border-zinc-100 px-4 py-3">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-mono text-zinc-500">{conf.residentName}</span>
-                        {conf.planCategory && (
-                          <Badge variant="outline" className="border-zinc-200 bg-zinc-50 text-zinc-600">{conf.planCategory}</Badge>
-                        )}
-                        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
-                          {conf.status || 'Completed'}
-                        </Badge>
-                      </div>
-                      {conf.planDescription && (
-                        <span className="text-xs text-zinc-500">{sanitize(conf.planDescription)}</span>
-                      )}
-                    </div>
-                    <div className="text-sm text-zinc-400">
-                      {conf.caseConferenceDate ? new Date(conf.caseConferenceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
-                    </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Resident</Label>
+                  <Select value={predForm.residentId} onValueChange={(v) => setPredForm({ ...predForm, residentId: v })}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {residents.map((r) => (
+                        <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Visit Type</Label>
+                  <Select value={predForm.visitType} onValueChange={(v) => setPredForm({ ...predForm, visitType: v })}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {['Initial Assessment', 'Routine Follow-Up', 'Reintegration Assessment', 'Post-Placement Monitoring', 'Emergency'].map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Cooperation Level</Label>
+                  <Select value={predForm.cooperationLevel} onValueChange={(v) => setPredForm({ ...predForm, cooperationLevel: v })}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {['Highly Cooperative', 'Cooperative', 'Neutral', 'Uncooperative'].map((cl) => (
+                        <SelectItem key={cl} value={cl}>{cl}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Safety Concerns</Label>
+                  <div className="flex h-9 items-center gap-2">
+                    <Switch
+                      checked={predForm.safetyConcerns}
+                      onCheckedChange={(checked) => setPredForm({ ...predForm, safetyConcerns: checked })}
+                    />
+                    <span className="text-sm text-muted-foreground">{predForm.safetyConcerns ? 'Yes' : 'No'}</span>
                   </div>
-                ))
+                </div>
+              </div>
+              <Button
+                onClick={handlePredict}
+                disabled={predicting || !predForm.residentId || !predForm.visitType || !predForm.cooperationLevel}
+                size="sm"
+                className="w-full gap-2 bg-violet-700 hover:bg-violet-800"
+              >
+                {predicting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+                Predict Outcome
+              </Button>
+              {prediction && (
+                <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`text-2xl font-bold ${
+                        prediction.favorableProbability >= 0.7 ? 'text-emerald-600 dark:text-emerald-400'
+                          : prediction.favorableProbability >= 0.4 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+                      }`}
+                    >
+                      {Math.round(prediction.favorableProbability * 100)}%
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        prediction.favorableProbability >= 0.7 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
+                          : prediction.favorableProbability >= 0.4 ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
+                            : 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
+                      }
+                    >
+                      {prediction.riskLabel}
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Confidence: {Math.round(prediction.confidence * 100)}%</span>
+                </div>
+              )}
+              {prediction && prediction.factors.length > 0 && (
+                <div className="space-y-1">
+                  {prediction.factors.slice(0, 3).map((f, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs px-2 py-1">
+                      <div className="flex items-center gap-1.5">
+                        {f.impact === 'positive' ? <ArrowUp className="h-3 w-3 text-emerald-500 dark:text-emerald-400" /> : <ArrowDown className="h-3 w-3 text-red-500 dark:text-red-400" />}
+                        <span className="text-muted-foreground">{f.factor}</span>
+                      </div>
+                      <span className="text-muted-foreground">{f.weight > 0 ? '+' : ''}{(f.weight * 100).toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Table */}
-      <Card className="border-zinc-200">
+      {/* Visit History Table */}
+      <Card className="border-border">
+        <CardHeader className="pb-0">
+          <CardTitle className="text-lg">Visit History</CardTitle>
+          <CardDescription>All logged home visits, sorted by most recent</CardDescription>
+        </CardHeader>
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="text-zinc-500">Date</TableHead>
-              <TableHead className="text-zinc-500">Resident</TableHead>
-              <TableHead className="text-zinc-500">Type</TableHead>
-              <TableHead className="text-zinc-500">Location</TableHead>
-              <TableHead className="text-zinc-500">Cooperation</TableHead>
-              <TableHead className="text-zinc-500">Follow-up</TableHead>
-              <TableHead className="w-12 text-zinc-500"></TableHead>
+              <TableHead className="text-muted-foreground">Date</TableHead>
+              <TableHead className="text-muted-foreground">Resident</TableHead>
+              <TableHead className="text-muted-foreground">Type</TableHead>
+              <TableHead className="text-muted-foreground">Location</TableHead>
+              <TableHead className="text-muted-foreground">Cooperation</TableHead>
+              <TableHead className="text-muted-foreground">Follow-up</TableHead>
+              <TableHead className="w-12 text-muted-foreground"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -675,22 +605,22 @@ export function HomeVisitation() {
               <TableRow>
                 <TableCell
                   colSpan={7}
-                  className="h-24 text-center text-zinc-400"
+                  className="h-24 text-center text-muted-foreground"
                 >
                   No visits logged yet.
                 </TableCell>
               </TableRow>
             ) : (
               visits.slice((visitsPage - 1) * visitsPerPage, visitsPage * visitsPerPage).map((visit) => (
-                <TableRow key={visit.id}>
-                  <TableCell className="text-zinc-700">
+                <TableRow key={visit.id} className="cursor-pointer hover:bg-muted" onClick={() => setViewingVisit(visit)}>
+                  <TableCell className="text-foreground/80">
                     {new Date(visit.date).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',
                     })}
                   </TableCell>
-                  <TableCell className="font-medium text-zinc-900">
+                  <TableCell className="font-medium text-foreground">
                     {visit.residentName}
                   </TableCell>
                   <TableCell>
@@ -701,7 +631,7 @@ export function HomeVisitation() {
                       {visit.visitType}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-zinc-600">
+                  <TableCell className="max-w-[200px] truncate text-muted-foreground">
                     {visit.location}
                   </TableCell>
                   <TableCell>
@@ -716,14 +646,14 @@ export function HomeVisitation() {
                     {visit.followUpNeeded ? (
                       <Badge
                         variant="outline"
-                        className="border-amber-200 bg-amber-50 text-amber-700"
+                        className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400"
                       >
                         Yes
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
-                        className="border-zinc-200 bg-zinc-50 text-zinc-500"
+                        className="border-border bg-muted text-muted-foreground"
                       >
                         No
                       </Badge>
@@ -732,7 +662,7 @@ export function HomeVisitation() {
                   <TableCell className="px-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <button className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600">
+                        <button className="rounded p-1 text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:text-red-400" onClick={(e) => e.stopPropagation()}>
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </AlertDialogTrigger>
@@ -908,6 +838,61 @@ export function HomeVisitation() {
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Visit
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Visit Detail Dialog */}
+      <Dialog open={!!viewingVisit} onOpenChange={(open) => { if (!open) setViewingVisit(null) }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{viewingVisit?.residentName} — Home Visit</DialogTitle>
+            <DialogDescription>
+              {viewingVisit && new Date(viewingVisit.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </DialogDescription>
+          </DialogHeader>
+          {viewingVisit && (
+            <div className="space-y-4 py-4 text-sm">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                <div>
+                  <p className="text-muted-foreground mb-1">Visit Type</p>
+                  <Badge variant="outline" className={visitTypeBadgeClass(viewingVisit.visitType)}>
+                    {viewingVisit.visitType}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Cooperation Level</p>
+                  <Badge variant="outline" className={cooperationBadgeClass(viewingVisit.cooperationLevel)}>
+                    {viewingVisit.cooperationLevel}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Location</p>
+                  <p className="font-medium text-foreground">{viewingVisit.location || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Follow-up Needed</p>
+                  <Badge variant="outline" className={viewingVisit.followUpNeeded ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400' : 'border-border bg-muted text-muted-foreground'}>
+                    {viewingVisit.followUpNeeded ? 'Yes' : 'No'}
+                  </Badge>
+                </div>
+              </div>
+              {viewingVisit.observations && (
+                <div>
+                  <p className="text-muted-foreground mb-1">Observations</p>
+                  <p className="leading-relaxed text-foreground/80">{sanitize(viewingVisit.observations)}</p>
+                </div>
+              )}
+              {viewingVisit.safetyConcerns && (
+                <div>
+                  <p className="text-muted-foreground mb-1">Safety Concerns</p>
+                  <p className="text-foreground/80">{sanitize(viewingVisit.safetyConcerns)}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={() => setViewingVisit(null)}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>
