@@ -708,7 +708,7 @@ export function DonatePage() {
                           <XAxis dataKey="month" className="text-xs fill-muted-foreground" interval={2} />
                           <YAxis className="text-xs fill-muted-foreground" tickFormatter={(v: number) => `₱${(v / 1000).toFixed(0)}k`} />
                           <Tooltip
-                            contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                            contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                             formatter={(value) => [`₱${Number(value).toLocaleString()}`, '']}
                           />
                           <Legend />
@@ -750,7 +750,7 @@ export function DonatePage() {
                               ))}
                             </Pie>
                             <Tooltip
-                              contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                              contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                               formatter={(value) => [`₱${Number(value).toLocaleString()}`, '']}
                             />
                             <Legend />

@@ -358,10 +358,12 @@ export function AdminDashboard() {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
                       borderRadius: '8px',
                       fontSize: '12px',
+                      color: '#111827',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                     }}
                     formatter={(value, name) => [
                       name === 'amount' ? `₱${value}K` : value,

@@ -94,6 +94,10 @@ Build all the required pages with all the required functionality (including, but
 - **Login Page:**  Allows users to authenticate using a username and password, with proper validation and error handling.   
 - **Privacy Policy  Cookie Consent:**  Provides a privacy policy explaining data usage and includes a GDPR-compliant cookie consent notification (see the IS414 section for more information).
 
+**Donor**
+
+- **Donor Dashboard:**  Allows an authenticated donor to donate and to view their donation history.  (We obviously do not want to tie into a real payment service, but we can take a fake donation and add it into our database.)
+
 **Admin / Staff Portal (Authenticated Users Only)** 
 
 - **Admin Dashboard:** Provides a high-level overview of key metrics such as active residents across safehouses, recent donations, upcoming case conferences, and summarized progress data. Think of this as the “command center” for staff managing daily operations.  
@@ -107,9 +111,34 @@ Build all the required pages with all the required functionality (including, but
 
 - Any additional pages required to support functionality described in other portions of the project (e.g., security, social media, accessibility, or partner features).
 
-Use .NET 10 / C on the back end and React / TypeScript (Vite) on the front end. You can choose from Azure SQL Database, MySQL, or PostgreSQL for the relational database. The security database may be housed separately if you choose. Use good database principles in your design. Your app and your database must both be deployed. I would recommend using Microsoft Azure since you have the practice and the credits, but it is totally up to your team if you want to make it harder on yourself and deploy somewhere else. ;) You may modify the database as needed.   
+Use .NET 10 / C# on the back end and React / TypeScript (Vite) on the front end. You can choose from Azure SQL Database, MySQL, or PostgreSQL for the relational database. The security database may be housed separately if you choose. Use good database principles in your design. Your app and your database must both be deployed. I would recommend using Microsoft Azure since you have the practice and the credits, but it is totally up to your team if you want to make it harder on yourself and deploy somewhere else. ;) You may modify the database as needed. Use the fields you need; don't feel obligated to display every field from every table on your UI.   
 
 Make sure to validate data and handle errors so the website is robust and reliable. Put into practice all the things we learned about writing good code. Pay attention to the details and finishing touches—titles, icons, logos, consistent look and feel, pagination, speed, and other elements that separate good websites from excellent ones.   
+
+### IS 413 Rubric
+
+
+| Objective                                                                                                       | Points Possible |
+| --------------------------------------------------------------------------------------------------------------- | --------------- |
+| App compiles and runs without errors                                                                            | 1               |
+| Modern, professional, and well-organized UI with consistent branding/navigation                                 | 1               |
+| Home / Landing page introduces the organization and gives clear calls to action                                 | 1               |
+| Login page works with proper validation and error handling                                                      | 1               |
+| Privacy policy page is present and cookie consent is visible                                                    | 1               |
+| Public impact / donor-facing dashboard shows anonymized, aggregated impact data                                 | 2               |
+| Donor dashboard allows an authenticated donor to view donation history and submit a fake donation               | 1               |
+| Admin dashboard provides a high-level operational summary for staff                                             | 2               |
+| Donors & Contributions page allows staff to view, create, and manage supporters and contributions               | 2               |
+| Caseload Inventory page allows staff to view, create, update, search, and filter resident records               | 1               |
+| Process Recording page allows staff to enter and view dated session notes chronologically                       | 1               |
+| Home Visitation & Case Conferences page allows staff to log visits and view case conference history/upcoming conferences | 1               |
+| Reports & Analytics page shows meaningful charts or summaries for donations, outcomes, or safehouse/program performance | 1               |
+| At least one additional page or feature required by the case is implemented and usable                          | 2               |
+| Database is deployed separately from the app                                                                    | 1               |
+| Data validation, error handling, and code quality are present throughout the project                            | 0               |
+| (BONUS) Up to 1 point for advanced or impressive use of React/.NET features                                    |                 |
+| **Total**                                                                                                       | **20**          |
+
 
 ## IS 414  Security
 
@@ -319,6 +348,17 @@ You MUST complete the INTEX2 Peer Eval by **Friday April 10th at 11:59 PM**. The
 Please complete this immediately after your presentation. You will not receive an INTEX grade if you do not complete your peer evaluation. The results of your eval will be kept confidential, but it will affect team member grades. We want this to be fair for those that did the work. The solution is to make sure that you pull your weight and more. Help the team and be a great team member helping where needed and doing quality work 
 
 # Presentation
+
+## Schedule
+
+| Time | TNRB 170 | TNRB 174 | TNRB 180 | TNRB 184 | TNRB 210 | TNRB 230 | TNRB W110 | TNRB W118 | TRNB W122 | TNRB W210 | TNRB W308 | TNRB W310 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 12:00 - 12:40 | 3-9 | 2-6 | 3-10 | 1-10 | 3-05 | 2-12 | 3-07 | 2-04 | 4-15 | 2-10 | 4-01 | 1-05 |
+| 12:45 - 1:25 | 3-4 | 4-14 | 4-13 | 2-15 | 2-09 | 4-12 | 3-15 | 4-03 | 1-01 | 2-05 | 1-09 | 3-01 |
+| 1:30 - 2:10 | 2-11 | 1-06 | 1-14 | 3-14 | 1-11 | 3-03 | 4-07 | 1-15 | 2-14 | 3-13 | 3-12 | 2-13 |
+| 2:15 - 2:30 | Break | | | | | | | | | | | |
+| 2:35 - 3:15 | 4-06 | 1-12 | 2-03 | 4-11 | 1-03 | 2-07 | 1-04 | 3-02 | 2-08 | 1-13 | 4-10 | 3-11 |
+| 3:20 - 4:00 | 1-02 | 3-06 | 4-05 | 1-08 | 4-08 | 1-07 | 2-01 | 4-09 | 3-08 | 4-02 | 2-02 | 4-04 |
 
 You will present your solution to a panel composed of industry professionals, faculty, and possibly TAs. Your solution will be evaluated on the quality of communication of the presentation, the effectiveness of your technology demo, your creativity in approaching the business problem, and how satisfied the clients are with your overall solution. The presentation will be worth 20% of the overall INTEX score.   
 

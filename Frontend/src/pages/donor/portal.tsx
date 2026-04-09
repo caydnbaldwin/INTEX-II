@@ -174,7 +174,7 @@ export function DonorPortal() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {donations.map((donation) => (
+                {[...donations].sort((a, b) => (b.donationDate ?? '').localeCompare(a.donationDate ?? '')).map((donation) => (
                   <TableRow key={donation.donationId}>
                     <TableCell className="font-mono text-sm">
                       {donation.donationDate

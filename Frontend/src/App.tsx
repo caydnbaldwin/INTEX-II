@@ -42,6 +42,9 @@ const DonorsManagement = lazy(() =>
 const ReportsAnalytics = lazy(() =>
   import('./pages/admin/reports').then((m) => ({ default: m.ReportsAnalytics })),
 )
+const EmailTemplates = lazy(() =>
+  import('./pages/admin/email-templates').then((m) => ({ default: m.EmailTemplates })),
+)
 const BoardingManagement = lazy(() =>
   import('./pages/admin/boarding').then((m) => ({ default: m.BoardingManagement })),
 )
@@ -122,6 +125,7 @@ export default function App() {
             <Route path="process-recording" element={<ProcessRecording />} />
             <Route path="visitation" element={<HomeVisitation />} />
             <Route path="donors" element={<DonorsManagement />} />
+            <Route path="email-templates" element={<EmailTemplates />} />
             <Route path="reports" element={<ReportsAnalytics />} />
             <Route path="safehouses/boarding" element={<BoardingManagement />} />
           </Route>
