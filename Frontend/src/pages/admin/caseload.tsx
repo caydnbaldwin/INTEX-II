@@ -362,7 +362,6 @@ export function CaseloadInventory() {
   const paginatedResidents = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   function toggleSelection<T extends string>(
-    list: T[],
     value: T,
     setList: (value: T[] | ((prev: T[]) => T[])) => void,
   ) {
@@ -1009,7 +1008,7 @@ export function CaseloadInventory() {
                     key={s.safehouseId}
                     checked={draftFilterSafehouse.includes(`Safehouse ${s.safehouseId}`)}
                     onSelect={(e) => e.preventDefault()}
-                    onCheckedChange={() => toggleSelection(draftFilterSafehouse, `Safehouse ${s.safehouseId}`, setDraftFilterSafehouse)}
+                    onCheckedChange={() => toggleSelection(`Safehouse ${s.safehouseId}`, setDraftFilterSafehouse)}
                   >
                     Safehouse {s.safehouseId}
                   </DropdownMenuCheckboxItem>
@@ -1042,7 +1041,7 @@ export function CaseloadInventory() {
                 <DropdownMenuCheckboxItem
                   checked={draftFilterRisk.includes('at-risk')}
                   onSelect={(e) => e.preventDefault()}
-                  onCheckedChange={() => toggleSelection(draftFilterRisk, 'at-risk', setDraftFilterRisk)}
+                  onCheckedChange={() => toggleSelection('at-risk', setDraftFilterRisk)}
                 >
                   At Risk (Critical + High)
                 </DropdownMenuCheckboxItem>
@@ -1051,7 +1050,7 @@ export function CaseloadInventory() {
                     key={rl}
                     checked={draftFilterRisk.includes(rl)}
                     onSelect={(e) => e.preventDefault()}
-                    onCheckedChange={() => toggleSelection(draftFilterRisk, rl, setDraftFilterRisk)}
+                    onCheckedChange={() => toggleSelection(rl, setDraftFilterRisk)}
                   >
                     {rl}
                   </DropdownMenuCheckboxItem>
@@ -1086,7 +1085,7 @@ export function CaseloadInventory() {
                     key={cs}
                     checked={draftFilterStatus.includes(cs)}
                     onSelect={(e) => e.preventDefault()}
-                    onCheckedChange={() => toggleSelection(draftFilterStatus, cs, setDraftFilterStatus)}
+                    onCheckedChange={() => toggleSelection(cs, setDraftFilterStatus)}
                   >
                     {cs}
                   </DropdownMenuCheckboxItem>
@@ -1121,7 +1120,7 @@ export function CaseloadInventory() {
                     key={cc}
                     checked={draftFilterCategory.includes(cc)}
                     onSelect={(e) => e.preventDefault()}
-                    onCheckedChange={() => toggleSelection(draftFilterCategory, cc, setDraftFilterCategory)}
+                    onCheckedChange={() => toggleSelection(cc, setDraftFilterCategory)}
                   >
                     {cc}
                   </DropdownMenuCheckboxItem>
