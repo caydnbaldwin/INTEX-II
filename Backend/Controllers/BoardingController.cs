@@ -1,8 +1,11 @@
 using Backend.Data;
+using Backend.Contracts;
+using Backend.Infrastructure;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Backend.Controllers;
 
@@ -63,14 +66,20 @@ public class BoardingController(AppDbContext db) : ControllerBase
 
     [HttpPost("placements")]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> CreatePlacement([FromBody] BoardingPlacement placement)
+    public async Task<IActionResult> CreatePlacement([FromBody] BoardingPlacementWriteRequest request)
     {
-        if (placement.SafehouseId is null)
-            return BadRequest("SafehouseId is required.");
+        if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save boarding placement."))
+            return BadRequest(validationProblem);
+        if (request.SafehouseId is null)
+            return BadRequest(CreateFieldProblem("safehouseId", "Safehouse is required.", "Unable to save boarding placement."));
+
+        var placement = new BoardingPlacement();
+        CrudWriteMapper.ApplyBoardingPlacement(placement, request);
 
         placement.BoardingPlacementId = await db.BoardingPlacements.AnyAsync()
             ? await db.BoardingPlacements.MaxAsync(p => p.BoardingPlacementId) + 1
             : 1;
+        placement.PlacementStatus ??= "Incoming";
         placement.CreatedAt = DateTime.UtcNow;
         placement.UpdatedAt = placement.CreatedAt;
 
@@ -82,15 +91,23 @@ public class BoardingController(AppDbContext db) : ControllerBase
 
     [HttpPut("placements/{id}")]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> UpdatePlacement(int id, [FromBody] BoardingPlacement placement)
+    public async Task<IActionResult> UpdatePlacement(int id, [FromBody] JsonElement body)
     {
+        if (!JsonRequestPatch<BoardingPlacementWriteRequest>.TryParse(body, out var patch, out var parseProblem))
+            return BadRequest(parseProblem);
+        if (!RequestValidation.TryValidate(patch!.Model, out var validationProblem, "Unable to update boarding placement."))
+            return BadRequest(validationProblem);
+
         var existing = await db.BoardingPlacements.FindAsync(id);
         if (existing is null)
             return NotFound();
 
-        db.Entry(existing).CurrentValues.SetValues(placement);
+        CrudWriteMapper.ApplyBoardingPlacement(existing, patch.Model, patch);
+        if (existing.SafehouseId is null)
+            return BadRequest(CreateFieldProblem("safehouseId", "Safehouse is required.", "Unable to update boarding placement."));
+
         existing.BoardingPlacementId = id;
-        existing.CreatedAt ??= placement.CreatedAt;
+        existing.CreatedAt ??= DateTime.UtcNow;
         existing.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync();
@@ -136,15 +153,25 @@ public class BoardingController(AppDbContext db) : ControllerBase
 
     [HttpPost("orders")]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> CreateOrder([FromBody] BoardingStandingOrder order)
+    public async Task<IActionResult> CreateOrder([FromBody] BoardingStandingOrderWriteRequest request)
     {
-        var placementExists = await db.BoardingPlacements.AnyAsync(p => p.BoardingPlacementId == order.BoardingPlacementId);
+        if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save boarding order."))
+            return BadRequest(validationProblem);
+
+        var placementId = request.BoardingPlacementId ?? 0;
+        var placementExists = placementId > 0
+            && await db.BoardingPlacements.AnyAsync(p => p.BoardingPlacementId == placementId);
         if (!placementExists)
-            return BadRequest("BoardingPlacementId is invalid.");
+            return BadRequest(CreateFieldProblem("boardingPlacementId", "BoardingPlacementId is invalid.", "Unable to save boarding order."));
+
+        var order = new BoardingStandingOrder();
+        CrudWriteMapper.ApplyBoardingStandingOrder(order, request);
 
         order.BoardingStandingOrderId = await db.BoardingStandingOrders.AnyAsync()
             ? await db.BoardingStandingOrders.MaxAsync(o => o.BoardingStandingOrderId) + 1
             : 1;
+        order.BoardingPlacementId = placementId;
+        order.Status ??= "Open";
         order.CreatedAt = DateTime.UtcNow;
         order.UpdatedAt = order.CreatedAt;
         if (string.Equals(order.Status, "Completed", StringComparison.OrdinalIgnoreCase) && order.CompletedAt is null)
@@ -158,19 +185,30 @@ public class BoardingController(AppDbContext db) : ControllerBase
 
     [HttpPut("orders/{id}")]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> UpdateOrder(int id, [FromBody] BoardingStandingOrder order)
+    public async Task<IActionResult> UpdateOrder(int id, [FromBody] JsonElement body)
     {
+        if (!JsonRequestPatch<BoardingStandingOrderWriteRequest>.TryParse(body, out var patch, out var parseProblem))
+            return BadRequest(parseProblem);
+        if (!RequestValidation.TryValidate(patch!.Model, out var validationProblem, "Unable to update boarding order."))
+            return BadRequest(validationProblem);
+
         var existing = await db.BoardingStandingOrders.FindAsync(id);
         if (existing is null)
             return NotFound();
 
-        var placementExists = await db.BoardingPlacements.AnyAsync(p => p.BoardingPlacementId == order.BoardingPlacementId);
-        if (!placementExists)
-            return BadRequest("BoardingPlacementId is invalid.");
+        var placementId = patch.HasProperty("boardingPlacementId")
+            ? patch.Model.BoardingPlacementId ?? 0
+            : existing.BoardingPlacementId;
 
-        db.Entry(existing).CurrentValues.SetValues(order);
+        var placementExists = placementId > 0
+            && await db.BoardingPlacements.AnyAsync(p => p.BoardingPlacementId == placementId);
+        if (!placementExists)
+            return BadRequest(CreateFieldProblem("boardingPlacementId", "BoardingPlacementId is invalid.", "Unable to update boarding order."));
+
+        CrudWriteMapper.ApplyBoardingStandingOrder(existing, patch.Model, patch);
+        existing.BoardingPlacementId = placementId;
         existing.BoardingStandingOrderId = id;
-        existing.CreatedAt ??= order.CreatedAt;
+        existing.CreatedAt ??= DateTime.UtcNow;
         existing.UpdatedAt = DateTime.UtcNow;
         existing.CompletedAt = string.Equals(existing.Status, "Completed", StringComparison.OrdinalIgnoreCase)
             ? existing.CompletedAt ?? DateTime.UtcNow
@@ -367,4 +405,14 @@ public class BoardingController(AppDbContext db) : ControllerBase
             })
             .ToList();
     }
+
+    private static ValidationProblemDetails CreateFieldProblem(string field, string message, string title) =>
+        new(new Dictionary<string, string[]>
+        {
+            [field] = [message]
+        })
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = title
+        };
 }

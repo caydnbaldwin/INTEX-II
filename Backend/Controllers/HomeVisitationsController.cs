@@ -1,8 +1,11 @@
 using Backend.Data;
+using Backend.Contracts;
+using Backend.Infrastructure;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Backend.Controllers;
 
@@ -33,10 +36,14 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> Create([FromBody] HomeVisitation visitation)
+    public async Task<IActionResult> Create([FromBody] HomeVisitationWriteRequest request)
     {
-        if (visitation.VisitationId == 0)
-            visitation.VisitationId = await db.HomeVisitations.AnyAsync() ? await db.HomeVisitations.MaxAsync(v => v.VisitationId) + 1 : 1;
+        if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save visit."))
+            return BadRequest(validationProblem);
+
+        var visitation = new HomeVisitation();
+        CrudWriteMapper.ApplyHomeVisitation(visitation, request);
+        visitation.VisitationId = await db.HomeVisitations.AnyAsync() ? await db.HomeVisitations.MaxAsync(v => v.VisitationId) + 1 : 1;
         db.HomeVisitations.Add(visitation);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = visitation.VisitationId }, visitation);
@@ -44,12 +51,18 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> Update(int id, [FromBody] HomeVisitation visitation)
+    public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
+        if (!JsonRequestPatch<HomeVisitationWriteRequest>.TryParse(body, out var patch, out var parseProblem))
+            return BadRequest(parseProblem);
+        if (!RequestValidation.TryValidate(patch!.Model, out var validationProblem, "Unable to update visit."))
+            return BadRequest(validationProblem);
+
         var existing = await db.HomeVisitations.FindAsync(id);
         if (existing is null) return NotFound();
-        db.Entry(existing).CurrentValues.SetValues(visitation);
-        existing.VisitationId = id; // Preserve ID
+
+        CrudWriteMapper.ApplyHomeVisitation(existing, patch.Model, patch);
+        existing.VisitationId = id;
         await db.SaveChangesAsync();
         return Ok(existing);
     }

@@ -57,7 +57,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
-import { api } from '@/lib/api'
+import { api, getApiErrorMessage } from '@/lib/api'
 import { sanitize } from '@/lib/sanitize'
 import { TablePagination } from '@/components/TablePagination'
 import { usePageTitle } from '@/hooks/usePageTitle'
@@ -416,6 +416,7 @@ export function DonorsManagement() {
       await fetchAll()
     } catch (err) {
       console.error('Failed to save donation:', err)
+      toast.error(getApiErrorMessage(err, 'Failed to save donation.'))
     } finally {
       setSavingDonation(false)
     }
@@ -532,6 +533,7 @@ export function DonorsManagement() {
       })()
     } catch (err) {
       console.error('Failed to load donors data:', err)
+      toast.error(getApiErrorMessage(err, 'Failed to load donor data.'))
     } finally {
       setLoading(false)
     }
@@ -673,9 +675,9 @@ export function DonorsManagement() {
   }
 
   async function handleSave() {
-    if (!form.name?.trim()) { alert('Display Name is required.'); return }
-    if (!form.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { alert('A valid email address is required.'); return }
-    if (!form.type) { alert('Supporter Type is required.'); return }
+    if (!form.name?.trim()) { toast.error('Display Name is required.'); return }
+    if (!form.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { toast.error('A valid email address is required.'); return }
+    if (!form.type) { toast.error('Supporter Type is required.'); return }
 
     setSaving(true)
     try {
@@ -684,7 +686,6 @@ export function DonorsManagement() {
         email: form.email,
         supporterType: form.type || 'MonetaryDonor',
         acquisitionChannel: form.acquisitionChannel || 'Website',
-        status: 'Active',
       }
 
       if (editingId) {
@@ -697,6 +698,7 @@ export function DonorsManagement() {
       await fetchAll()
     } catch (err) {
       console.error('Failed to save supporter:', err)
+      toast.error(getApiErrorMessage(err, 'Failed to save supporter.'))
     } finally {
       setSaving(false)
     }
@@ -708,6 +710,7 @@ export function DonorsManagement() {
       await fetchAll()
     } catch (err) {
       console.error('Failed to delete supporter:', err)
+      toast.error(getApiErrorMessage(err, 'Failed to delete supporter.'))
     }
   }
 

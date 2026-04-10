@@ -83,6 +83,90 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             }
         );
 
+        // ---- Residents ----
+        modelBuilder.Entity<Resident>()
+            .HasOne<Safehouse>()
+            .WithMany()
+            .HasForeignKey(e => e.SafehouseId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // ---- Donations / Allocations / In-kind ----
+        modelBuilder.Entity<Donation>()
+            .HasOne<Supporter>()
+            .WithMany()
+            .HasForeignKey(e => e.SupporterId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<DonationAllocation>()
+            .HasOne<Donation>()
+            .WithMany()
+            .HasForeignKey(e => e.DonationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DonationAllocation>()
+            .HasOne<Safehouse>()
+            .WithMany()
+            .HasForeignKey(e => e.SafehouseId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<InKindDonationItem>()
+            .HasOne<Donation>()
+            .WithMany()
+            .HasForeignKey(e => e.DonationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // ---- Resident child records ----
+        modelBuilder.Entity<HomeVisitation>()
+            .HasOne<Resident>()
+            .WithMany()
+            .HasForeignKey(e => e.ResidentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ProcessRecording>()
+            .HasOne<Resident>()
+            .WithMany()
+            .HasForeignKey(e => e.ResidentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<EducationRecord>()
+            .HasOne<Resident>()
+            .WithMany()
+            .HasForeignKey(e => e.ResidentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<HealthWellbeingRecord>()
+            .HasOne<Resident>()
+            .WithMany()
+            .HasForeignKey(e => e.ResidentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<InterventionPlan>()
+            .HasOne<Resident>()
+            .WithMany()
+            .HasForeignKey(e => e.ResidentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // ---- Incident reports ----
+        modelBuilder.Entity<IncidentReport>()
+            .HasOne<Resident>()
+            .WithMany()
+            .HasForeignKey(e => e.ResidentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<IncidentReport>()
+            .HasOne<Safehouse>()
+            .WithMany()
+            .HasForeignKey(e => e.SafehouseId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // ---- Safehouse metrics ----
+        modelBuilder.Entity<SafehouseMonthlyMetric>()
+            .HasOne<Safehouse>()
+            .WithMany()
+            .HasForeignKey(e => e.SafehouseId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // ---- Boarding ----
         modelBuilder.Entity<BoardingPlacement>()
             .HasOne<Resident>()
             .WithMany()
