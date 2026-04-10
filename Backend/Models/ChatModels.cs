@@ -19,5 +19,6 @@ public record IntentResult(
     int? SafehouseId,
     string? Metric,
     int Limit,
-    string? Sort
+    string? Sort,
+    string? EntityName = null
 );
