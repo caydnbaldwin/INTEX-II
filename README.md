@@ -157,7 +157,9 @@ This section includes direct test links (the only class where test links are fil
 ## IS 455 Grading Map (Machine Learning)
 
 Test links are intentionally left blank for IS 455 per rubric instructions.
-Here are the links but in order for the pipelines to have access to the seed data, they must be run in the full repo. Navigate to the ml-pipelines folder from the rull repo, then run (so do not download them separately and run them).
+
+**Here are the links but in order for the pipelines to have access to the seed data, they must be run in the full repo. Navigate to the ml-pipelines folder from the full repo, then run (so do not download them separately and run them).**
+
 ### Submitted Pipeline Notebooks
 
 - [MachineLearning/ml-pipelines/donor-churn-classifier.ipynb](MachineLearning/ml-pipelines/donor-churn-classifier.ipynb)
