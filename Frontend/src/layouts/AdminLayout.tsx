@@ -8,6 +8,7 @@ import {
   BarChart3,
   ShieldAlert,
   ShieldCheck,
+  UserCog,
   LogOut,
   ChevronLeft,
   Gift,
@@ -54,10 +55,11 @@ const donorFundingNav = [
   { name: 'Home Visitation', href: '/admin/visitation', icon: Home },
   { name: 'Safehouse Operations', href: '/admin/safehouses/boarding', icon: BedDouble },
   { name: 'Manage MFA', href: '/mfa', icon: ShieldCheck },
+  { name: 'User Management', href: '/admin/users', icon: UserCog },
 ]
 
 const outreachNav = [
-  { name: 'Social Media', href: '/admin/reports?tab=social', icon: Share2 },
+  { name: 'Social Media', href: '/admin/social-media', icon: Share2 },
   { name: 'Expansion', href: '/admin/expansion', icon: MapPin },
 ]
 

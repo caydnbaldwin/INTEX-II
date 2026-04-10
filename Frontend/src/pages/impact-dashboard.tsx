@@ -180,30 +180,17 @@ export function ImpactDashboard() {
 
   return (
     <div className="min-h-screen bg-background" id="top">
-      <section className="border-b border-border bg-background">
-        <div className="mx-auto max-w-7xl px-6 py-8 text-center lg:px-8 lg:py-10">
-          <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight sm:text-3xl">
-            Our Work:
-          </h1>
-          <p className="mt-4 text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Thousands of girls in the Philippines lose their childhoods to trafficking and exploitation.
-            <br />
-            With your support, we&apos;ve given over 150 survivors a safe home and a future — and we&apos;re just
-            getting started.
-          </p>
-        </div>
-      </section>
-
-      {/* Hero Stats Bar */}
+      {/* Stats Bar */}
       <HeroStatsBar stats={stats} />
 
-      {/* Interactive Map Section */}
+      {/* Interactive Map */}
       <InteractiveMap />
 
-      {/* Resident Stories Carousel */}
+      {/* Stories of Transformation */}
       <StoriesOfTransformationSection stories={impactStories} />
 
-      <section className="mt-10 w-full border-y border-border bg-[#e8e2f4]">
+      {/* CTA */}
+      <section className="w-full border-y border-border bg-[#e8e2f4]">
         <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8 lg:py-12">
           <div className="flex flex-col items-stretch gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
             <div className="max-w-2xl text-left">
