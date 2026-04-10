@@ -1,0 +1,29 @@
+{
+  "runs": [
+    {
+      "timestamp": "2026-04-09T17:46:53",
+      "real_results": 0,
+      "top_money_platform": "WhatsApp",
+      "top_viewership_platform": "Instagram",
+      "model_r2": -0.307,
+      "model_mae_php": 49272
+    },
+    {
+      "timestamp": "2026-04-09T17:47:09",
+      "real_results": 0,
+      "top_money_platform": "WhatsApp",
+      "top_viewership_platform": "Instagram",
+      "model_r2": -0.307,
+      "model_mae_php": 49272
+    },
+    {
+      "timestamp": "2026-04-09T18:03:18",
+      "real_results": 0,
+      "top_money_platform": "WhatsApp",
+      "top_viewership_platform": "Instagram",
+      "model_r2": -0.307,
+      "model_mae_php": 49272
+    }
+  ],
+  "last_run": "2026-04-09T18:03:18"
+}

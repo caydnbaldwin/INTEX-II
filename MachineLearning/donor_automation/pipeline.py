@@ -32,15 +32,40 @@ from sklearn.metrics import accuracy_score
 warnings.filterwarnings("ignore")
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR    = os.path.join(SCRIPT_DIR, "..")          # seedData/ folder
-STATE_FILE  = os.path.join(SCRIPT_DIR, "state.json")
+SCRIPT_DIR    = os.path.dirname(os.path.abspath(__file__))
+STATE_FILE    = os.path.join(SCRIPT_DIR, "state.json")
 FEEDBACK_FILE = os.path.join(SCRIPT_DIR, "feedback_log.json")
+
+# Search for CSVs in multiple likely locations
+_CANDIDATE_DIRS = [
+    os.path.join(SCRIPT_DIR, ".."),                                  # MachineLearning/
+    os.path.join(SCRIPT_DIR, "..", ".."),                             # project root
+    os.path.join(SCRIPT_DIR, "..", "..", "Backend", "Data", "SeedData"),  # .NET seed data
+    os.path.join(SCRIPT_DIR, "..", "..", "seedData"),
+]
+
+
+def _find_csv_dir():
+    """Locate the directory that contains supporters.csv and donations.csv."""
+    for d in _CANDIDATE_DIRS:
+        s = os.path.join(d, "supporters.csv")
+        dn = os.path.join(d, "donations.csv")
+        if os.path.exists(s) and os.path.exists(dn):
+            resolved = os.path.abspath(d)
+            print(f"[pipeline] CSVs found in: {resolved}")
+            return resolved
+    checked = [os.path.abspath(d) for d in _CANDIDATE_DIRS]
+    raise FileNotFoundError(
+        f"supporters.csv / donations.csv not found. Searched: {checked}"
+    )
+
+
+DATA_DIR = _find_csv_dir()
 
 
 def load_data():
     """
-    Load and validate supporters.csv and donations.csv from the parent directory.
+    Load and validate supporters.csv and donations.csv.
     Returns (supporters_df, monetary_donations_df).
     Raises FileNotFoundError if CSVs are missing.
     """
@@ -54,13 +79,18 @@ def load_data():
     supporters = pd.read_csv(supporters_path)
     donations  = pd.read_csv(donations_path)
 
+    print(f"[pipeline] Loaded {len(supporters)} supporters, {len(donations)} donations")
+
     # Parse and clean
-    donations["donation_date"] = pd.to_datetime(donations["donation_date"])
+    donations["donation_date"] = pd.to_datetime(donations["donation_date"], errors="coerce")
     donations["amount"]        = pd.to_numeric(donations["amount"], errors="coerce")
 
     # Filter to MonetaryDonors and Monetary donation type only
     monetary_donors = supporters[supporters["supporter_type"] == "MonetaryDonor"].copy()
     monetary_dona   = donations[donations["donation_type"] == "Monetary"].copy()
+
+    print(f"[pipeline] Filtered to {len(monetary_donors)} monetary donors, "
+          f"{len(monetary_dona)} monetary donations")
 
     return monetary_donors, monetary_dona
 
@@ -359,7 +389,13 @@ def run_pipeline(save_summary=True):
 
     feedback = load_feedback_overrides()
     rfm, p75 = apply_labels(rfm, feedback_overrides=feedback)
-    rfm, acc = train_and_score(rfm)
+
+    try:
+        rfm, acc = train_and_score(rfm)
+    except Exception as e:
+        print(f"[pipeline] ML model failed ({e}) — falling back to rule-based scores")
+        rfm["upgrade_probability"] = rfm["upgrade_candidate"].astype(float)
+        acc = 0.0
 
     # Sort: candidates first, then by probability descending
     rfm = rfm.sort_values(
