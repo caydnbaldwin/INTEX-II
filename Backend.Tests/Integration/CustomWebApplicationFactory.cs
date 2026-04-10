@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Backend.Tests.Integration;
 
@@ -22,9 +23,17 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TestDatabaseName"]                       = "TestDb_" + Guid.NewGuid(),
+                ["DatabaseStartup:ApplyMigrations"]       = "false",
+                ["DatabaseStartup:RunSeedData"]           = "false",
                 ["GenerateDefaultIdentityAdmin:Email"]    = "test-admin@test.local",
                 ["GenerateDefaultIdentityAdmin:Password"] = "TestAdminPassword!!"
             });
+        });
+
+        builder.ConfigureLogging(logging =>
+        {
+            logging.ClearProviders();
+            logging.AddConsole();
         });
     }
 }

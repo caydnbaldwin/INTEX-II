@@ -1,8 +1,11 @@
 using Backend.Data;
+using Backend.Contracts;
+using Backend.Infrastructure;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Backend.Controllers;
 
@@ -92,10 +95,14 @@ public class DonationsController(AppDbContext db) : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> Create([FromBody] Donation donation)
+    public async Task<IActionResult> Create([FromBody] DonationWriteRequest request)
     {
-        if (donation.DonationId == 0)
-            donation.DonationId = await db.Donations.AnyAsync() ? await db.Donations.MaxAsync(d => d.DonationId) + 1 : 1;
+        if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save donation."))
+            return BadRequest(validationProblem);
+
+        var donation = new Donation();
+        CrudWriteMapper.ApplyDonation(donation, request);
+        donation.DonationId = await db.Donations.AnyAsync() ? await db.Donations.MaxAsync(d => d.DonationId) + 1 : 1;
         db.Donations.Add(donation);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = donation.DonationId }, donation);
@@ -103,12 +110,18 @@ public class DonationsController(AppDbContext db) : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> Update(int id, [FromBody] Donation donation)
+    public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
+        if (!JsonRequestPatch<DonationWriteRequest>.TryParse(body, out var patch, out var parseProblem))
+            return BadRequest(parseProblem);
+        if (!RequestValidation.TryValidate(patch!.Model, out var validationProblem, "Unable to update donation."))
+            return BadRequest(validationProblem);
+
         var existing = await db.Donations.FindAsync(id);
         if (existing is null) return NotFound();
-        db.Entry(existing).CurrentValues.SetValues(donation);
-        existing.DonationId = id; // Preserve ID
+
+        CrudWriteMapper.ApplyDonation(existing, patch.Model, patch);
+        existing.DonationId = id;
         await db.SaveChangesAsync();
         return Ok(existing);
     }
