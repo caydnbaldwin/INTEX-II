@@ -31,7 +31,7 @@ FROM (
 SELECT 'Residents invalid case status' AS AuditCheck, COUNT(*) AS FailingRows
 FROM Residents
 WHERE NULLIF(LTRIM(RTRIM(CaseStatus)), '') IS NOT NULL
-  AND CaseStatus NOT IN ('Active', 'Closed', 'Pending Review');
+  AND CaseStatus NOT IN ('Active', 'Closed', 'Pending Review', 'Transferred');
 
 SELECT 'Residents safehouse reference missing parent' AS AuditCheck, COUNT(*) AS FailingRows
 FROM Residents r
