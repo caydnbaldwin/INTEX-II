@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Send, Bot, User, Loader2, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -43,10 +44,12 @@ function loadHistory(): Message[] {
 }
 
 export function AiChatPage() {
+  const [searchParams] = useSearchParams()
   const [messages, setMessages] = useState<Message[]>(loadHistory)
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const contextFiredRef = useRef(false)
 
   // Persist history whenever messages change
   useEffect(() => {
@@ -57,6 +60,36 @@ export function AiChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
+
+  // Handle ?context=resident:ID — clear history and auto-fire a resident advice request
+  useEffect(() => {
+    const context = searchParams.get('context')
+    if (!context || contextFiredRef.current) return
+    const match = context.match(/^resident:(\d+)$/)
+    if (!match) return
+
+    contextFiredRef.current = true
+    const residentId = match[1]
+
+    sessionStorage.removeItem(STORAGE_KEY)
+    setMessages([{ role: 'user', content: 'What should I know about this resident and how can I help them?', references: [] }])
+    setIsLoading(true)
+
+    fetchApi<ChatResponse>(`/api/chat/resident/${residentId}`, { method: 'POST' })
+      .then((data) => {
+        setMessages([
+          { role: 'user', content: 'What should I know about this resident and how can I help them?', references: [] },
+          { role: 'assistant', content: data.answer, references: data.references },
+        ])
+      })
+      .catch(() => {
+        setMessages([
+          { role: 'user', content: 'What should I know about this resident and how can I help them?', references: [] },
+          { role: 'assistant', content: 'Something went wrong loading this resident\'s case. Please try again.', references: [] },
+        ])
+      })
+      .finally(() => setIsLoading(false))
+  }, [searchParams])
 
   function clearHistory() {
     sessionStorage.removeItem(STORAGE_KEY)

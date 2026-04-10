@@ -4,9 +4,11 @@ import {
   TrendingUp,
   Calendar,
   FileText,
-  Building2,
   ArrowUpRight,
   ArrowDownRight,
+  Sparkles,
+  ShieldAlert,
+  UserX,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -94,11 +96,6 @@ interface Resident {
   [key: string]: unknown
 }
 
-interface Safehouse {
-  safehouseId: number
-  name: string
-  region: string
-}
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -121,18 +118,23 @@ export function AdminDashboard() {
   const [donationTrend, setDonationTrend] = useState<{ label: string; amount: number; count: number }[]>([])
 
   // Secondary sections
-  const [safehouseStats, setSafehouseStats] = useState<{ name: string; active: number; total: number }[]>([])
   const [upcomingConferences, setUpcomingConferences] = useState<CaseConference[]>([])
   const [recentDonations, setRecentDonations] = useState<DonationRecord[]>([])
+  const [actionItems, setActionItems] = useState<{
+    type: 'resident' | 'donor'
+    label: string
+    detail: string
+    score: number
+    route: string
+  }[]>([])
 
   useEffect(() => {
     async function fetchData() {
       try {
         // Core data — all required
-        const [donationSummary, residents, safehouses] = await Promise.all([
+        const [donationSummary, residents] = await Promise.all([
           api.get<DonationSummaryResponse>('/api/donations/summary'),
           api.get<Resident[]>('/api/residents'),
-          api.get<Safehouse[]>('/api/safehouses'),
         ])
 
         // Donations
@@ -147,24 +149,6 @@ export function AdminDashboard() {
         setReintegrationRate(Math.round(rate * 10) / 10)
         setReintegrationDesc(`${completed.length} of ${inProgress.length} cases`)
 
-        // Safehouse overview
-        const safehouseMap = new Map(safehouses.map((s) => [s.safehouseId, s.name]))
-        const statsMap = new Map<string, { active: number; total: number }>()
-        for (const s of safehouses) {
-          statsMap.set(s.name, { active: 0, total: 0 })
-        }
-        for (const r of residents) {
-          const name = safehouseMap.get(r.safehouseId) ?? `Safehouse ${r.safehouseId}`
-          const entry = statsMap.get(name) ?? { active: 0, total: 0 }
-          entry.total++
-          if (r.caseStatus === 'Active') entry.active++
-          statsMap.set(name, entry)
-        }
-        setSafehouseStats(
-          Array.from(statsMap.entries())
-            .map(([name, counts]) => ({ name, ...counts }))
-            .sort((a, b) => b.total - a.total)
-        )
 
         // Donation trends (real monthly data)
         try {
@@ -180,9 +164,12 @@ export function AdminDashboard() {
           console.warn('Donation trends unavailable')
         }
 
-        // ML: Residents at risk (primary metric — uses ML predictions)
+        // ML: Residents at risk + Donors at churn risk — fetched together to build action items
+        let riskResults: ResidentRiskResult[] = []
+        let churnResults: DonorChurnResult[] = []
+
         try {
-          const riskResults = await api.get<ResidentRiskResult[]>('/api/pipeline-results/resident-risk')
+          riskResults = await api.get<ResidentRiskResult[]>('/api/pipeline-results/resident-risk')
           const highRisk = riskResults.filter((r) => r.label === 'Critical' || r.label === 'High')
           setAtRiskResidents(highRisk.length)
           const critical = highRisk.filter((r) => r.label === 'Critical').length
@@ -193,14 +180,32 @@ export function AdminDashboard() {
           setAtRiskDesc('Pipeline unavailable')
         }
 
-        // ML: Donors at risk of churning
         try {
-          const churnResults = await api.get<DonorChurnResult[]>('/api/pipeline-results/donor-churn')
+          churnResults = await api.get<DonorChurnResult[]>('/api/pipeline-results/donor-churn')
           const atRisk = churnResults.filter((r) => r.label === 'AtRisk' || r.label === 'High' || r.score > 0.5)
           setDonorsAtRisk(atRisk.length)
         } catch {
           console.warn('Donor churn data unavailable')
         }
+
+        // Build action items: pool resident risk + donor churn, sort by score, take top 3
+        const pooled: typeof actionItems = [
+          ...riskResults.map((r) => ({
+            type: 'resident' as const,
+            label: r.resident?.internalCode ?? r.resident?.caseControlNo ?? `Resident ${r.entityId}`,
+            detail: `${r.label} risk — score ${r.score.toFixed(2)}`,
+            score: r.score,
+            route: `/admin/caseload?resident=${r.entityId}`,
+          })),
+          ...churnResults.map((r) => ({
+            type: 'donor' as const,
+            label: r.supporter?.displayName ?? `Supporter ${r.entityId}`,
+            detail: `Churn risk — score ${r.score.toFixed(2)}`,
+            score: r.score,
+            route: `/admin/donors?donor=${r.entityId}`,
+          })),
+        ]
+        setActionItems(pooled.sort((a, b) => b.score - a.score).slice(0, 3))
 
         // Upcoming case conferences
         try {
@@ -390,42 +395,43 @@ export function AdminDashboard() {
 
       {/* ── Secondary: ML Alerts, Conferences, Recent Donations ── */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Safehouse Overview */}
+        {/* Action Items */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Building2 className="h-4 w-4 text-primary" />
-              Safehouse Overview
+              <Sparkles className="h-4 w-4 text-primary" />
+              Action Items
             </CardTitle>
-            <CardDescription>Active residents across safehouses</CardDescription>
+            <CardDescription className="text-xs">These suggestions are powered by AI</CardDescription>
           </CardHeader>
           <CardContent>
-            {safehouseStats.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No safehouse data available</p>
+            {actionItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No action items at this time</p>
             ) : (
               <div className="space-y-2">
-                {safehouseStats.map((s) => (
+                {actionItems.map((item) => (
                   <Link
-                    key={s.name}
-                    to="/admin/caseload"
+                    key={item.route}
+                    to={item.route}
                     className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-muted/50 rounded px-1 -mx-1 transition-colors"
                   >
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-sm font-medium">{s.name}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {item.type === 'resident'
+                        ? <ShieldAlert className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                        : <UserX className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                      }
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{item.label}</p>
+                        <p className="text-xs text-muted-foreground truncate">{item.detail}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                        {s.active} active
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{s.total} total</span>
-                    </div>
+                    <ArrowUpRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground ml-2" />
                   </Link>
                 ))}
               </div>
             )}
             <Button variant="ghost" size="sm" asChild className="w-full mt-3 text-xs">
-              <Link to="/admin/caseload">View all residents →</Link>
+              <Link to="/admin/chat">Ask AI assistant →</Link>
             </Button>
           </CardContent>
         </Card>
