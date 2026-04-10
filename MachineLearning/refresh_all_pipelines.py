@@ -6,12 +6,17 @@ Run this script whenever significant new data has been added
 predictions current.
 
 Usage:
-    cd MachineLearning/ml-pipelines
+    cd MachineLearning
     pip install -r requirements.txt
     python refresh_all_pipelines.py
+
+Requires DB credentials via env vars (DB_SERVER, DB_DATABASE, DB_USERNAME,
+DB_PASSWORD) or a .env file in MachineLearning/ or any parent directory.
+If credentials are missing, the script exits cleanly without writing.
 """
 
 import os
+import sys
 import json
 import warnings
 from datetime import datetime
@@ -19,7 +24,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import pymssql
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor, RandomForestClassifier
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.pipeline import Pipeline
@@ -28,7 +33,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 
 warnings.filterwarnings("ignore")
-load_dotenv()
+load_dotenv(find_dotenv())
 
 SERVER = os.getenv("DB_SERVER")
 DATABASE = os.getenv("DB_DATABASE")
@@ -538,7 +543,21 @@ def main():
     print("ML Pipeline Refresh — Lunas Safe Haven")
     print("=" * 60)
 
-    conn = get_connection()
+    if not all([SERVER, DATABASE, USERNAME, PASSWORD]):
+        print()
+        print("DB credentials not set. This script needs a live database to refresh results.")
+        print("Create a .env in MachineLearning/ with DB_SERVER, DB_DATABASE, DB_USERNAME,")
+        print("DB_PASSWORD, or export them as environment variables.")
+        print("Exiting without writing to PipelineResults.")
+        sys.exit(0)
+
+    try:
+        conn = get_connection()
+    except Exception as e:
+        print()
+        print(f"Could not connect to database: {e}")
+        print("Check your credentials and network access. Exiting without writing.")
+        sys.exit(0)
     pipelines = [
         ("Donor Churn", refresh_donor_churn),
         ("Resident Risk", refresh_resident_risk),
