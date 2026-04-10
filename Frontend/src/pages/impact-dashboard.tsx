@@ -1,28 +1,19 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { HeroStatsBar } from '@/components/impact/HeroStatsBar'
 import { InteractiveMap } from '@/components/impact/InteractiveMap'
 import { StoriesOfTransformationSection } from '@/components/impact/StoriesOfTransformationSection'
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
 } from 'recharts'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Progress } from '@/components/ui/progress'
 import { api } from '@/lib/api'
 import { listPublicImpactJourneyStories } from '@/lib/publicResidentStories'
 import { usePageTitle } from '@/hooks/usePageTitle'
@@ -107,49 +98,12 @@ interface ImpactStats {
   totalDonors: number
 }
 
-interface SafehouseOccupancy {
-  safehouseId: number
-  name: string
-  region: string
-  capacityGirls: number
-  currentOccupancy: number
-}
-
-// Fallback data for sections that may not have API equivalents
-const fallbackEducationPrograms = [
-  { name: 'Secondary Education', enrolled: 24, completed: 15 },
-  { name: 'Bridge Program', enrolled: 18, completed: 12 },
-  { name: 'Vocational Training', enrolled: 12, completed: 8 },
-  { name: 'Literacy Program', enrolled: 6, completed: 4 },
-]
-
-const fallbackReintegrationOutcomes = [
-  { type: 'Family Reunification', count: 12, percentage: 63 },
-  { type: 'Foster Care', count: 4, percentage: 21 },
-  { type: 'Independent Living', count: 2, percentage: 11 },
-  { type: 'Adoption', count: 1, percentage: 5 },
-]
-
-const fallbackHealthMetrics = [
-  { name: 'Nutrition Score', value: 82, description: 'Based on BMI and diet tracking' },
-  { name: 'Sleep Quality', value: 78, description: 'Average hours and quality rating' },
-  { name: 'Energy Level', value: 85, description: 'Self-reported daily energy' },
-  { name: 'Emotional Wellbeing', value: 76, description: 'Tracked through counseling' },
-]
-
-const VALID_TABS = ['overview', 'education', 'health', 'safehouses'] as const
-type TabValue = typeof VALID_TABS[number]
-
 export function ImpactDashboard() {
   usePageTitle('Our Impact')
   const location = useLocation()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const tabParam = searchParams.get('tab')
-  const activeTab: TabValue = (VALID_TABS as readonly string[]).includes(tabParam ?? '') ? tabParam as TabValue : 'overview'
 
   const [snapshots, setSnapshots] = useState<ImpactSnapshot[]>([])
   const [stats, setStats] = useState<ImpactStats | null>(null)
-  const [safehouses, setSafehouses] = useState<SafehouseOccupancy[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -162,20 +116,9 @@ export function ImpactDashboard() {
         ])
         setSnapshots(snapshotsRes)
         setStats(statsRes)
-        // Unblock initial paint as soon as public impact data is ready.
-        setLoading(false)
-
-        // Fetch safehouse occupancy in background.
-        void (async () => {
-          try {
-            const safehouseRes = await api.get<SafehouseOccupancy[]>('/api/public/safehouses/occupancy')
-            setSafehouses(safehouseRes)
-          } catch {
-            // Endpoint unavailable -- leave empty, will use stats fallback.
-          }
-        })()
       } catch (err) {
         console.error('Failed to fetch impact data:', err)
+      } finally {
         setLoading(false)
       }
     }
@@ -217,31 +160,13 @@ export function ImpactDashboard() {
   // Separate monthly vs annual summary snapshots
   const monthlySnapshots = parsedSnapshots.filter(s => s.metrics.type !== 'annual_summary')
 
-  // Build chart data from monthly snapshots only
-  const residentsOverTime = monthlySnapshots.map(s => ({
-    month: new Date(s.snapshotDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-    active: s.metrics.activeResidents ?? s.metrics.total_residents ?? 0,
-    total: s.metrics.totalResidentsServed ?? s.metrics.total_residents ?? 0,
-  }))
-
-  const healthOverTime = monthlySnapshots.map(s => ({
-    month: new Date(s.snapshotDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-    healthScore: s.metrics.avgHealthScore ?? s.metrics.avg_health_score ?? 0,
-    sessions: Math.round((s.metrics.counselingSessions ?? 0) / 10),
-  }))
-
-  // Get education programs from latest snapshot payload or fallback
-  const latestParsed = monthlySnapshots[monthlySnapshots.length - 1]
-  const educationPrograms = latestParsed?.metrics.educationPrograms ?? fallbackEducationPrograms
-  const reintegrationOutcomes = latestParsed?.metrics.reintegrationOutcomes ?? fallbackReintegrationOutcomes
-  const healthMetrics = latestParsed?.metrics.healthMetrics ?? fallbackHealthMetrics
-
-  // Safehouse data for charts
-  const safehouseData = safehouses.map(sh => ({
-    name: sh.name.split(' ')[0],
-    capacity: sh.capacityGirls,
-    occupancy: sh.currentOccupancy,
-  }))
+  const now = new Date()
+  const fundingOverTime = monthlySnapshots
+    .filter(s => s.metrics.donations_total_php != null && new Date(s.snapshotDate) <= now)
+    .map(s => ({
+      month: new Date(s.snapshotDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      amount: Math.round((s.metrics.donations_total_php ?? 0) / 1000),
+    }))
 
   if (loading) {
     return (
@@ -298,249 +223,133 @@ export function ImpactDashboard() {
         </div>
       </section>
 
-      {/* Detailed Dashboard */}
-      <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
-        <div className="text-center mb-10">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary mb-3">
-            Deep Dive
-          </p>
-          <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-            Detailed Metrics
-          </h2>
-          <p className="mt-3 text-muted-foreground max-w-2xl mx-auto">
-            Explore our education, health, and safehouse data in detail.
-          </p>
-        </div>
-
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })}
-          className="mt-8"
-        >
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="education">Education</TabsTrigger>
-            <TabsTrigger value="health">Health</TabsTrigger>
-            <TabsTrigger value="safehouses">Safehouses</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="mt-8 space-y-8">
-            <div className="grid gap-8 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Residents Over Time</CardTitle>
-                  <CardDescription>Monthly snapshot of active and total residents served</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={residentsOverTime}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                        <XAxis dataKey="month" className="text-xs fill-muted-foreground" />
-                        <YAxis className="text-xs fill-muted-foreground" />
-                        <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                        <Legend />
-                        <Line type="monotone" dataKey="total" name="Total Served" stroke={CHART_COLORS[0]} strokeWidth={2} dot={{ fill: CHART_COLORS[0] }} />
-                        <Line type="monotone" dataKey="active" name="Active" stroke={CHART_COLORS[1]} strokeWidth={2} dot={{ fill: CHART_COLORS[1] }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Reintegration Outcomes</CardTitle>
-                  <CardDescription>Distribution of successful reintegration pathways</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={reintegrationOutcomes} dataKey="count" nameKey="type" cx="50%" cy="50%" outerRadius={100} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
-                          {reintegrationOutcomes.map((_: unknown, index: number) => (
-                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+      {/* ── Narrative: Restoring Futures ── */}
+      <section className="py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+                Outcomes
+              </p>
+              <h2 className="mt-4 font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl" style={{ lineHeight: 1.08 }}>
+                {stats ? `${stats.reintegrationRate}%` : '—'} Reintegration Rate
+              </h2>
+              <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
+                Our goal isn&apos;t just rescue — it&apos;s restoration. Through counseling, education, and family support,{' '}
+                <span className="font-medium text-foreground">
+                  {stats ? `${stats.reintegrationRate}%` : '—'}
+                </span>{' '}
+                of girls who complete our program are successfully reintegrated with their families or placed in safe, permanent homes.
+              </p>
+              <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                With{' '}
+                <span className="font-medium text-foreground">
+                  {stats?.totalHomeVisitations?.toLocaleString() ?? '—'}
+                </span>{' '}
+                follow-up home visitations, we stay involved long after a girl leaves our care — because lasting change takes lasting commitment.
+              </p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="education" className="mt-8 space-y-8">
-            <div className="grid gap-8 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Education Programs</CardTitle>
-                  <CardDescription>Enrollment and completion rates by program type</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={educationPrograms} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                        <XAxis type="number" className="text-xs fill-muted-foreground" />
-                        <YAxis dataKey="name" type="category" width={120} className="text-xs fill-muted-foreground" />
-                        <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                        <Legend />
-                        <Bar dataKey="enrolled" name="Enrolled" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} />
-                        <Bar dataKey="completed" name="Completed" fill={CHART_COLORS[2]} radius={[0, 4, 4, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+            <div className="rounded-2xl border border-border bg-background p-8 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+                Care Delivered
+              </p>
+              <div className="mt-8 space-y-8">
+                <div>
+                  <div className="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+                    {stats?.totalCounselingSessions?.toLocaleString() ?? '—'}
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Program Details</CardTitle>
-                  <CardDescription>Completion rates for each education track</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {educationPrograms.map((program) => {
-                    const completionRate = Math.round((program.completed / program.enrolled) * 100)
-                    return (
-                      <div key={program.name} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-medium text-foreground">{program.name}</span>
-                          <span className="text-muted-foreground">{completionRate}% completion</span>
-                        </div>
-                        <Progress value={completionRate} className="h-2" />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{program.enrolled} enrolled</span>
-                          <span>{program.completed} completed</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid gap-6 sm:grid-cols-3">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Total Enrolled</CardDescription>
-                  <CardTitle className="text-3xl">{educationPrograms.reduce((acc, p) => acc + p.enrolled, 0)}</CardTitle>
-                </CardHeader>
-                <CardContent><p className="text-xs text-muted-foreground">Across all programs</p></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Total Completed</CardDescription>
-                  <CardTitle className="text-3xl">{educationPrograms.reduce((acc, p) => acc + p.completed, 0)}</CardTitle>
-                </CardHeader>
-                <CardContent><p className="text-xs text-muted-foreground">Successful completions</p></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription>Average Completion Rate</CardDescription>
-                  <CardTitle className="text-3xl">{Math.round(educationPrograms.reduce((acc, p) => acc + (p.completed / p.enrolled) * 100, 0) / educationPrograms.length)}%</CardTitle>
-                </CardHeader>
-                <CardContent><p className="text-xs text-muted-foreground">Across all programs</p></CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="health" className="mt-8 space-y-8">
-            <div className="grid gap-8 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Health Score Trend</CardTitle>
-                  <CardDescription>Average health scores and counseling activity over time</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={healthOverTime}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                        <XAxis dataKey="month" className="text-xs fill-muted-foreground" />
-                        <YAxis className="text-xs fill-muted-foreground" />
-                        <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                        <Legend />
-                        <Line type="monotone" dataKey="healthScore" name="Health Score" stroke={CHART_COLORS[0]} strokeWidth={2} dot={{ fill: CHART_COLORS[0] }} />
-                        <Line type="monotone" dataKey="sessions" name="Sessions (x10)" stroke={CHART_COLORS[2]} strokeWidth={2} strokeDasharray="5 5" dot={{ fill: CHART_COLORS[2] }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Health Metrics Tracked</CardTitle>
-                  <CardDescription>Comprehensive wellbeing monitoring for all residents</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {healthMetrics.map((metric) => (
-                    <div key={metric.name} className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium text-foreground">{metric.name}</span>
-                        <span className="text-muted-foreground">{metric.value}/100</span>
-                      </div>
-                      <Progress value={metric.value} className="h-2" />
-                      <p className="text-xs text-muted-foreground">{metric.description}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="safehouses" className="mt-8 space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Safehouse Capacity & Occupancy</CardTitle>
-                <CardDescription>Current occupancy vs. capacity across all safehouses</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[350px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={safehouseData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
-                      <YAxis className="text-xs fill-muted-foreground" />
-                      <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                      <Legend />
-                      <Bar dataKey="capacity" name="Capacity" fill={CHART_COLORS[3]} radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="occupancy" name="Occupancy" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Trauma-informed counseling sessions
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {safehouses.map((safehouse) => (
-                <Card key={safehouse.safehouseId}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{safehouse.name}</CardTitle>
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{safehouse.region}</span>
-                    </div>
-                    <CardDescription>{safehouse.currentOccupancy} of {safehouse.capacityGirls} capacity</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Progress value={(safehouse.currentOccupancy / safehouse.capacityGirls) * 100} className="h-2" />
-                  </CardContent>
-                </Card>
-              ))}
-              {safehouses.length === 0 && (
-                <Card className="sm:col-span-2 lg:col-span-3">
-                  <CardContent className="py-8 text-center text-muted-foreground">
-                    <p>Safehouse details are available to authenticated administrators.</p>
-                    <p className="mt-1 text-sm">Overall: {stats?.safehousesOperating ?? '—'} safehouses operating across {stats?.regionsServed ?? '—'} regions.</p>
-                  </CardContent>
-                </Card>
-              )}
+                <div className="border-t border-border pt-8">
+                  <div className="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+                    {stats?.totalHomeVisitations?.toLocaleString() ?? '—'}
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Follow-up home visitations
+                  </p>
+                </div>
+                <div className="border-t border-border pt-8">
+                  <div className="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+                    {stats?.activeResidents ?? '—'}
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Girls currently in our care
+                  </p>
+                </div>
+              </div>
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Narrative: Funded by Generosity ── */}
+      <section className="border-y border-border bg-muted/30 py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div className="order-2 lg:order-1 rounded-2xl border border-border bg-background p-6 shadow-sm">
+              <h3 className="text-sm font-semibold text-foreground">Monthly Donations</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Donor contributions over time (₱ thousands)</p>
+              <div className="mt-4 h-[280px]">
+                {fundingOverTime.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={fundingOverTime}>
+                      <defs>
+                        <linearGradient id="fundingGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={CHART_COLORS[0]} stopOpacity={0.3} />
+                          <stop offset="95%" stopColor={CHART_COLORS[0]} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                      <XAxis dataKey="month" className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} />
+                      <YAxis className="text-xs fill-muted-foreground" tickLine={false} axisLine={false} tickFormatter={(v) => `₱${v}K`} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value) => [`₱${value}K`, 'Donations']}
+                      />
+                      <Area type="monotone" dataKey="amount" name="Donations" stroke={CHART_COLORS[0]} strokeWidth={2} fill="url(#fundingGradient)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                    No donation data available
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="order-1 lg:order-2">
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+                Community
+              </p>
+              <h2 className="mt-4 font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl" style={{ lineHeight: 1.08 }}>
+                {stats?.totalDonors?.toLocaleString() ?? '—'} Supporters Strong
+              </h2>
+              <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
+                Every safehouse, every counseling session, every school uniform starts with a donation. A growing community of{' '}
+                <span className="font-medium text-foreground">
+                  {stats?.totalDonors?.toLocaleString() ?? '—'} donors
+                </span>{' '}
+                has contributed{' '}
+                <span className="font-medium text-foreground">
+                  {stats ? formatPHP(stats.totalDonationAmount) : '—'}
+                </span>{' '}
+                to fund our mission.
+              </p>
+              <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                Your generosity doesn&apos;t just fund programs — it tells every girl in our care that someone out there believes she deserves a future.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   )
+}
+
+
+function formatPHP(value: number): string {
+  if (value >= 1_000_000) return `₱${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `₱${(value / 1_000).toFixed(0)}K`
+  return `₱${value.toLocaleString()}`
 }

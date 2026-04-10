@@ -71,7 +71,7 @@ export function LandingPage() {
             </h1>
 
             <p className="mt-6 text-lg sm:text-xl leading-relaxed text-white/80 max-w-xl text-pretty ml-auto">
-              Your donation funds shelter, counseling,<br />and education for children in the Philippines.
+              Your donation provides shelter, counseling,<br />and education for children in the Philippines.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row items-end justify-end gap-4">
@@ -141,7 +141,7 @@ export function LandingPage() {
                 Lockdowns trapped children indoors with their abusers. Online sexual exploitation surged.
               </p>
               <div className="mt-6 flex items-baseline gap-3">
-                <span className="text-6xl font-serif font-bold text-primary">3.8x</span>
+                <span className="text-6xl font-serif font-bold text-primary">61k</span>
                 <span className="text-lg text-muted-foreground">more cases in 2021 than 2019</span>
               </div>
             </div>
