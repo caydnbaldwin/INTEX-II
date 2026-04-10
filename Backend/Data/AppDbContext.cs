@@ -191,6 +191,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.Property(e => e.EstimatedValue).HasPrecision(18, 2);
+            entity.Property(e => e.StripePaymentIntentId).HasMaxLength(255);
+            entity.HasIndex(e => e.StripePaymentIntentId)
+                  .IsUnique()
+                  .HasFilter("[StripePaymentIntentId] IS NOT NULL");
         });
 
         modelBuilder.Entity<DonationAllocation>(entity =>

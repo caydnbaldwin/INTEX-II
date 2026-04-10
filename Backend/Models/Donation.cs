@@ -15,4 +15,5 @@ public class Donation
     public string? ImpactUnit { get; set; }
     public string? Notes { get; set; }
     public int? ReferralPostId { get; set; }
+    public string? StripePaymentIntentId { get; set; }
 }

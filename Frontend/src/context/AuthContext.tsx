@@ -46,6 +46,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refreshAuthState();
   }, [refreshAuthState]);
 
+  // After any login (password, MFA, Google OAuth), claim an in-progress donation
+  // that was stored in localStorage before the user signed in.
+  useEffect(() => {
+    if (!authSession.isAuthenticated) return;
+    const intentId = localStorage.getItem('pendingDonationIntent');
+    if (!intentId) return;
+
+    const api = import.meta.env.VITE_API_BASE_URL as string;
+    fetch(`${api}/api/payments/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ paymentIntentId: intentId }),
+    }).finally(() => localStorage.removeItem('pendingDonationIntent'));
+  }, [authSession.isAuthenticated]);
+
   return (
     <AuthContext.Provider
       value={{
