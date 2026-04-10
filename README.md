@@ -171,17 +171,17 @@ Test links are intentionally left blank for IS 455 per rubric instructions.
 
 Summary and synthesis:
 
-- [MachineLearning/ml-pipelines/pipeline-results-summary.md](MachineLearning/ml-pipelines/pipeline-results-summary.md)
+- [MachineLearning/pipeline-results-summary.md](MachineLearning/pipeline-results-summary.md)
 - [MachineLearning/ANALYTICS_STRATEGY.md](MachineLearning/ANALYTICS_STRATEGY.md)
 
 ### Rubric Mapping
 
 | Requirement | File links | Site links | What to show |
 | --- | --- | --- | --- |
-| Problem framing is clear and business-relevant; predictive vs explanatory is explicit | [MachineLearning/ANALYTICS_STRATEGY.md](MachineLearning/ANALYTICS_STRATEGY.md), [MachineLearning/ml-pipelines/pipeline-results-summary.md](MachineLearning/ml-pipelines/pipeline-results-summary.md) | https://lunas-project.site/admin/reports | In each notebook, show business question, stakeholder, and modeling objective type. |
-| Data acquisition/preparation/exploration is thorough and reproducible | [MachineLearning/ml-pipelines](MachineLearning/ml-pipelines), [MachineLearning/ml-pipelines/requirements.txt](MachineLearning/ml-pipelines/requirements.txt), [MachineLearning/ml-pipelines/refresh_all_pipelines.py](MachineLearning/ml-pipelines/refresh_all_pipelines.py) |  | Run notebook cells top-to-bottom and show reusable prep/feature engineering steps. |
+| Problem framing is clear and business-relevant; predictive vs explanatory is explicit | [MachineLearning/ANALYTICS_STRATEGY.md](MachineLearning/ANALYTICS_STRATEGY.md), [MachineLearning/pipeline-results-summary.md](MachineLearning/pipeline-results-summary.md) | https://lunas-project.site/admin/reports | In each notebook, show business question, stakeholder, and modeling objective type. |
+| Data acquisition/preparation/exploration is thorough and reproducible | [MachineLearning/ml-pipelines](MachineLearning/ml-pipelines), [MachineLearning/requirements.txt](MachineLearning/requirements.txt), [MachineLearning/refresh_all_pipelines.py](MachineLearning/refresh_all_pipelines.py) |  | Run notebook cells top-to-bottom and show reusable prep/feature engineering steps. |
 | Modeling and feature selection are appropriate and justified | [MachineLearning/ml-pipelines/donor-churn-classifier.ipynb](MachineLearning/ml-pipelines/donor-churn-classifier.ipynb), [MachineLearning/ml-pipelines/resident-risk-predictor.ipynb](MachineLearning/ml-pipelines/resident-risk-predictor.ipynb), [MachineLearning/ml-pipelines/visitation-outcome-predictor.ipynb](MachineLearning/ml-pipelines/visitation-outcome-predictor.ipynb), [MachineLearning/ml-pipelines/safehouse-performance-analyzer.ipynb](MachineLearning/ml-pipelines/safehouse-performance-analyzer.ipynb) |  | Show model comparisons, selected features, and why chosen models fit each problem (including expansion planning). |
-| Evaluation and selection use appropriate metrics/validation and business interpretation | [MachineLearning/ml-pipelines/pipeline-results-summary.md](MachineLearning/ml-pipelines/pipeline-results-summary.md) | https://lunas-project.site/admin/reports | Show train/test or cross-validation outputs and convert metrics into operational decisions. |
+| Evaluation and selection use appropriate metrics/validation and business interpretation | [MachineLearning/pipeline-results-summary.md](MachineLearning/pipeline-results-summary.md) | https://lunas-project.site/admin/reports | Show train/test or cross-validation outputs and convert metrics into operational decisions. |
 | Deployment and integration into web application provide end-user value | [Backend/Controllers/PipelineResultsController.cs](Backend/Controllers/PipelineResultsController.cs), [Frontend/src/pages/admin/reports.tsx](Frontend/src/pages/admin/reports.tsx), [Frontend/src/pages/admin/social-media.tsx](Frontend/src/pages/admin/social-media.tsx), [Frontend/src/pages/admin/expansion.tsx](Frontend/src/pages/admin/expansion.tsx) | https://lunas-project.site/admin/reports, https://lunas-project.site/admin/social-media, https://lunas-project.site/admin/expansion | Show model output surfaced in app dashboards/recommendations and tied to business actions. |
 
 ## IS 414 Test Command (Optional TA Verification)

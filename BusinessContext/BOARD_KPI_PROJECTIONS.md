@@ -14,7 +14,7 @@
 | `residents.csv` | 60 residents across 9 safehouses |
 | `social_media_posts.csv` | 812 posts across 7 platforms |
 | `donor_automation/state.json` | 4 pipeline runs, 81.2% model accuracy |
-| `ml-pipelines/pipeline-results-summary.md` | 8 ML model outputs (April 2026) |
+| `pipeline-results-summary.md` | 8 ML model outputs (April 2026) |
 
 ---
 
