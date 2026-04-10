@@ -28,6 +28,36 @@ export async function fetchApi<T>(
   return res.json() as Promise<T>;
 }
 
+export function getApiErrorMessage(
+  error: unknown,
+  fallback = 'Something went wrong. Please try again.',
+): string {
+  if (error instanceof ApiError) {
+    try {
+      const parsed = JSON.parse(error.message) as {
+        title?: string
+        detail?: string
+        errors?: Record<string, string[]>
+      }
+
+      const validationMessages = Object.values(parsed.errors ?? {}).flat().filter(Boolean)
+      if (validationMessages.length > 0) {
+        return validationMessages.join(' ')
+      }
+
+      return parsed.detail || parsed.title || error.message || fallback
+    } catch {
+      return error.message || fallback
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return fallback
+}
+
 export const api = {
   get: <T>(endpoint: string) => fetchApi<T>(endpoint),
   post: <T>(endpoint: string, data: unknown) =>

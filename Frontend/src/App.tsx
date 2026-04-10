@@ -69,9 +69,11 @@ const MfaChallengePage = lazy(() => import('./pages/MfaChallengePage'))
 function ProtectedRoute({
   children,
   requiredRole,
+  redirectTo,
 }: {
   children: ReactNode
   requiredRole?: string | string[]
+  redirectTo?: string
 }) {
   const { isAuthenticated, isLoading, authSession } = useAuth()
 
@@ -90,9 +92,17 @@ function ProtectedRoute({
       ? requiredRole.some((r) => authSession.roles.includes(r))
       : authSession.roles.includes(requiredRole)
   )
-  if (!allowed) return <Navigate to="/" replace />
+  if (!allowed) return <Navigate to={redirectTo ?? '/'} replace />
 
   return <>{children}</>
+}
+
+function AdminIndexRedirect() {
+  const { authSession } = useAuth()
+
+  return authSession.roles.includes('Admin')
+    ? <AdminDashboard />
+    : <Navigate to="/admin/caseload" replace />
 }
 
 export default function App() {
@@ -126,16 +136,51 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<AdminDashboard />} />
-            <Route path="chat" element={<AiChatPage />} />
+            <Route index element={<AdminIndexRedirect />} />
+            <Route
+              path="chat"
+              element={
+                <ProtectedRoute requiredRole="Admin" redirectTo="/admin/caseload">
+                  <AiChatPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="caseload" element={<CaseloadInventory />} />
             <Route path="process-recording" element={<ProcessRecording />} />
             <Route path="visitation" element={<HomeVisitation />} />
-            <Route path="donors" element={<DonorsManagement />} />
-            <Route path="email-templates" element={<EmailTemplates />} />
-            <Route path="reports" element={<ReportsAnalytics />} />
+            <Route
+              path="donors"
+              element={
+                <ProtectedRoute requiredRole="Admin" redirectTo="/admin/caseload">
+                  <DonorsManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="email-templates"
+              element={
+                <ProtectedRoute requiredRole="Admin" redirectTo="/admin/caseload">
+                  <EmailTemplates />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="reports"
+              element={
+                <ProtectedRoute requiredRole="Admin" redirectTo="/admin/caseload">
+                  <ReportsAnalytics />
+                </ProtectedRoute>
+              }
+            />
             <Route path="safehouses/boarding" element={<BoardingManagement />} />
-            <Route path="expansion" element={<ExpansionPlanning />} />
+            <Route
+              path="expansion"
+              element={
+                <ProtectedRoute requiredRole="Admin" redirectTo="/admin/caseload">
+                  <ExpansionPlanning />
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
           {/* Donor routes */}

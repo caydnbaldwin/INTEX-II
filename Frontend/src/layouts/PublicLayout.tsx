@@ -39,9 +39,12 @@ export function PublicLayout() {
 
   const { theme, setTheme, canSetTheme } = useTheme()
   const isAdmin = authSession.roles.includes('Admin')
+  const isStaff = authSession.roles.includes('Staff')
   const isDonor = authSession.roles.includes('Donor')
   const dashboardPath = isAdmin
     ? '/admin'
+    : isStaff
+      ? '/admin/caseload'
     : isDonor
       ? '/donor'
       : null

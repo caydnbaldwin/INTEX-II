@@ -1,4 +1,6 @@
 using Backend.Data;
+using Backend.Contracts;
+using Backend.Infrastructure;
 using Backend.Models;
 using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -6,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
+using System.Text.Json;
 
 namespace Backend.Controllers;
 
@@ -42,8 +45,13 @@ public class ProcessRecordingsController(
 
     [HttpPost]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> Create([FromBody] ProcessRecording recording)
+    public async Task<IActionResult> Create([FromBody] ProcessRecordingWriteRequest request)
     {
+        if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save session."))
+            return BadRequest(validationProblem);
+
+        var recording = new ProcessRecording();
+        CrudWriteMapper.ApplyProcessRecording(recording, request);
         recording.RecordingId = await db.ProcessRecordings.AnyAsync()
             ? await db.ProcessRecordings.MaxAsync(r => r.RecordingId) + 1
             : 1;
@@ -54,11 +62,17 @@ public class ProcessRecordingsController(
 
     [HttpPut("{id}")]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> Update(int id, [FromBody] ProcessRecording recording)
+    public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
+        if (!JsonRequestPatch<ProcessRecordingWriteRequest>.TryParse(body, out var patch, out var parseProblem))
+            return BadRequest(parseProblem);
+        if (!RequestValidation.TryValidate(patch!.Model, out var validationProblem, "Unable to update session."))
+            return BadRequest(validationProblem);
+
         var existing = await db.ProcessRecordings.FindAsync(id);
         if (existing is null) return NotFound();
-        db.Entry(existing).CurrentValues.SetValues(recording);
+
+        CrudWriteMapper.ApplyProcessRecording(existing, patch.Model, patch);
         existing.RecordingId = id;
         await db.SaveChangesAsync();
         return Ok(existing);

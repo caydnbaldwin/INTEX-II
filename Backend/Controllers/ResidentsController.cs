@@ -1,8 +1,11 @@
 using Backend.Data;
+using Backend.Contracts;
+using Backend.Infrastructure;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Backend.Controllers;
 
@@ -48,11 +51,14 @@ public class ResidentsController(AppDbContext db) : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> Create([FromBody] Resident resident)
+    public async Task<IActionResult> Create([FromBody] ResidentWriteRequest request)
     {
-        // Auto-assign ID if not provided
-        if (resident.ResidentId == 0)
-            resident.ResidentId = await db.Residents.AnyAsync() ? await db.Residents.MaxAsync(r => r.ResidentId) + 1 : 1;
+        if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save resident."))
+            return BadRequest(validationProblem);
+
+        var resident = new Resident();
+        CrudWriteMapper.ApplyResident(resident, request);
+        resident.ResidentId = await db.Residents.AnyAsync() ? await db.Residents.MaxAsync(r => r.ResidentId) + 1 : 1;
         resident.CreatedAt = DateTime.UtcNow;
         db.Residents.Add(resident);
         await db.SaveChangesAsync();
@@ -61,12 +67,18 @@ public class ResidentsController(AppDbContext db) : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> Update(int id, [FromBody] Resident resident)
+    public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
+        if (!JsonRequestPatch<ResidentWriteRequest>.TryParse(body, out var patch, out var parseProblem))
+            return BadRequest(parseProblem);
+        if (!RequestValidation.TryValidate(patch!.Model, out var validationProblem, "Unable to update resident."))
+            return BadRequest(validationProblem);
+
         var existing = await db.Residents.FindAsync(id);
         if (existing is null) return NotFound();
-        db.Entry(existing).CurrentValues.SetValues(resident);
-        existing.ResidentId = id; // Preserve ID
+
+        CrudWriteMapper.ApplyResident(existing, patch.Model, patch);
+        existing.ResidentId = id;
         await db.SaveChangesAsync();
         return Ok(existing);
     }

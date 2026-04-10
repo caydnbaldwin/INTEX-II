@@ -60,9 +60,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { Textarea } from '@/components/ui/textarea'
-import { api } from '@/lib/api'
+import { api, getApiErrorMessage } from '@/lib/api'
 import { TablePagination } from '@/components/TablePagination'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useAuth } from '@/context/AuthContext'
+import { toast } from 'sonner'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -240,6 +242,8 @@ const blankForm = {
 export function CaseloadInventory() {
   usePageTitle('Caseload')
   const [searchParams] = useSearchParams()
+  const { authSession } = useAuth()
+  const isAdmin = authSession.roles.includes('Admin')
 
   // Read initial filter values from URL params
   const initialFilters = useMemo(() => ({
@@ -322,6 +326,7 @@ export function CaseloadInventory() {
       })()
     } catch (err) {
       console.error('Failed to load caseload data', err)
+      toast.error(getApiErrorMessage(err, 'Failed to load caseload data.'))
     } finally {
       setLoading(false)
     }
@@ -431,12 +436,14 @@ export function CaseloadInventory() {
 
   // --- Dialog helpers ---
   function openAdd() {
+    if (!isAdmin) return
     setEditingId(null)
     setForm(blankForm)
     setDialogOpen(true)
   }
 
   async function openEdit(r: Resident) {
+    if (!isAdmin) return
     setEditingId(r.id)
     // Fetch full resident data for all fields
     try {
@@ -479,7 +486,7 @@ export function CaseloadInventory() {
         reintegrationType: (full.reintegrationType as string) ?? '',
         reintegrationStatus: (full.reintegrationStatus as string) ?? '',
       })
-    } catch {
+    } catch (err) {
       // Fallback to basic data if full fetch fails
       setForm({
         ...blankForm,
@@ -489,14 +496,16 @@ export function CaseloadInventory() {
         caseStatus: r.caseStatus,
         caseCategory: r.caseCategory,
       })
+      toast.error(getApiErrorMessage(err, 'Unable to load full resident details. Limited fields were loaded instead.'))
     }
     setDialogOpen(true)
   }
 
   async function handleSave() {
-    if (!form.internalCode?.trim()) { alert('Internal Code is required.'); return }
-    if (!form.safehouseId) { alert('Safehouse is required.'); return }
-    if (!form.caseStatus) { alert('Case Status is required.'); return }
+    if (!isAdmin) return
+    if (!form.internalCode?.trim()) { toast.error('Internal Code is required.'); return }
+    if (!form.safehouseId) { toast.error('Safehouse is required.'); return }
+    if (!form.caseStatus) { toast.error('Case Status is required.'); return }
 
     setSaving(true)
     try {
@@ -546,20 +555,25 @@ export function CaseloadInventory() {
       }
 
       setDialogOpen(false)
+      setEditingId(null)
+      setForm(blankForm)
       await fetchData()
     } catch (err) {
       console.error('Failed to save resident', err)
+      toast.error(getApiErrorMessage(err, 'Failed to save resident.'))
     } finally {
       setSaving(false)
     }
   }
 
   async function handleDelete(id: number) {
+    if (!isAdmin) return
     try {
       await api.delete(`/api/residents/${id}`)
       await fetchData()
     } catch (err) {
       console.error('Failed to delete resident', err)
+      toast.error(getApiErrorMessage(err, 'Failed to delete resident.'))
     }
   }
 
@@ -592,12 +606,14 @@ export function CaseloadInventory() {
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openAdd} className="gap-2 bg-violet-700 hover:bg-violet-800">
-              <Plus className="h-4 w-4" />
-              Add Resident
-            </Button>
-          </DialogTrigger>
+          {isAdmin && (
+            <DialogTrigger asChild>
+              <Button onClick={openAdd} className="gap-2 bg-violet-700 hover:bg-violet-800">
+                <Plus className="h-4 w-4" />
+                Add Resident
+              </Button>
+            </DialogTrigger>
+          )}
 
           <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
@@ -1165,16 +1181,18 @@ export function CaseloadInventory() {
               <TableHead className="text-muted-foreground">Risk Level</TableHead>
               <TableHead className="text-muted-foreground">Status</TableHead>
               <TableHead className="text-muted-foreground">Reintegration</TableHead>
-              <TableHead className="text-right text-muted-foreground">
-                Actions
-              </TableHead>
+              {isAdmin && (
+                <TableHead className="text-right text-muted-foreground">
+                  Actions
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedResidents.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={isAdmin ? 6 : 5}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No residents found.
@@ -1215,54 +1233,56 @@ export function CaseloadInventory() {
                   <TableCell className="text-muted-foreground">
                     {r.reintegrationStatus}
                   </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        onClick={(e) => { e.stopPropagation(); openEdit(r) }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                  {isAdmin && (
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={(e) => { e.stopPropagation(); openEdit(r) }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
 
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-red-600 dark:text-red-400"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Remove Resident
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to remove{' '}
-                              <span className="font-semibold">
-                                {r.name}
-                              </span>{' '}
-                              from the caseload? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(r.id)}
-                              className="bg-red-600 hover:bg-red-700"
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-red-600 dark:text-red-400"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              Remove
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Remove Resident
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to remove{' '}
+                                <span className="font-semibold">
+                                  {r.name}
+                                </span>{' '}
+                                from the caseload? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(r.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Remove
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
@@ -1335,17 +1355,19 @@ export function CaseloadInventory() {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setViewingResident(null)}>Close</Button>
-            <Button
-              className="bg-violet-700 hover:bg-violet-800"
-              onClick={() => {
-                const resident = viewingResident
-                setViewingResident(null)
-                if (resident) openEdit(resident)
-              }}
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
+            {isAdmin && (
+              <Button
+                className="bg-violet-700 hover:bg-violet-800"
+                onClick={() => {
+                  const resident = viewingResident
+                  setViewingResident(null)
+                  if (resident) openEdit(resident)
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

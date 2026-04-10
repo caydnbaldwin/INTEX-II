@@ -83,13 +83,19 @@ export function AdminLayout() {
 
   const { theme, setTheme, canSetTheme } = useTheme()
   const isAdmin = authSession.roles.includes('Admin')
+  const isStaff = authSession.roles.includes('Staff')
+  const isDonor = authSession.roles.includes('Donor')
+  const isOperationalUser = isAdmin || isStaff
 
   const [showMfaBanner, setShowMfaBanner] = useState(false)
   const isItemActive = (item: { href: string }) =>
     location.pathname === item.href
     || (item.href.includes('?') && location.pathname + location.search === item.href)
   const allAdminItems = [...dashboardNav, ...donorFundingNav, ...residentCareNav, ...outreachNav]
-  const activeHeaderItem = [...(isAdmin ? allAdminItems : donorNav), ...securityNav].find(isItemActive)
+  const activeHeaderItem = [
+    ...(isAdmin ? allAdminItems : isStaff ? residentCareNav : donorNav),
+    ...securityNav,
+  ].find(isItemActive)
   const sectionHasActiveItem = (items: { href: string }[]) => items.some(isItemActive)
   const [openSections, setOpenSections] = useState<Record<AdminSectionKey, boolean>>({
     donorsFunding: sectionHasActiveItem(donorFundingNav),
@@ -140,7 +146,7 @@ export function AdminLayout() {
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold font-serif">Lunas</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {isAdmin ? 'Admin Portal' : 'Donor Portal'}
+                      {isAdmin ? 'Admin Portal' : isStaff ? 'Staff Portal' : isDonor ? 'Donor Portal' : 'Portal'}
                     </span>
                   </div>
                 </Link>
@@ -253,6 +259,33 @@ export function AdminLayout() {
                 </SidebarGroupContent>
               </SidebarGroup>
             </>
+          ) : isStaff ? (
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={() => toggleSection('residentCare')}>
+                      <UserCheck className="size-4" />
+                      <span className="flex-1 text-left">Resident Care</span>
+                      <ChevronDown className={`size-3.5 transition-transform ${openSections.residentCare ? 'rotate-180' : ''}`} />
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {openSections.residentCare && residentCareNav.map((item) => {
+                    const isActive = isItemActive(item)
+                    return (
+                      <SidebarMenuItem key={item.name}>
+                        <SidebarMenuButton asChild isActive={isActive} className="pl-8">
+                          <Link to={item.href}>
+                            <item.icon className="size-4" />
+                            <span>{item.name}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           ) : (
             <SidebarGroup>
               <SidebarGroupContent>
@@ -337,7 +370,7 @@ export function AdminLayout() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <span className="text-sm font-medium text-muted-foreground flex-1">
-            {activeHeaderItem?.name ?? 'Dashboard'}
+            {activeHeaderItem?.name ?? (isOperationalUser ? 'Portal' : 'Dashboard')}
           </span>
           <TooltipProvider>
             <Tooltip>

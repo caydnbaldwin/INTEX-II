@@ -150,6 +150,7 @@ builder.Services.AddScoped<IExpansionRecommendationService, ExpansionRecommendat
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+var databaseStartupPolicy = DatabaseStartupPolicy.Resolve(app.Environment, app.Configuration);
 
 // ── Seed roles and default admin user ─────────────────────────────────────────
 using (var scope = app.Services.CreateScope())
@@ -157,14 +158,18 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
     if (app.Environment.IsEnvironment("Testing"))
+    {
         db.Database.EnsureCreated();
-    else
+    }
+    else if (databaseStartupPolicy.ApplyMigrations)
+    {
         db.Database.Migrate();
+    }
 
     // Skip CSV seeding in the Testing environment: tests don't need production
     // data, and the InMemory provider rejects duplicate PKs that SQL Server
     // would catch at the constraint level.
-    if (!app.Environment.IsEnvironment("Testing"))
+    if (!app.Environment.IsEnvironment("Testing") && databaseStartupPolicy.RunSeedData)
     {
         var seedPath = Path.Combine(AppContext.BaseDirectory, "Data", "SeedData");
         await DataSeeder.SeedAsync(db, seedPath);
