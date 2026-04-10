@@ -894,7 +894,7 @@ export function BoardingManagement() {
   usePageTitle('Safehouse Operations')
 
   const { authSession } = useAuth()
-  const isAdmin = authSession.roles.includes('Admin')
+  const canEdit = authSession.roles.includes('Admin') || authSession.roles.includes('Staff')
 
   const [placements, setPlacements] = useState<BoardingPlacement[]>([])
   const [residents, setResidents] = useState<ApiResident[]>([])
@@ -1289,7 +1289,7 @@ export function BoardingManagement() {
   }
 
   async function markIncidentResolved(incident: IncidentReportRecord) {
-    if (!isAdmin) return
+    if (!canEdit) return
 
     await saveIncidentUpdate(incident, {
       resolved: true,
@@ -1401,7 +1401,7 @@ export function BoardingManagement() {
   }
 
   function handleDragStart(event: React.DragEvent<HTMLButtonElement>, board: SafehouseBoard, slot: BedSlot) {
-    if (!isAdmin || movingPlacementId != null || !slot.placement) return
+    if (!canEdit || movingPlacementId != null || !slot.placement) return
 
     suppressBedClickRef.current = true
     setDraggedPlacement({
@@ -1571,7 +1571,7 @@ export function BoardingManagement() {
               </Button>
             ))}
           </div>
-          {isAdmin && (
+          {canEdit && (
             <div className="flex flex-wrap gap-2">
               <Button className="gap-2 bg-violet-700 hover:bg-violet-800" onClick={() => openAddPlacement()}>
                 <Plus className="h-4 w-4" />
@@ -1693,17 +1693,17 @@ export function BoardingManagement() {
                             <button
                               key={`${board.safehouse.safehouseId}-${visibleSlot.slotNumber}`}
                               type="button"
-                              draggable={isAdmin && originalSlot.placement != null && movingPlacementId == null}
+                              draggable={canEdit && originalSlot.placement != null && movingPlacementId == null}
                               onClick={() => handleBedClick(board, visibleSlot)}
                               onDragStart={(event) => handleDragStart(event, board, originalSlot)}
                               onDragEnd={handleDragEnd}
                               onDragOver={(event) => {
-                                if (!isAdmin || !canDropHere) return
+                                if (!canEdit || !canDropHere) return
                                 event.preventDefault()
                                 event.dataTransfer.dropEffect = 'move'
                               }}
                               onDrop={async (event) => {
-                                if (!isAdmin || !canDropHere) return
+                                if (!canEdit || !canDropHere) return
                                 event.preventDefault()
                                 await handleDropOnBed(board, visibleSlot)
                               }}
@@ -1711,7 +1711,7 @@ export function BoardingManagement() {
                               className={cn(
                                 'group flex min-h-28 flex-col rounded-xl border px-3 py-2 text-left shadow-sm transition focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2',
                                 bedTileClass(visibleSlot.status),
-                                isAdmin && originalSlot.placement != null && movingPlacementId == null && 'cursor-grab active:cursor-grabbing',
+                                canEdit && originalSlot.placement != null && movingPlacementId == null && 'cursor-grab active:cursor-grabbing',
                                 canDropHere && 'border-dashed',
                                 movingPlacementId === originalSlot.placement?.boardingPlacementId && 'opacity-70',
                               )}
@@ -2098,7 +2098,7 @@ export function BoardingManagement() {
                                           </PopoverContent>
                                         </Popover>
 
-                                        {isAdmin && !isResolved && (
+                                        {canEdit && !isResolved && (
                                           <Button
                                             size="sm"
                                             className="bg-violet-700 hover:bg-violet-800"
@@ -2155,7 +2155,7 @@ export function BoardingManagement() {
                           </div>
                         )}
                         <div className="flex flex-wrap gap-2">
-                          {isAdmin && (
+                          {canEdit && (
                             <Button
                               className="bg-violet-700 hover:bg-violet-800"
                               onClick={() => {
@@ -2170,12 +2170,12 @@ export function BoardingManagement() {
                           <Button variant="outline" onClick={() => void openPlacementHistory(placement)}>
                             View history
                           </Button>
-                          {isAdmin && (
+                          {canEdit && (
                             <Button variant="outline" onClick={() => startMoveResident(placement)}>
                               Move resident
                             </Button>
                           )}
-                          {isAdmin && (
+                          {canEdit && (
                             <Button
                               variant="outline"
                               className="text-red-600"
@@ -2195,7 +2195,7 @@ export function BoardingManagement() {
                 </div>
               )}
 
-              {isAdmin && (
+              {canEdit && (
                 <DialogFooter>
                   {!selectedBed.slot.placement && (
                     <Button

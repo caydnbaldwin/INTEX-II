@@ -245,7 +245,7 @@ export function CaseloadInventory() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { authSession } = useAuth()
-  const isAdmin = authSession.roles.includes('Admin')
+  const canEdit = authSession.roles.includes('Admin') || authSession.roles.includes('Staff')
 
   // Read initial filter values from URL params
   const initialFilters = useMemo(() => ({
@@ -438,14 +438,14 @@ export function CaseloadInventory() {
 
   // --- Dialog helpers ---
   function openAdd() {
-    if (!isAdmin) return
+    if (!canEdit) return
     setEditingId(null)
     setForm(blankForm)
     setDialogOpen(true)
   }
 
   async function openEdit(r: Resident) {
-    if (!isAdmin) return
+    if (!canEdit) return
     setEditingId(r.id)
     // Fetch full resident data for all fields
     try {
@@ -504,7 +504,7 @@ export function CaseloadInventory() {
   }
 
   async function handleSave() {
-    if (!isAdmin) return
+    if (!canEdit) return
     if (!form.internalCode?.trim()) { toast.error('Internal Code is required.'); return }
     if (!form.safehouseId) { toast.error('Safehouse is required.'); return }
     if (!form.caseStatus) { toast.error('Case Status is required.'); return }
@@ -569,7 +569,7 @@ export function CaseloadInventory() {
   }
 
   async function handleDelete(id: number) {
-    if (!isAdmin) return
+    if (!canEdit) return
     try {
       await api.delete(`/api/residents/${id}`)
       await fetchData()
@@ -608,7 +608,7 @@ export function CaseloadInventory() {
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          {isAdmin && (
+          {canEdit && (
             <DialogTrigger asChild>
               <Button onClick={openAdd} className="gap-2 bg-violet-700 hover:bg-violet-800">
                 <Plus className="h-4 w-4" />
@@ -1183,7 +1183,7 @@ export function CaseloadInventory() {
               <TableHead className="text-muted-foreground">Risk Level</TableHead>
               <TableHead className="text-muted-foreground">Status</TableHead>
               <TableHead className="text-muted-foreground">Reintegration</TableHead>
-              {isAdmin && (
+              {canEdit && (
                 <TableHead className="text-right text-muted-foreground">
                   Actions
                 </TableHead>
@@ -1194,7 +1194,7 @@ export function CaseloadInventory() {
             {paginatedResidents.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={isAdmin ? 6 : 5}
+                  colSpan={canEdit ? 6 : 5}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No residents found.
@@ -1235,7 +1235,7 @@ export function CaseloadInventory() {
                   <TableCell className="text-muted-foreground">
                     {r.reintegrationStatus}
                   </TableCell>
-                  {isAdmin && (
+                  {canEdit && (
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <Button

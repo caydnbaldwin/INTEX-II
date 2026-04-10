@@ -45,22 +45,24 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 const adminNav = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Chat', href: '/admin/chat', icon: MessageSquare },
-]
-
-const donorFundingNav = [
   { name: 'Donors', href: '/admin/donors', icon: Heart },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
   { name: 'Caseload', href: '/admin/caseload', icon: Users },
   { name: 'Process Recording', href: '/admin/process-recording', icon: FileText },
   { name: 'Home Visitation', href: '/admin/visitation', icon: Home },
   { name: 'Safehouse Operations', href: '/admin/safehouses/boarding', icon: BedDouble },
-  { name: 'Manage MFA', href: '/mfa', icon: ShieldCheck },
-  { name: 'User Management', href: '/admin/users', icon: UserCog },
-]
-
-const outreachNav = [
   { name: 'Social Media', href: '/admin/social-media', icon: Share2 },
   { name: 'Expansion', href: '/admin/expansion', icon: MapPin },
+  { name: 'User Management', href: '/admin/users', icon: UserCog },
+  { name: 'Manage MFA', href: '/mfa', icon: ShieldCheck },
+]
+
+const staffNav = [
+  { name: 'Caseload', href: '/admin/caseload', icon: Users },
+  { name: 'Process Recording', href: '/admin/process-recording', icon: FileText },
+  { name: 'Home Visitation', href: '/admin/visitation', icon: Home },
+  { name: 'Safehouse Operations', href: '/admin/safehouses/boarding', icon: BedDouble },
+  { name: 'Manage MFA', href: '/mfa', icon: ShieldCheck },
 ]
 
 const donorNav = [
@@ -83,7 +85,7 @@ export function AdminLayout() {
   const isItemActive = (item: { href: string }) =>
     location.pathname === item.href
     || (item.href.includes('?') && location.pathname + location.search === item.href)
-  const navItems = isAdmin ? [...adminNav, ...donorFundingNav, ...outreachNav] : donorNav
+  const navItems = isAdmin ? adminNav : isStaff ? staffNav : donorNav
   const activeHeaderItem = navItems.find(isItemActive)
 
   useEffect(() => {
