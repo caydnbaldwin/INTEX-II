@@ -541,6 +541,14 @@ export function DonorsManagement() {
     fetchAll()
   }, [])
 
+  // Auto-open view dialog when navigated from AI chat with ?donor=ID
+  useEffect(() => {
+    const id = searchParams.get('donor')
+    if (!id || donors.length === 0) return
+    const target = donors.find((d) => d.id === Number(id))
+    if (target) setViewingDonor(target)
+  }, [donors, searchParams])
+
   // Metrics
   const totalDonors = donors.length
   const activeDonors = donors.filter((d) => d.status === 'Active').length

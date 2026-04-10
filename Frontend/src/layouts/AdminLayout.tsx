@@ -20,6 +20,7 @@ import {
   DollarSign,
   Heart,
   Share2,
+  MessageSquare,
   MapPin,
 } from 'lucide-react'
 import {
@@ -45,6 +46,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 const dashboardNav = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Chat', href: '/admin/chat', icon: MessageSquare },
 ]
 
 const donorFundingNav = [
