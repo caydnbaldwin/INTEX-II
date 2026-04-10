@@ -65,7 +65,6 @@ public class BoardingController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost("placements")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> CreatePlacement([FromBody] BoardingPlacementWriteRequest request)
     {
         if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save boarding placement."))
@@ -90,7 +89,6 @@ public class BoardingController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("placements/{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> UpdatePlacement(int id, [FromBody] JsonElement body)
     {
         if (!JsonRequestPatch<BoardingPlacementWriteRequest>.TryParse(body, out var patch, out var parseProblem))
@@ -115,7 +113,6 @@ public class BoardingController(AppDbContext db) : ControllerBase
     }
 
     [HttpDelete("placements/{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> DeletePlacement(int id)
     {
         var placement = await db.BoardingPlacements.FindAsync(id);
@@ -152,7 +149,6 @@ public class BoardingController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost("orders")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> CreateOrder([FromBody] BoardingStandingOrderWriteRequest request)
     {
         if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save boarding order."))
@@ -184,7 +180,6 @@ public class BoardingController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("orders/{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> UpdateOrder(int id, [FromBody] JsonElement body)
     {
         if (!JsonRequestPatch<BoardingStandingOrderWriteRequest>.TryParse(body, out var patch, out var parseProblem))
@@ -219,7 +214,6 @@ public class BoardingController(AppDbContext db) : ControllerBase
     }
 
     [HttpDelete("orders/{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> DeleteOrder(int id)
     {
         var order = await db.BoardingStandingOrders.FindAsync(id);

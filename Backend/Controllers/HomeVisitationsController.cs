@@ -35,7 +35,6 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] HomeVisitationWriteRequest request)
     {
         if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save visit."))
@@ -50,7 +49,6 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
         if (!JsonRequestPatch<HomeVisitationWriteRequest>.TryParse(body, out var patch, out var parseProblem))
@@ -68,7 +66,6 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var visitation = await db.HomeVisitations.FindAsync(id);

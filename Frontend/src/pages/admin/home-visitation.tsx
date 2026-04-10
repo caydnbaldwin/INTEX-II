@@ -198,7 +198,7 @@ type FormFieldErrors = Partial<Record<'residentId' | 'date' | 'visitType' | 'gen
 export function HomeVisitation() {
   usePageTitle('Home Visitation')
   const { authSession } = useAuth()
-  const isAdmin = authSession.roles.includes('Admin')
+  const canEdit = authSession.roles.includes('Admin') || authSession.roles.includes('Staff')
   const [visits, setVisits] = useState<HomeVisit[]>([])
   const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
@@ -359,7 +359,7 @@ export function HomeVisitation() {
   }
 
   function openEditDialog(visit: HomeVisit) {
-    if (!isAdmin) return
+    if (!canEdit) return
     setEditingId(visit.id)
     setForm({
       date: visit.date,
@@ -376,7 +376,7 @@ export function HomeVisitation() {
   }
 
   async function handleDelete(id: number) {
-    if (!isAdmin) return
+    if (!canEdit) return
     try {
       await api.delete(`/api/home-visitations/${id}`)
       await fetchData()
@@ -413,7 +413,7 @@ export function HomeVisitation() {
       return
     }
 
-    if (!isAdmin) return
+    if (!canEdit) return
     setSaving(true)
     try {
       const payload = {
@@ -494,7 +494,7 @@ export function HomeVisitation() {
             Log home visits and track case conference history for residents.
           </p>
         </div>
-        {isAdmin && (
+        {canEdit && (
           <Button
             onClick={() => {
               setEditingId(null)
@@ -702,13 +702,13 @@ export function HomeVisitation() {
                     <TableHead>Location</TableHead>
                     <TableHead>Cooperation</TableHead>
                     <TableHead>Follow-up</TableHead>
-                    {isAdmin && <TableHead className="w-16"></TableHead>}
+                    {canEdit && <TableHead className="w-16"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUpcomingConferences.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={isAdmin ? 7 : 6} className="h-20 text-center text-muted-foreground">
+                      <TableCell colSpan={canEdit ? 7 : 6} className="h-20 text-center text-muted-foreground">
                         No upcoming conferences match your search.
                       </TableCell>
                     </TableRow>
@@ -743,7 +743,7 @@ export function HomeVisitation() {
                             </Badge>
                           )}
                         </TableCell>
-                        {isAdmin && (
+                        {canEdit && (
                           <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-2">
                               <button
@@ -805,13 +805,13 @@ export function HomeVisitation() {
                     <TableHead>Location</TableHead>
                     <TableHead>Cooperation</TableHead>
                     <TableHead>Follow-up</TableHead>
-                    {isAdmin && <TableHead className="w-16"></TableHead>}
+                    {canEdit && <TableHead className="w-16"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredPastConferences.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={isAdmin ? 7 : 6} className="h-20 text-center text-muted-foreground">
+                      <TableCell colSpan={canEdit ? 7 : 6} className="h-20 text-center text-muted-foreground">
                         No conference history matches your search.
                       </TableCell>
                     </TableRow>
@@ -846,7 +846,7 @@ export function HomeVisitation() {
                             </Badge>
                           )}
                         </TableCell>
-                        {isAdmin && (
+                        {canEdit && (
                           <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-2">
                               <button
