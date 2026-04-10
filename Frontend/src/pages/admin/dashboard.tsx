@@ -207,13 +207,14 @@ export function AdminDashboard() {
         ]
         setActionItems(pooled.sort((a, b) => b.score - a.score).slice(0, 3))
 
-        // Upcoming case conferences
+        // Upcoming case conferences — soonest 5 from today onward
         try {
           const conferences = await api.get<CaseConference[]>('/api/residents/case-conferences')
           const today = new Date().toISOString().split('T')[0]
           setUpcomingConferences(
             conferences
               .filter((c) => c.caseConferenceDate && c.caseConferenceDate >= today)
+              .sort((a, b) => a.caseConferenceDate.localeCompare(b.caseConferenceDate))
               .slice(0, 5)
           )
         } catch {

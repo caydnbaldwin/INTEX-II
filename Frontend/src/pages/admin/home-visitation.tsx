@@ -81,6 +81,28 @@ interface ApiHomeVisitation {
   visitOutcome: string
 }
 
+interface ApiCaseConference {
+  planId: number
+  residentId: number | null
+  planCategory: string | null
+  planDescription: string | null
+  servicesProvided: string | null
+  targetValue: string | null
+  targetDate: string | null
+  status: string | null
+  caseConferenceDate: string | null
+}
+
+interface CaseConference {
+  planId: number
+  residentId: number | null
+  residentName: string
+  date: string
+  category: string
+  description: string
+  status: string
+}
+
 interface ApiResident {
   residentId: number
   caseControlNo: string
@@ -159,6 +181,23 @@ function cooperationBadgeClass(level: CooperationLevel): string {
   }
 }
 
+function conferenceStatusBadgeClass(status: string): string {
+  switch (status) {
+    case 'Achieved':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400'
+    case 'In Progress':
+      return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-400'
+    case 'Open':
+      return 'border-violet-200 bg-violet-50 text-primary dark:border-violet-800 dark:bg-violet-950 dark:text-violet-400'
+    case 'On Hold':
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400'
+    case 'Closed':
+      return 'border-border bg-muted text-muted-foreground'
+    default:
+      return 'border-border bg-muted text-muted-foreground'
+  }
+}
+
 function visitTypeBadgeClass(type: VisitType): string {
   switch (type) {
     case 'Emergency':
@@ -200,6 +239,7 @@ export function HomeVisitation() {
   const { authSession } = useAuth()
   const canEdit = authSession.roles.includes('Admin')
   const [visits, setVisits] = useState<HomeVisit[]>([])
+  const [caseConferences, setCaseConferences] = useState<CaseConference[]>([])
   const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -207,6 +247,8 @@ export function HomeVisitation() {
   const recordsPerPage = 15
   const [upcomingPage, setUpcomingPage] = useState(1)
   const [historyPage, setHistoryPage] = useState(1)
+  const [visitPage, setVisitPage] = useState(1)
+  const [visitSearch, setVisitSearch] = useState('')
   const [activeConferenceTab, setActiveConferenceTab] = useState<'upcoming' | 'history'>('upcoming')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -256,6 +298,28 @@ export function HomeVisitation() {
           followUpNeeded: v.followUpNeeded ?? false,
         })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
       )
+
+      try {
+        const apiConferences = await api.get<ApiCaseConference[]>('/api/residents/case-conferences')
+        setCaseConferences(
+          apiConferences
+            .filter((c) => c.caseConferenceDate)
+            .map((c) => ({
+              planId: c.planId,
+              residentId: c.residentId,
+              residentName: c.residentId != null
+                ? residentMap.get(c.residentId) ?? `Resident ${c.residentId}`
+                : 'Unknown',
+              date: c.caseConferenceDate as string,
+              category: c.planCategory ?? '—',
+              description: c.planDescription ?? '',
+              status: c.status ?? '—',
+            })),
+        )
+      } catch {
+        console.warn('Case conference data unavailable')
+        setCaseConferences([])
+      }
     } catch (err) {
       console.error('Failed to load home visitation data', err)
       toast.error(getApiErrorMessage(err, 'Failed to load home visitation data.'))
@@ -276,21 +340,16 @@ export function HomeVisitation() {
   ).length
   const today = new Date().toISOString().split('T')[0]
   const normalizedConferenceSearch = conferenceSearch.trim().toLowerCase()
-  const filteredUpcomingConferences = visits.filter((v) =>
-    v.date >= today
-    && (!normalizedConferenceSearch || v.residentName.toLowerCase().includes(normalizedConferenceSearch)),
+  const filteredUpcomingConferences = caseConferences.filter((c) =>
+    c.date >= today
+    && (!normalizedConferenceSearch || c.residentName.toLowerCase().includes(normalizedConferenceSearch)),
   )
-  const filteredPastConferences = visits.filter((v) =>
-    v.date < today
-    && (!normalizedConferenceSearch || v.residentName.toLowerCase().includes(normalizedConferenceSearch)),
+  const filteredPastConferences = caseConferences.filter((c) =>
+    c.date < today
+    && (!normalizedConferenceSearch || c.residentName.toLowerCase().includes(normalizedConferenceSearch)),
   )
-  const sortByConferenceDateDesc = (a: HomeVisit, b: HomeVisit) => {
-    const aTime = new Date(a.date).getTime() || 0
-    const bTime = new Date(b.date).getTime() || 0
-    return bTime - aTime
-  }
-  const sortedUpcomingConferences = [...filteredUpcomingConferences].sort(sortByConferenceDateDesc)
-  const sortedPastConferences = [...filteredPastConferences].sort(sortByConferenceDateDesc)
+  const sortedUpcomingConferences = [...filteredUpcomingConferences].sort((a, b) => a.date.localeCompare(b.date))
+  const sortedPastConferences = [...filteredPastConferences].sort((a, b) => b.date.localeCompare(a.date))
   const paginatedUpcomingConferences = sortedUpcomingConferences.slice(
     (upcomingPage - 1) * recordsPerPage,
     upcomingPage * recordsPerPage,
@@ -300,10 +359,23 @@ export function HomeVisitation() {
     historyPage * recordsPerPage,
   )
 
+  const normalizedVisitSearch = visitSearch.trim().toLowerCase()
+  const filteredVisits = visits.filter((v) =>
+    !normalizedVisitSearch || v.residentName.toLowerCase().includes(normalizedVisitSearch),
+  )
+  const paginatedVisits = filteredVisits.slice(
+    (visitPage - 1) * recordsPerPage,
+    visitPage * recordsPerPage,
+  )
+
   useEffect(() => {
     setUpcomingPage(1)
     setHistoryPage(1)
   }, [conferenceSearch])
+
+  useEffect(() => {
+    setVisitPage(1)
+  }, [visitSearch])
 
   function toFriendlyApiErrors(err: unknown): string[] {
     if (!(err instanceof ApiError)) return ['Unable to save visit. Please try again.']
@@ -662,6 +734,128 @@ export function HomeVisitation() {
         </CardContent>
       </Card>
 
+      {/* Home visit records — log/edit/delete visits */}
+      <Card className="border-border">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <MapPin className="h-5 w-5 text-primary" />
+            Home Visit Records
+          </CardTitle>
+          <CardDescription>Search by resident code/name (e.g., LS-0027). Most recent visits first.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={visitSearch}
+              onChange={(e) => setVisitSearch(e.target.value)}
+              placeholder="Search resident (e.g., LS-0027)"
+              className="pl-9"
+            />
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Resident</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Cooperation</TableHead>
+                <TableHead>Follow-up</TableHead>
+                {canEdit && <TableHead className="w-16"></TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredVisits.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={canEdit ? 7 : 6} className="h-20 text-center text-muted-foreground">
+                    No visits match your search.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedVisits.map((visit) => (
+                  <TableRow key={visit.id}>
+                    <TableCell>
+                      {new Date(visit.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </TableCell>
+                    <TableCell className="font-medium text-foreground">{visit.residentName}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={visitTypeBadgeClass(visit.visitType)}>
+                        {visit.visitType}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[220px] truncate text-muted-foreground">
+                      {visit.location || '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={cooperationBadgeClass(visit.cooperationLevel)}>
+                        {visit.cooperationLevel}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {visit.followUpNeeded ? (
+                        <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400">
+                          Yes
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
+                          No
+                        </Badge>
+                      )}
+                    </TableCell>
+                    {canEdit && (
+                      <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            onClick={() => openEditDialog(visit)}
+                            aria-label="Edit visit"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <button
+                                className="rounded p-1 text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:text-red-400"
+                                aria-label="Delete visit"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Visit</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently remove this visit record for {visit.residentName}. This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(visit.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          <TablePagination
+            currentPage={visitPage}
+            totalPages={Math.max(1, Math.ceil(filteredVisits.length / recordsPerPage))}
+            onPageChange={setVisitPage}
+          />
+        </CardContent>
+      </Card>
+
       {/* Case conference records (Donors-style tabs + search) */}
       <Card className="border-border">
         <CardHeader className="pb-2">
@@ -698,91 +892,34 @@ export function HomeVisitation() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Resident</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Cooperation</TableHead>
-                    <TableHead>Follow-up</TableHead>
-                    {canEdit && <TableHead className="w-16"></TableHead>}
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Description</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUpcomingConferences.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={canEdit ? 7 : 6} className="h-20 text-center text-muted-foreground">
+                      <TableCell colSpan={5} className="h-20 text-center text-muted-foreground">
                         No upcoming conferences match your search.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginatedUpcomingConferences.map((visit) => (
-                      <TableRow key={visit.id}>
+                    paginatedUpcomingConferences.map((conf) => (
+                      <TableRow key={conf.planId}>
                         <TableCell>
-                          {new Date(visit.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {new Date(conf.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </TableCell>
-                        <TableCell className="font-medium text-foreground">{visit.residentName}</TableCell>
+                        <TableCell className="font-medium text-foreground">{conf.residentName}</TableCell>
+                        <TableCell className="text-muted-foreground">{conf.category}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={visitTypeBadgeClass(visit.visitType)}>
-                            {visit.visitType}
+                          <Badge variant="outline" className={conferenceStatusBadgeClass(conf.status)}>
+                            {conf.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-[220px] truncate text-muted-foreground">
-                          {visit.location || '—'}
+                        <TableCell className="max-w-[280px] truncate text-muted-foreground">
+                          {conf.description || '—'}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cooperationBadgeClass(visit.cooperationLevel)}>
-                            {visit.cooperationLevel}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {visit.followUpNeeded ? (
-                            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400">
-                              Yes
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
-                              No
-                            </Badge>
-                          )}
-                        </TableCell>
-                        {canEdit && (
-                          <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                onClick={() => openEditDialog(visit)}
-                                aria-label="Edit visit"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <button
-                                    className="rounded p-1 text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:text-red-400"
-                                    aria-label="Delete visit"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Visit</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This will permanently remove this visit record for {visit.residentName}. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => handleDelete(visit.id)}
-                                      className="bg-red-600 hover:bg-red-700"
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        )}
                       </TableRow>
                     ))
                   )}
@@ -801,91 +938,34 @@ export function HomeVisitation() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Resident</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Cooperation</TableHead>
-                    <TableHead>Follow-up</TableHead>
-                    {canEdit && <TableHead className="w-16"></TableHead>}
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Description</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredPastConferences.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={canEdit ? 7 : 6} className="h-20 text-center text-muted-foreground">
+                      <TableCell colSpan={5} className="h-20 text-center text-muted-foreground">
                         No conference history matches your search.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginatedPastConferences.map((visit) => (
-                      <TableRow key={visit.id}>
+                    paginatedPastConferences.map((conf) => (
+                      <TableRow key={conf.planId}>
                         <TableCell>
-                          {new Date(visit.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {new Date(conf.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </TableCell>
-                        <TableCell className="font-medium text-foreground">{visit.residentName}</TableCell>
+                        <TableCell className="font-medium text-foreground">{conf.residentName}</TableCell>
+                        <TableCell className="text-muted-foreground">{conf.category}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={visitTypeBadgeClass(visit.visitType)}>
-                            {visit.visitType}
+                          <Badge variant="outline" className={conferenceStatusBadgeClass(conf.status)}>
+                            {conf.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-[220px] truncate text-muted-foreground">
-                          {visit.location || '—'}
+                        <TableCell className="max-w-[280px] truncate text-muted-foreground">
+                          {conf.description || '—'}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cooperationBadgeClass(visit.cooperationLevel)}>
-                            {visit.cooperationLevel}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {visit.followUpNeeded ? (
-                            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400">
-                              Yes
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="border-border bg-muted text-muted-foreground">
-                              No
-                            </Badge>
-                          )}
-                        </TableCell>
-                        {canEdit && (
-                          <TableCell className="px-2" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                onClick={() => openEditDialog(visit)}
-                                aria-label="Edit visit"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <button
-                                    className="rounded p-1 text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:text-red-400"
-                                    aria-label="Delete visit"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Visit</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This will permanently remove this visit record for {visit.residentName}. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => handleDelete(visit.id)}
-                                      className="bg-red-600 hover:bg-red-700"
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        )}
                       </TableRow>
                     ))
                   )}

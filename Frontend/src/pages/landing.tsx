@@ -165,7 +165,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="w-full border-y border-border bg-[#e8e2f4]">
+      <section className="w-full border-y border-border bg-[#e8e2f4] dark:bg-[#2a1f3d]">
         <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8 lg:py-12">
           <div className="flex flex-col items-stretch gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
             <div className="max-w-2xl text-left">

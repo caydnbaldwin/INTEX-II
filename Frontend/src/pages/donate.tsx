@@ -675,10 +675,6 @@ export function DonatePage() {
                   }}
                 />
               </div>
-              <div className="mt-3 flex justify-between text-sm text-muted-foreground">
-                <span>₱0</span>
-                <span>₱{(annualBudget / 1000).toFixed(0)}K</span>
-              </div>
             </div>
 
             {/* Right: Where It Goes pie chart */}
