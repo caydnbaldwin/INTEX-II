@@ -463,9 +463,9 @@ export function DonatePage() {
         </div>
 
         {/* Big editable amount */}
-        <div className="flex flex-col items-center gap-1">
-          <div className="relative flex items-center">
-            <span className="text-5xl font-serif font-semibold text-foreground mr-1">$</span>
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative flex items-center gap-2">
+            <span className="text-5xl font-serif font-semibold text-foreground">$</span>
             <input
               type="number"
               min="1"
@@ -473,7 +473,7 @@ export function DonatePage() {
               value={amountInput}
               onChange={e => setAmountInput(e.target.value)}
               placeholder="0"
-              className="w-40 text-center text-6xl font-serif font-semibold text-foreground bg-transparent border-none focus:outline-none focus:ring-0 placeholder:text-foreground/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-36 text-center text-6xl font-serif font-semibold text-foreground bg-transparent rounded-2xl border border-border px-3 py-2 focus:border-primary focus:outline-none focus:ring-0 placeholder:text-foreground/30 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
           <span className="text-base font-medium tracking-widest text-muted-foreground">USD</span>
