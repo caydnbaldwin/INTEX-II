@@ -54,6 +54,12 @@ const AiChatPage = lazy(() =>
 const ExpansionPlanning = lazy(() =>
   import('./pages/admin/expansion').then((m) => ({ default: m.ExpansionPlanning })),
 )
+const SocialMediaGuide = lazy(() =>
+  import('./pages/admin/social-media').then((m) => ({ default: m.SocialMediaRecommendation })),
+)
+const UserManagement = lazy(() =>
+  import('./pages/admin/user-management').then((m) => ({ default: m.UserManagement })),
+)
 const DonorPortal = lazy(() =>
   import('./pages/donor/portal').then((m) => ({ default: m.DonorPortal })),
 )
@@ -181,6 +187,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="social-media" element={<SocialMediaGuide />} />
+            <Route path="users" element={<UserManagement />} />
           </Route>
 
           {/* Donor routes */}
