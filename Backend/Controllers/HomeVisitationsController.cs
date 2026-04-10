@@ -1,8 +1,11 @@
 using Backend.Data;
+using Backend.Contracts;
+using Backend.Infrastructure;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Backend.Controllers;
 
@@ -33,37 +36,33 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> Create([FromBody] HomeVisitation visitation)
+    public async Task<IActionResult> Create([FromBody] HomeVisitationWriteRequest request)
     {
-        if (visitation.VisitationId == 0)
-            visitation.VisitationId = await db.HomeVisitations.AnyAsync() ? await db.HomeVisitations.MaxAsync(v => v.VisitationId) + 1 : 1;
+        if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save visit."))
+            return BadRequest(validationProblem);
+
+        var visitation = new HomeVisitation();
+        CrudWriteMapper.ApplyHomeVisitation(visitation, request);
+        visitation.VisitationId = await db.HomeVisitations.AnyAsync() ? await db.HomeVisitations.MaxAsync(v => v.VisitationId) + 1 : 1;
         db.HomeVisitations.Add(visitation);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = visitation.VisitationId }, visitation);
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
-    public async Task<IActionResult> Update(int id, [FromBody] HomeVisitation visitation)
+    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
+    public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
+        if (!JsonRequestPatch<HomeVisitationWriteRequest>.TryParse(body, out var patch, out var parseProblem))
+            return BadRequest(parseProblem);
+        if (!RequestValidation.TryValidate(patch!.Model, out var validationProblem, "Unable to update visit."))
+            return BadRequest(validationProblem);
+
         var existing = await db.HomeVisitations.FindAsync(id);
         if (existing is null) return NotFound();
 
-        // Update only editable fields; never overwrite the entity key.
-        existing.ResidentId = visitation.ResidentId;
-        existing.VisitDate = visitation.VisitDate;
-        existing.SocialWorker = visitation.SocialWorker;
-        existing.VisitType = visitation.VisitType;
-        existing.LocationVisited = visitation.LocationVisited;
-        existing.FamilyMembersPresent = visitation.FamilyMembersPresent;
-        existing.Purpose = visitation.Purpose;
-        existing.Observations = visitation.Observations;
-        existing.FamilyCooperationLevel = visitation.FamilyCooperationLevel;
-        existing.SafetyConcernsNoted = visitation.SafetyConcernsNoted;
-        existing.FollowUpNeeded = visitation.FollowUpNeeded;
-        existing.FollowUpNotes = visitation.FollowUpNotes;
-        existing.VisitOutcome = visitation.VisitOutcome;
-
+        CrudWriteMapper.ApplyHomeVisitation(existing, patch.Model, patch);
+        existing.VisitationId = id;
         await db.SaveChangesAsync();
         return Ok(existing);
     }

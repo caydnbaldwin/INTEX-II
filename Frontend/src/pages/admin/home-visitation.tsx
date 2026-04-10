@@ -40,10 +40,11 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, getApiErrorMessage } from '@/lib/api'
 import { TablePagination } from '@/components/TablePagination'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { useAuth } from '@/context/AuthContext'
+import { toast } from 'sonner'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -257,6 +258,7 @@ export function HomeVisitation() {
       )
     } catch (err) {
       console.error('Failed to load home visitation data', err)
+      toast.error(getApiErrorMessage(err, 'Failed to load home visitation data.'))
     } finally {
       setLoading(false)
     }
@@ -357,6 +359,7 @@ export function HomeVisitation() {
   }
 
   function openEditDialog(visit: HomeVisit) {
+    if (!isAdmin) return
     setEditingId(visit.id)
     setForm({
       date: visit.date,
@@ -373,12 +376,14 @@ export function HomeVisitation() {
   }
 
   async function handleDelete(id: number) {
+    if (!isAdmin) return
     try {
       await api.delete(`/api/home-visitations/${id}`)
       await fetchData()
       scrollToConferenceRecords()
     } catch (err) {
       console.error('Failed to delete visit', err)
+      toast.error(getApiErrorMessage(err, 'Failed to delete visit.'))
     }
   }
 
@@ -394,6 +399,7 @@ export function HomeVisitation() {
         ...nextErrors,
         general: `Cannot save yet. Please complete required fields: ${missingFields.join(', ')}.`,
       })
+      toast.error(`Cannot save yet. Please complete required fields: ${missingFields.join(', ')}.`)
       return
     }
 
@@ -403,9 +409,11 @@ export function HomeVisitation() {
         residentId: 'Please select a valid resident.',
         general: 'Cannot save yet. Please complete required fields: Resident.',
       })
+      toast.error('Please select a valid resident.')
       return
     }
 
+    if (!isAdmin) return
     setSaving(true)
     try {
       const payload = {
@@ -436,9 +444,11 @@ export function HomeVisitation() {
       }
     } catch (err) {
       console.error('Failed to save visit', err)
+      const message = toFriendlyApiErrors(err).join(' ')
       setFormErrors({
-        general: toFriendlyApiErrors(err).join(' '),
+        general: message,
       })
+      toast.error(message)
     } finally {
       setSaving(false)
     }
@@ -484,18 +494,20 @@ export function HomeVisitation() {
             Log home visits and track case conference history for residents.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditingId(null)
-            setForm(blankForm)
-            setFormErrors({})
-            setDialogOpen(true)
-          }}
-          className="gap-2 bg-violet-700 hover:bg-violet-800"
-        >
-          <Plus className="h-4 w-4" />
-          Log Visit
-        </Button>
+        {isAdmin && (
+          <Button
+            onClick={() => {
+              setEditingId(null)
+              setForm(blankForm)
+              setFormErrors({})
+              setDialogOpen(true)
+            }}
+            className="gap-2 bg-violet-700 hover:bg-violet-800"
+          >
+            <Plus className="h-4 w-4" />
+            Log Visit
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}

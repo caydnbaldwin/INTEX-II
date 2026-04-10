@@ -1,7 +1,10 @@
 using Backend.Data;
+using Backend.Contracts;
+using Backend.Infrastructure;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace Backend.Controllers;
 
@@ -11,13 +14,18 @@ namespace Backend.Controllers;
 public class IncidentsController(AppDbContext db) : ControllerBase
 {
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] IncidentReport incident)
+    public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
+        if (!JsonRequestPatch<IncidentWriteRequest>.TryParse(body, out var patch, out var parseProblem))
+            return BadRequest(parseProblem);
+        if (!RequestValidation.TryValidate(patch!.Model, out var validationProblem, "Unable to update incident."))
+            return BadRequest(validationProblem);
+
         var existing = await db.IncidentReports.FindAsync(id);
         if (existing is null)
             return NotFound();
 
-        db.Entry(existing).CurrentValues.SetValues(incident);
+        CrudWriteMapper.ApplyIncident(existing, patch.Model, patch);
         existing.IncidentId = id;
 
         if (existing.Resolved == true)

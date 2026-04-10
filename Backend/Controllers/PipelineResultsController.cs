@@ -198,6 +198,30 @@ public class PipelineResultsController(AppDbContext db) : ControllerBase
         return Ok(joined.OrderByDescending(r => r.Score));
     }
 
+    [HttpGet("social-media-recommendation")]
+    public async Task<IActionResult> GetSocialMediaRecommendation()
+    {
+        var result = await db.PipelineResults
+            .Where(p => p.PipelineName == "SocialMediaRecommendation" && p.ResultType == "FullRecommendation")
+            .OrderByDescending(p => p.GeneratedAt)
+            .FirstOrDefaultAsync();
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost("social-media-recommendation/log-result")]
+    public async Task<IActionResult> LogPostResult([FromBody] System.Text.Json.JsonElement body)
+    {
+        db.PipelineResults.Add(new PipelineResult
+        {
+            PipelineName = "SocialMediaRecommendation",
+            ResultType = "PostResult",
+            DetailsJson = body.GetRawText(),
+            GeneratedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
     [HttpGet("safehouse-performance")]
     public async Task<IActionResult> GetSafehousePerformance()
     {

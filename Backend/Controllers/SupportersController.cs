@@ -1,8 +1,11 @@
 using Backend.Data;
+using Backend.Contracts;
+using Backend.Infrastructure;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Backend.Controllers;
 
@@ -37,11 +40,16 @@ public class SupportersController(AppDbContext db) : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> Create([FromBody] Supporter supporter)
+    public async Task<IActionResult> Create([FromBody] SupporterWriteRequest request)
     {
-        if (supporter.SupporterId == 0)
-            supporter.SupporterId = await db.Supporters.AnyAsync() ? await db.Supporters.MaxAsync(s => s.SupporterId) + 1 : 1;
+        if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save supporter."))
+            return BadRequest(validationProblem);
+
+        var supporter = new Supporter();
+        CrudWriteMapper.ApplySupporter(supporter, request);
+        supporter.SupporterId = await db.Supporters.AnyAsync() ? await db.Supporters.MaxAsync(s => s.SupporterId) + 1 : 1;
         supporter.CreatedAt = DateTime.UtcNow;
+        supporter.Status ??= "Active";
         db.Supporters.Add(supporter);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = supporter.SupporterId }, supporter);
@@ -49,24 +57,24 @@ public class SupportersController(AppDbContext db) : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
-    public async Task<IActionResult> Update(int id, [FromBody] Supporter supporter)
+    public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
+        if (!JsonRequestPatch<SupporterWriteRequest>.TryParse(body, out var patch, out var parseProblem))
+            return BadRequest(parseProblem);
+        if (!RequestValidation.TryValidate(patch!.Model, out var validationProblem, "Unable to update supporter."))
+            return BadRequest(validationProblem);
+
         var existing = await db.Supporters.FindAsync(id);
         if (existing is null) return NotFound();
 
-        // Update only editable profile fields and never touch the primary key.
-        existing.DisplayName = supporter.DisplayName;
-        existing.Email = supporter.Email;
-        existing.SupporterType = supporter.SupporterType;
-        existing.AcquisitionChannel = supporter.AcquisitionChannel;
-        existing.Status = supporter.Status;
-
+        CrudWriteMapper.ApplySupporter(existing, patch.Model, patch);
+        existing.SupporterId = id;
         await db.SaveChangesAsync();
         return Ok(existing);
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var supporter = await db.Supporters.FindAsync(id);

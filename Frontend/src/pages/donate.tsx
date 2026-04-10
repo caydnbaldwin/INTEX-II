@@ -18,22 +18,11 @@ import {
   Home,
   LogIn,
   ChevronLeft,
+  ChevronDown,
 } from 'lucide-react'
-import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { usePageTitle } from '@/hooks/usePageTitle'
 
 // ── Stripe setup ──────────────────────────────────────────────────────────────
@@ -49,15 +38,6 @@ const CHART_COLORS = [
   'oklch(0.75 0.08 280)',
   'oklch(0.35 0.12 280)',
 ]
-
-const AREA_COLORS: Record<string, string> = {
-  Education:   'oklch(0.45 0.18 280)',
-  Operations:  'oklch(0.55 0.15 280)',
-  Wellbeing:   'oklch(0.35 0.12 280)',
-  Maintenance: 'oklch(0.65 0.10 280)',
-  Transport:   'oklch(0.70 0.08 280)',
-  Outreach:    'oklch(0.75 0.06 280)',
-}
 
 const AREA_LABELS: Record<string, string> = {
   Education:   'Education',
@@ -77,7 +57,6 @@ const donationTiers = [
 ]
 
 const trustSignals = [
-  { label: '100% goes to the children', icon: Heart },
   { label: 'Verified 501(c)(3) nonprofit', icon: Shield },
   { label: 'Transparent reporting', icon: CheckCircle2 },
 ]
@@ -109,7 +88,6 @@ interface ParsedSnapshot extends ImpactSnapshot {
   metrics: MetricPayload
 }
 
-interface FundingPoint { month: string; donated: number; target: number }
 interface AllocationPoint { name: string; value: number }
 
 type DonateStep = 'amount' | 'payment' | 'success'
@@ -225,10 +203,9 @@ export function DonatePage() {
   const [sliderIsMonthly, setSliderIsMonthly]     = useState(true)
 
   // Impact data for lower sections
-  const [fundingOverTime, setFundingOverTime] = useState<FundingPoint[]>([])
   const [allocationData, setAllocationData]   = useState<AllocationPoint[]>([])
-  const [annualSnapshots, setAnnualSnapshots] = useState<ParsedSnapshot[]>([])
-  const [latestAnnual, setLatestAnnual]       = useState<MetricPayload | null>(null)
+  const [donated2026, setDonated2026]         = useState(0)
+  const annualBudget = 132000
 
   useEffect(() => {
     fetch(`${API}/api/public/impact-snapshots`, { credentials: 'include' })
@@ -245,21 +222,12 @@ export function DonatePage() {
           .sort((a, b) => new Date(a.snapshotDate).getTime() - new Date(b.snapshotDate).getTime())
 
         const monthly = parsed.filter(s => s.metrics.type !== 'annual_summary')
-        const annual  = parsed.filter(s => s.metrics.type === 'annual_summary')
-          .sort((a, b) => (a.metrics.year ?? 0) - (b.metrics.year ?? 0))
 
-        setAnnualSnapshots(annual)
-        if (annual.length > 0) setLatestAnnual(annual[annual.length - 1].metrics)
-
-        setFundingOverTime(
-          monthly
-            .filter(s => s.metrics.donations_total_php !== undefined)
-            .map(s => ({
-              month: new Date(s.snapshotDate).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-              donated: Math.round(s.metrics.donations_total_php ?? 0),
-              target:  s.metrics.monthly_operating_cost_php ?? 11000,
-            }))
-        )
+        // Sum 2026 donations from monthly snapshots
+        const total2026 = monthly
+          .filter(s => s.snapshotDate.startsWith('2026'))
+          .reduce((sum, s) => sum + (s.metrics.donations_total_php ?? 0), 0)
+        setDonated2026(Math.round(total2026))
 
         const totals: Record<string, number> = {}
         monthly.forEach(s => {
@@ -473,20 +441,20 @@ export function DonatePage() {
 
     // amount step
     return (
-      <div className="flex flex-col items-center text-center gap-6 py-2">
+      <div className="flex flex-col items-center text-center gap-4 py-1">
 
         {/* Logo + org name */}
         <div className="flex flex-col items-center gap-2">
           <img
             src="/images/TransparentPinwheelLogo.png"
             alt="Lunas Project logo"
-            className="h-16 w-auto"
+            className="h-14 w-auto"
           />
           <div>
-            <p className="text-xs text-muted-foreground">Donate to</p>
-            <p className="text-lg font-semibold text-foreground flex items-center gap-1.5">
+            <p className="text-sm text-muted-foreground">Donate to</p>
+            <p className="text-xl font-semibold text-foreground flex items-center gap-1.5">
               The Lunas Project
-              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <CheckCircle2 className="h-5 w-5 text-primary" />
             </p>
           </div>
         </div>
@@ -494,7 +462,7 @@ export function DonatePage() {
         {/* Big editable amount */}
         <div className="flex flex-col items-center gap-1">
           <div className="relative flex items-center">
-            <span className="text-4xl font-serif font-semibold text-foreground mr-1">$</span>
+            <span className="text-5xl font-serif font-semibold text-foreground mr-1">$</span>
             <input
               type="number"
               min="1"
@@ -502,39 +470,39 @@ export function DonatePage() {
               value={amountInput}
               onChange={e => setAmountInput(e.target.value)}
               placeholder="0"
-              className="w-36 text-center text-5xl font-serif font-semibold text-foreground bg-transparent border-none focus:outline-none focus:ring-0 placeholder:text-foreground/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-40 text-center text-6xl font-serif font-semibold text-foreground bg-transparent border-none focus:outline-none focus:ring-0 placeholder:text-foreground/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
-          <span className="text-sm font-medium tracking-widest text-muted-foreground">USD</span>
+          <span className="text-base font-medium tracking-widest text-muted-foreground">USD</span>
         </div>
 
         {/* Monthly checkbox */}
-        <label className="flex items-center gap-2.5 cursor-pointer text-sm text-muted-foreground select-none">
+        <label className="flex items-center gap-2.5 cursor-pointer text-base text-muted-foreground select-none">
           <input
             type="checkbox"
             checked={isMonthly}
             onChange={e => setIsMonthly(e.target.checked)}
-            className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+            className="h-5 w-5 rounded border-border accent-primary cursor-pointer"
           />
           Make this a monthly donation
         </label>
 
-        {intentError && <p className="text-sm text-destructive">{intentError}</p>}
+        {intentError && <p className="text-base text-destructive">{intentError}</p>}
 
         {/* Donate button */}
         <div className="w-full flex flex-col gap-3">
           <Button
             size="lg"
-            className="w-full rounded-full font-medium py-6 text-base"
+            className="w-full rounded-full font-medium py-6 text-lg"
             onClick={handleContinueToPayment}
             disabled={isCreating || amountUsd < 0.5}
           >
-            <Heart className="mr-2 h-4 w-4" />
+            <Heart className="mr-2 h-5 w-5" />
             {isCreating ? 'Preparing…' : 'Donate with Card'}
           </Button>
         </div>
 
-        <p className="text-xs text-muted-foreground/50">
+        <p className="text-sm text-muted-foreground/50">
           Secured by Stripe · Test mode — no real charges
         </p>
       </div>
@@ -545,63 +513,67 @@ export function DonatePage() {
     <div className="min-h-screen bg-background">
 
       {/* ── Section 1: Hero + Stripe (split panel) ── */}
-      <section className="pt-20 pb-16 sm:pt-28 sm:pb-24 bg-background">
+      <section className="pb-16 pt-12 sm:pt-16 bg-background">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid lg:grid-cols-[2fr_3fr] gap-12 items-start">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
 
             {/* Left: emotional copy */}
             <div className="pt-4">
               <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary mb-4">
                 Make a Difference
               </p>
-              <h1 className="font-serif text-4xl sm:text-5xl lg:text-5xl font-semibold text-foreground tracking-tight leading-[1.1] whitespace-nowrap">
+              <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground tracking-tight leading-[1.08]">
                 Provide Healing.
               </h1>
-              <p className="mt-6 text-base leading-relaxed text-muted-foreground">
+              <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
                 Your support funds the healing these children need. Every penny reaches them directly.
               </p>
 
               {/* Trust signals */}
               <div className="mt-8 flex flex-col gap-3">
                 {trustSignals.map(signal => (
-                  <div key={signal.label} className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <signal.icon className="h-4 w-4 text-primary/60 flex-shrink-0" />
+                  <div key={signal.label} className="flex items-center gap-3 text-base text-muted-foreground">
+                    <signal.icon className="h-5 w-5 text-primary/60 flex-shrink-0" />
                     <span>{signal.label}</span>
                   </div>
                 ))}
               </div>
-
-
             </div>
 
             {/* Right: payment widget */}
             <div>
               <Card className="border-border/60 shadow-sm">
-                <CardContent className="p-8">
+                <CardContent className="p-5 sm:p-6">
                   {renderRightPanel()}
                 </CardContent>
               </Card>
             </div>
           </div>
+
+          {/* Where Your Money Goes — below the card */}
+          <div className="mt-14 flex justify-center">
+            <button
+              type="button"
+              onClick={() => document.getElementById('tier-breakdown')?.scrollIntoView({ behavior: 'smooth' })}
+              className="flex flex-col items-center gap-3 group cursor-pointer"
+            >
+              <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
+                Where Your Money Goes
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                See what each dollar funds.
+              </p>
+              <div className="flex items-center justify-center h-10 w-10 rounded-full border border-border text-muted-foreground group-hover:text-primary group-hover:border-primary transition-colors animate-bounce">
+                <ChevronDown className="h-5 w-5" />
+              </div>
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* ── Section 2: Tier breakdown ── */}
-      <section className="pb-20 sm:pb-28 bg-muted/30">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8 py-20">
-          <div className="mx-auto max-w-3xl text-center mb-14">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary mb-4">
-              Your Impact
-            </p>
-            <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-              Where Your Money Goes
-            </h2>
-            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-              We break down what each dollar funds so you always know your direct impact.
-            </p>
-          </div>
-
-          {/* Slider tier selector + payment widget */}
+      {/* ── Section 2: Tier breakdown slider ── */}
+      <section id="tier-breakdown" className="py-20 sm:py-28 bg-muted/30 scroll-mt-16">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
 
             {/* Left: slider */}
@@ -663,7 +635,7 @@ export function DonatePage() {
             {/* Right: payment widget driven by slider */}
             <div>
               <Card className="border-border/60 shadow-sm">
-                <CardContent className="p-8">
+                <CardContent className="p-6 sm:p-8">
                   {renderSliderPanel()}
                 </CardContent>
               </Card>
@@ -673,272 +645,103 @@ export function DonatePage() {
         </div>
       </section>
 
-      {/* ── Section 4: Funding charts ── */}
-      {(fundingOverTime.length > 0 || allocationData.length > 0 || annualSnapshots.length > 0) && (
-        <section className="py-20 sm:py-28 bg-background">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="mx-auto max-w-3xl text-center mb-14">
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary mb-4">
-                Funding Progress
+      {/* ── Goal + Where It Goes ── */}
+      <section className="py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="grid gap-12 lg:grid-cols-2 items-start">
+
+            {/* Left: 2026 Goal */}
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+                2026 Goal
               </p>
-              <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-                Help Close the Gap
+              <h2 className="mt-4 font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+                Our Goal
               </h2>
-              <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-                ₱11,000 is needed each month to fully fund all 9 safehouses.
-                Every donation moves the bar.
-              </p>
+              <div className="mt-6">
+                <div className="font-serif text-5xl font-bold tracking-tight text-foreground sm:text-6xl">
+                  {Math.min(Math.round((donated2026 / annualBudget) * 100), 100)}%
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  ₱{donated2026.toLocaleString()} of ₱{(annualBudget / 1000).toFixed(0)}K raised
+                </p>
+              </div>
+              <div className="mt-6 h-5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min((donated2026 / annualBudget) * 100, 100)}%`,
+                    backgroundColor: 'oklch(0.45 0.18 280)',
+                  }}
+                />
+              </div>
+              <div className="mt-3 flex justify-between text-sm text-muted-foreground">
+                <span>₱0</span>
+                <span>₱{(annualBudget / 1000).toFixed(0)}K</span>
+              </div>
             </div>
 
-            <div className="space-y-8">
-              {/* Monthly donations vs target */}
-              {fundingOverTime.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Monthly Donations vs. Operating Target</CardTitle>
-                    <CardDescription>
-                      The gap between the bars is what limits services for the children.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[320px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={fundingOverTime} barGap={2}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis dataKey="month" className="text-xs fill-muted-foreground" interval={2} />
-                          <YAxis className="text-xs fill-muted-foreground" tickFormatter={(v: number) => `₱${(v / 1000).toFixed(0)}k`} />
-                          <Tooltip
-                            contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                            formatter={(value) => [`₱${Number(value).toLocaleString()}`, '']}
-                          />
-                          <Legend />
-                          <Bar dataKey="target"  name="Monthly Target (₱11,000)" fill={CHART_COLORS[3]} radius={[4,4,0,0]} opacity={0.4} />
-                          <Bar dataKey="donated" name="Donated"                   fill={CHART_COLORS[0]} radius={[4,4,0,0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Allocation + breakdown */}
-              {allocationData.length > 0 && (
-                <div className="grid gap-8 lg:grid-cols-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Where Donations Go</CardTitle>
-                      <CardDescription>Cumulative allocation across all months — every peso tracked.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={allocationData}
-                              dataKey="value"
-                              nameKey="name"
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={100}
-                              label={({ name, percent }: { name?: string; percent?: number }) =>
-                                `${(name ?? '').split(' ')[0]} ${((percent ?? 0) * 100).toFixed(0)}%`
-                              }
-                              labelLine={false}
-                            >
-                              {allocationData.map((_entry, index) => (
-                                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                              formatter={(value) => [`₱${Number(value).toLocaleString()}`, '']}
-                            />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Program Area Breakdown</CardTitle>
-                      <CardDescription>Total allocated per area across all recorded months</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {(() => {
-                        const total = allocationData.reduce((sum, d) => sum + d.value, 0)
-                        return allocationData.map((area, index) => (
-                          <div key={area.name} className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                              <span className="font-medium text-foreground">{area.name}</span>
-                              <span className="text-muted-foreground">
-                                ₱{area.value.toLocaleString()} · {((area.value / total) * 100).toFixed(0)}%
-                              </span>
-                            </div>
-                            <div className="h-2 rounded-full bg-muted overflow-hidden">
-                              <div
-                                className="h-full rounded-full transition-all"
-                                style={{
-                                  width: `${(area.value / total) * 100}%`,
-                                  backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
-                                }}
-                              />
-                            </div>
-                          </div>
-                        ))
-                      })()}
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Annual report cards */}
-              {annualSnapshots.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-4">Annual Reports</h3>
-                  <div className="grid gap-6 lg:grid-cols-3">
-                    {annualSnapshots.map(snap => {
-                      const m        = snap.metrics
-                      const pct      = m.funding_coverage_pct ?? 0
-                      const gap      = m.funding_gap_php ?? 0
-                      const hard     = m.months_below_50pct_funding ?? 0
-                      const color    = pct >= 85 ? 'text-green-600'   : pct >= 60 ? 'text-amber-600'   : 'text-red-600'
-                      const bgColor  = pct >= 85 ? 'bg-green-50 border-green-200' : pct >= 60 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
-                      return (
-                        <Card key={snap.snapshotId} className={`border ${bgColor}`}>
-                          <CardHeader className="pb-3">
-                            <div className="flex items-baseline justify-between">
-                              <CardTitle className="text-xl">{m.year}</CardTitle>
-                              <span className={`text-2xl font-bold font-serif ${color}`}>{pct.toFixed(0)}%</span>
-                            </div>
-                            <CardDescription>of ₱{((m.annual_operating_budget_php ?? 132000) / 1000).toFixed(0)}k annual budget funded</CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <div className="h-2 rounded-full bg-muted overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.min(pct, 100)}%`,
-                                  backgroundColor: pct >= 85 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626',
-                                }}
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <p className="text-muted-foreground">Funding gap</p>
-                                <p className="font-semibold text-foreground">₱{Math.round(gap).toLocaleString()}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Hard months</p>
-                                <p className="font-semibold text-foreground">{hard} / 12</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">New admissions</p>
-                                <p className="font-semibold text-foreground">{m.new_admissions ?? '—'}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Peak residents</p>
-                                <p className="font-semibold text-foreground">{m.peak_residents ?? '—'}</p>
-                              </div>
-                            </div>
-                            {m.challenge && (
-                              <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-3">
-                                {m.challenge}
-                              </p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Section 3: Financial Transparency ── */}
-      {latestAnnual && (
-        <section className="py-16 sm:py-20 bg-foreground text-background">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 items-start">
-
-              {/* Left: allocation bar */}
+            {/* Right: Where It Goes pie chart */}
+            {allocationData.length > 0 && (
               <div>
-                <p className="text-xs font-medium uppercase tracking-[0.2em] text-background/50 mb-4">
-                  Financial Transparency
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+                  Transparency
                 </p>
-                <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-background tracking-tight">
-                  Every peso, accounted for
+                <h2 className="mt-4 font-serif text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+                  Where It Goes
                 </h2>
-                <p className="mt-4 text-base text-background/70 leading-relaxed">
-                  In {latestAnnual.year} we raised{' '}
-                  <span className="font-semibold text-background">{latestAnnual.funding_coverage_pct?.toFixed(0)}%</span>{' '}
-                  of our annual operating budget. Here is exactly where every donated peso went.
-                </p>
-
-                {latestAnnual.allocation_breakdown && (
-                  <div className="mt-8 space-y-3">
-                    <div className="flex h-6 w-full rounded-full overflow-hidden gap-px">
-                      {Object.entries(latestAnnual.allocation_breakdown)
-                        .sort(([, a], [, b]) => b - a)
-                        .map(([key, value]) => {
-                          const total = Object.values(latestAnnual.allocation_breakdown!).reduce((s, v) => s + v, 0)
-                          const pct   = (value / total) * 100
-                          return (
-                            <div
-                              key={key}
-                              title={`${AREA_LABELS[key] ?? key}: ${pct.toFixed(0)}%`}
-                              style={{ width: `${pct}%`, backgroundColor: AREA_COLORS[key] ?? 'oklch(0.5 0.1 280)' }}
-                            />
-                          )
-                        })}
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
-                      {Object.entries(latestAnnual.allocation_breakdown)
-                        .sort(([, a], [, b]) => b - a)
-                        .map(([key, value]) => {
-                          const total = Object.values(latestAnnual.allocation_breakdown!).reduce((s, v) => s + v, 0)
-                          return (
-                            <div key={key} className="flex items-center gap-1.5 text-xs text-background/70">
-                              <span className="inline-block h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: AREA_COLORS[key] ?? 'oklch(0.5 0.1 280)' }} />
-                              {AREA_LABELS[key] ?? key}{' '}
-                              <span className="text-background/50">{((value / total) * 100).toFixed(0)}%</span>
-                            </div>
-                          )
-                        })}
-                    </div>
-                  </div>
-                )}
+                <div className="mt-6 h-[280px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={allocationData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        innerRadius={50}
+                      >
+                        {allocationData.map((_entry, index) => (
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          color: '#111827',
+                          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                        }}
+                        formatter={(value: unknown, name: unknown) => [`₱${Number(value).toLocaleString()}`, String(name)]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 mt-2">
+                  {allocationData.map((area, index) => {
+                    const total = allocationData.reduce((sum, d) => sum + d.value, 0)
+                    const pct = (area.value / total) * 100
+                    return (
+                      <div key={area.name} className="flex items-center gap-2 text-sm">
+                        <span
+                          className="inline-block h-3 w-3 rounded-full shrink-0"
+                          style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                        />
+                        <span className="text-foreground font-medium">{area.name}</span>
+                        <span className="text-muted-foreground">{pct.toFixed(0)}%</span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
+            )}
 
-              {/* Right: challenge quote + CTA */}
-              <div className="flex flex-col gap-6">
-                {latestAnnual.challenge && (
-                  <div className="rounded-2xl border border-background/10 bg-background/5 p-6">
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-background/40 mb-3">
-                      {latestAnnual.year} — What the gap cost us
-                    </p>
-                    <blockquote className="text-base leading-relaxed text-background/80 italic">
-                      "{latestAnnual.challenge}"
-                    </blockquote>
-                  </div>
-                )}
-                <Button
-                  size="lg"
-                  className="bg-background text-foreground hover:bg-background/90 font-medium rounded-full w-fit"
-                  onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                >
-                  <Heart className="mr-2 h-4 w-4" />
-                  Donate Now
-                </Button>
-              </div>
-            </div>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
     </div>
   )
