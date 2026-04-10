@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Backend.Tests.Integration;
@@ -26,8 +27,23 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["DatabaseStartup:ApplyMigrations"]       = "false",
                 ["DatabaseStartup:RunSeedData"]           = "false",
                 ["GenerateDefaultIdentityAdmin:Email"]    = "test-admin@test.local",
-                ["GenerateDefaultIdentityAdmin:Password"] = "TestAdminPassword!!"
+                ["GenerateDefaultIdentityAdmin:Password"] = "TestAdminPassword!!",
+                // Donor and MFA accounts must have passwords when their emails are set.
+                // Use empty strings here to suppress seeding (email check is whitespace-only).
+                ["GenerateDefaultIdentityDonor:Email"]    = "",
+                ["GenerateDefaultIdentityDonor:Password"] = "",
+                ["GenerateDefaultIdentityMfa:Email"]      = "",
+                ["GenerateDefaultIdentityMfa:Password"]   = ""
             });
+        });
+
+        // Configure the HTTPS port so that UseHttpsRedirection() can build a
+        // redirect Location URL in the in-memory TestServer (which has no real
+        // HTTPS listener, so it cannot auto-detect the port).
+        builder.ConfigureServices(services =>
+        {
+            services.Configure<Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionOptions>(
+                opts => opts.HttpsPort = 443);
         });
 
         builder.ConfigureLogging(logging =>
