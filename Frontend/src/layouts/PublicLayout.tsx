@@ -57,12 +57,6 @@ export function PublicLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:text-sm focus:font-medium"
-      >
-        Skip to main content
-      </a>
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-sm border-b border-border">
         <nav aria-label="Main navigation" className="flex items-center justify-between pl-4 pr-6 py-3 lg:pl-6 lg:pr-8">
