@@ -10,6 +10,48 @@ namespace Backend.Controllers;
 [Route("api/public")]
 public class PublicController(AppDbContext db) : ControllerBase
 {
+    [HttpGet("safehouses")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicSafehouses()
+    {
+        var safehouses = await db.Safehouses
+            .Select(s => new
+            {
+                safehouseId = s.SafehouseId,
+                safehouseCode = s.SafehouseCode,
+                name = s.Name,
+                region = s.Region,
+                city = s.City,
+                province = s.Province,
+                status = s.Status,
+                capacityGirls = s.CapacityGirls,
+                currentOccupancy = s.CurrentOccupancy,
+                openDate = s.OpenDate,
+                notes = s.Notes
+            })
+            .ToListAsync();
+
+        return Ok(safehouses);
+    }
+
+    [HttpGet("safehouses/occupancy")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicSafehouseOccupancy()
+    {
+        var data = await db.Safehouses
+            .Select(s => new
+            {
+                safehouseId = s.SafehouseId,
+                name = s.Name,
+                region = s.Region,
+                capacityGirls = s.CapacityGirls,
+                currentOccupancy = s.CurrentOccupancy
+            })
+            .ToListAsync();
+
+        return Ok(data);
+    }
+
     [HttpGet("impact-snapshots")]
     [AllowAnonymous]
     public async Task<IActionResult> GetImpactSnapshots()
