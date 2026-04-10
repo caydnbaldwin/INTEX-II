@@ -11,6 +11,7 @@ const navigation = [
   { name: 'Home', href: '/' },
   { name: 'Our Impact', href: '/impact' },
   { name: 'Contact Us', href: '/contact' },
+  { name: 'Donate', href: '/donate' },
 ]
 
 export function PublicLayout() {

@@ -19,6 +19,8 @@ import {
   LogIn,
   ChevronLeft,
   ChevronDown,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { Button } from '@/components/ui/button'
@@ -93,11 +95,26 @@ interface AllocationPoint { name: string; value: number }
 type DonateStep = 'amount' | 'payment' | 'success'
 
 // ── Checkout form (must live inside <Elements>) ───────────────────────────────
+const TEST_CARD_FIELDS = [
+  { label: 'Card',   value: '4242 4242 4242 4242' },
+  { label: 'Expiry', value: '12/34' },
+  { label: 'CVC',    value: '123' },
+  { label: 'ZIP',    value: '10001' },
+]
+
 function CheckoutForm({ amountUsd, onSuccess }: { amountUsd: number; onSuccess: () => void }) {
   const stripe   = useStripe()
   const elements = useElements()
-  const [isLoading, setIsLoading]     = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isLoading, setIsLoading]         = useState(false)
+  const [errorMessage, setErrorMessage]   = useState<string | null>(null)
+  const [showTestCard, setShowTestCard]   = useState(false)
+  const [copiedLabel, setCopiedLabel]     = useState<string | null>(null)
+
+  function copyField(value: string, label: string) {
+    navigator.clipboard.writeText(value)
+    setCopiedLabel(label)
+    setTimeout(() => setCopiedLabel(null), 1500)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -105,22 +122,60 @@ function CheckoutForm({ amountUsd, onSuccess }: { amountUsd: number; onSuccess: 
     setIsLoading(true)
     setErrorMessage(null)
 
-    const { error } = await stripe.confirmPayment({
+    const result = await stripe.confirmPayment({
       elements,
       confirmParams: { return_url: `${window.location.origin}/donate?success=true` },
       redirect: 'if_required',
     })
 
-    if (error) {
-      setErrorMessage(error.message ?? 'Payment failed. Please try again.')
+    if (result.error) {
+      setErrorMessage(result.error.message ?? 'Payment failed. Please try again.')
       setIsLoading(false)
     } else {
+      if (result.paymentIntent?.id) {
+        localStorage.setItem('pendingDonationIntent', result.paymentIntent.id)
+      }
       onSuccess()
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Test card helper */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowTestCard(v => !v)}
+          className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors underline underline-offset-2"
+        >
+          {showTestCard ? 'Hide test card' : 'Test card info'}
+        </button>
+      </div>
+
+      {showTestCard && (
+        <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2 space-y-1.5">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 mb-2">
+            Stripe test card
+          </p>
+          {TEST_CARD_FIELDS.map(({ label, value }) => (
+            <div key={label} className="flex items-center gap-2 text-xs">
+              <span className="w-10 shrink-0 text-muted-foreground">{label}</span>
+              <span className="flex-1 font-mono">{value}</span>
+              <button
+                type="button"
+                onClick={() => copyField(value, label)}
+                className="text-muted-foreground/60 hover:text-foreground transition-colors"
+                aria-label={`Copy ${label}`}
+              >
+                {copiedLabel === label
+                  ? <Check className="h-3 w-3 text-green-500" />
+                  : <Copy className="h-3 w-3" />}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <PaymentElement options={{ layout: 'tabs' }} />
       {errorMessage && (
         <p className="text-sm text-destructive">{errorMessage}</p>
@@ -316,7 +371,7 @@ export function DonatePage() {
                 clientSecret: sliderClientSecret,
                 appearance: {
                   theme: 'stripe',
-                  variables: { colorPrimary: 'oklch(0.45 0.18 280)', borderRadius: '8px' },
+                  variables: { colorPrimary: 'hsl(280, 60%, 40%)', borderRadius: '8px' },
                 },
               }}
             >
@@ -420,7 +475,7 @@ export function DonatePage() {
                 clientSecret,
                 appearance: {
                   theme: 'stripe',
-                  variables: { colorPrimary: 'oklch(0.45 0.18 280)', borderRadius: '8px' },
+                  variables: { colorPrimary: 'hsl(280, 60%, 40%)', borderRadius: '8px' },
                 },
               }}
             >

@@ -46,12 +46,64 @@ public class UserManagementController(UserManager<ApplicationUser> userManager) 
                 roles = roleMap.TryGetValue(u.Id, out var r)
                     ? r.OrderBy(role => role).ToArray()
                     : Array.Empty<string>(),
+                isActive = !u.LockoutEnd.HasValue || u.LockoutEnd <= DateTimeOffset.UtcNow,
             })
             .OrderBy(u => u.displayName)
             .ThenBy(u => u.email)
             .ToList();
 
         return Ok(results);
+    }
+
+    [HttpPost("{userId}/deactivate")]
+    public async Task<IActionResult> Deactivate(string userId)
+    {
+        var currentUserId = userManager.GetUserId(User);
+        if (userId == currentUserId)
+            return BadRequest(new { error = "You cannot deactivate your own account." });
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null) return NotFound(new { error = "User not found." });
+
+        await userManager.SetLockoutEnabledAsync(user, true);
+        await userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+        return Ok(new { isActive = false });
+    }
+
+    [HttpPost("{userId}/activate")]
+    public async Task<IActionResult> Activate(string userId)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null) return NotFound(new { error = "User not found." });
+
+        await userManager.SetLockoutEndDateAsync(user, null);
+        return Ok(new { isActive = true });
+    }
+
+    [HttpDelete("{userId}")]
+    public async Task<IActionResult> Delete(string userId)
+    {
+        var currentUserId = userManager.GetUserId(User);
+        if (userId == currentUserId)
+            return BadRequest(new { error = "You cannot delete your own account." });
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null) return NotFound(new { error = "User not found." });
+
+        // Prevent deleting the last admin
+        var isAdmin = await userManager.IsInRoleAsync(user, AuthRoles.Admin);
+        if (isAdmin)
+        {
+            var admins = await userManager.GetUsersInRoleAsync(AuthRoles.Admin);
+            if (admins.Count <= 1)
+                return BadRequest(new { error = "Cannot delete the last admin account." });
+        }
+
+        var result = await userManager.DeleteAsync(user);
+        if (!result.Succeeded)
+            return BadRequest(new { error = string.Join("; ", result.Errors.Select(e => e.Description)) });
+
+        return NoContent();
     }
 
     [HttpPut("{userId}/roles")]
