@@ -331,6 +331,14 @@ export function CaseloadInventory() {
     fetchData()
   }, [fetchData])
 
+  // Auto-open view dialog when navigated from AI chat with ?resident=ID
+  useEffect(() => {
+    const id = searchParams.get('resident')
+    if (!id || residents.length === 0) return
+    const target = residents.find((r) => r.id === Number(id))
+    if (target) setViewingResident(target)
+  }, [residents, searchParams])
+
   // --- Filtering ---
   const filtered = residents.filter((r) => {
     const q = search.toLowerCase()
