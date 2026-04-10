@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { usePageTitle } from '@/hooks/usePageTitle'
 
 // ── Stripe setup ──────────────────────────────────────────────────────────────
@@ -38,15 +38,6 @@ const CHART_COLORS = [
   'oklch(0.75 0.08 280)',
   'oklch(0.35 0.12 280)',
 ]
-
-const AREA_COLORS: Record<string, string> = {
-  Education:   'oklch(0.45 0.18 280)',
-  Operations:  'oklch(0.55 0.15 280)',
-  Wellbeing:   'oklch(0.35 0.12 280)',
-  Maintenance: 'oklch(0.65 0.10 280)',
-  Transport:   'oklch(0.70 0.08 280)',
-  Outreach:    'oklch(0.75 0.06 280)',
-}
 
 const AREA_LABELS: Record<string, string> = {
   Education:   'Education',
@@ -724,7 +715,7 @@ export function DonatePage() {
                           color: '#111827',
                           boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                         }}
-                        formatter={(value: number, name: string) => [`₱${value.toLocaleString()}`, name]}
+                        formatter={(value: unknown, name: unknown) => [`₱${Number(value).toLocaleString()}`, String(name)]}
                       />
                     </PieChart>
                   </ResponsiveContainer>
