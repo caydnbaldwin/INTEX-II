@@ -40,7 +40,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    .AddClaimsPrincipalFactory<DonorDefaultClaimsPrincipalFactory>();
 
 // Password policy — must match what was taught in IS 414 (NOT Microsoft doc defaults).
 builder.Services.Configure<IdentityOptions>(options =>
