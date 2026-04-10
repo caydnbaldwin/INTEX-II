@@ -50,6 +50,7 @@ const BoardingManagement = lazy(() =>
 )
 const AiChatPage = lazy(() =>
   import('./pages/admin/chat').then((m) => ({ default: m.AiChatPage })),
+)
 const ExpansionPlanning = lazy(() =>
   import('./pages/admin/expansion').then((m) => ({ default: m.ExpansionPlanning })),
 )
