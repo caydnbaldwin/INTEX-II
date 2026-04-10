@@ -54,3 +54,5 @@ MockFrontend/
 
 # Other
 BusinessContext/
+.dotnet/
+artifacts/
