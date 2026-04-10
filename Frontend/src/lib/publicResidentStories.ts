@@ -6,7 +6,7 @@
 import { pseudonymForResidentId } from '@/lib/residentPseudonym'
 
 /** Milestone imagery for Stories of Transformation cards (under `/public`). */
-const T = '/images/transformation-stories'
+const T = '/images/otherImages'
 
 export interface PublicRepresentativeJourneyInput {
   residentId: number
@@ -25,8 +25,8 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 1,
     safehouseId: 1,
-    cardImageSrc: `${T}/counseling-milestone.png`,
-    cardImageClassName: 'object-[50%_62%]',
+    cardImageSrc: `${T}/ComfortingYoungChild.png`,
+    cardImageClassName: 'object-center',
     headline: 'Counseling milestone',
     description: 'Finished her counseling cycle; now in maintenance care with stronger wellbeing scores.',
     longNarrative:
@@ -35,18 +35,18 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 3,
     safehouseId: 2,
-    cardImageSrc: `${T}/education-progress.png`,
-    cardImageClassName: 'object-[48%_58%]',
+    cardImageSrc: `${T}/GirlStudyingOnWall1.png`,
+    cardImageClassName: 'object-center',
     headline: 'Education progress',
-    description: 'Strong attendance in equivalency studies—on track for this year’s assessment.',
+    description: "Strong attendance in equivalency studies—on track for this year's assessment.",
     longNarrative:
       'She had never spent a full day in a classroom before arriving at Lighthouse 2. The learning center nearby became her second home—she attended every session, asked questions constantly, and finished homework before anyone else. She is now on track to pass her secondary equivalency assessment by year-end and has told staff she wants to study nursing.',
   },
   {
     residentId: 7,
     safehouseId: 3,
-    cardImageSrc: `${T}/reintegration-planning.png`,
-    cardImageClassName: 'object-[50%_60%]',
+    cardImageSrc: `${T}/GirlSunset1.png`,
+    cardImageClassName: 'object-center',
     headline: 'Reintegration planning',
     description: 'Reunification assessment underway with supervised visits and her social worker.',
     longNarrative:
@@ -55,8 +55,8 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 2,
     safehouseId: 4,
-    cardImageSrc: `${T}/health-growth.png`,
-    cardImageClassName: 'object-[50%_46%]',
+    cardImageSrc: `${T}/GirlWithSquash1.png`,
+    cardImageClassName: 'object-[50%_20%]',
     headline: 'Health stabilization',
     description: 'Nutrition and sleep improved with coordinated medical and house support.',
     longNarrative:
@@ -65,8 +65,8 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 5,
     safehouseId: 5,
-    cardImageSrc: `${T}/vocational-sewing.png`,
-    cardImageClassName: 'object-[50%_52%]',
+    cardImageSrc: `${T}/GirlPaperCraft.png`,
+    cardImageClassName: 'object-[50%_20%]',
     headline: 'Vocational training',
     description: 'Completed sewing and textiles; now mentors younger residents in the workshop.',
     longNarrative:
@@ -75,8 +75,8 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 6,
     safehouseId: 6,
-    cardImageSrc: `${T}/art-reflection.png`,
-    cardImageClassName: 'object-[50%_60%]',
+    cardImageSrc: `${T}/3GirlsSittingOnAWall.png`,
+    cardImageClassName: 'object-center',
     headline: 'Art therapy breakthrough',
     description: 'Built confidence in art therapy and shared her work at a community exhibition.',
     longNarrative:
@@ -85,8 +85,8 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 8,
     safehouseId: 7,
-    cardImageSrc: `${T}/achievement-certificate.png`,
-    cardImageClassName: 'object-[50%_42%]',
+    cardImageSrc: `${T}/GirlStudyingOnWall2.png`,
+    cardImageClassName: 'object-center',
     headline: 'Literacy achievement',
     description: 'Went from basic literacy to reading on her own in eight months.',
     longNarrative:
@@ -95,8 +95,8 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 9,
     safehouseId: 8,
-    cardImageSrc: `${T}/community-leadership.png`,
-    cardImageClassName: 'object-[50%_54%]',
+    cardImageSrc: `${T}/GroupTalking.png`,
+    cardImageClassName: 'object-top',
     headline: 'Community leadership',
     description: 'Chosen as a peer mentor to help new residents settle in.',
     longNarrative:
@@ -105,8 +105,8 @@ export const publicRepresentativeJourneys: PublicRepresentativeJourneyInput[] = 
   {
     residentId: 10,
     safehouseId: 9,
-    cardImageSrc: `${T}/independent-living-prep.png`,
-    cardImageClassName: 'object-[50%_62%]',
+    cardImageSrc: `${T}/GirlStandingInHouseYard.png`,
+    cardImageClassName: 'object-center',
     headline: 'Independent living preparation',
     description: 'Training in budgeting, cooking, and job readiness for life after the safehouse.',
     longNarrative:

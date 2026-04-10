@@ -171,12 +171,6 @@ export function AdminLayout() {
       </Sidebar>
 
       <SidebarInset>
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:text-sm focus:font-medium"
-        >
-          Skip to main content
-        </a>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -191,6 +185,7 @@ export function AdminLayout() {
                   size="icon"
                   className="h-8 w-8"
                   disabled={!canSetTheme}
+                  aria-label={canSetTheme ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode` : 'Accept cookies to enable theme preferences'}
                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 >
                   {theme === 'dark' ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}

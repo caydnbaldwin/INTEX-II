@@ -39,19 +39,19 @@ public class AuthController(
         }
 
         var user = await userManager.GetUserAsync(User);
-        var roles = User.Claims
-            .Where(c => c.Type == ClaimTypes.Role)
-            .Select(c => c.Value)
-            .Distinct()
-            .OrderBy(r => r)
-            .ToArray();
+        if (user is null) return Unauthorized();
+
+        // Read roles from the database (source of truth) rather than from the
+        // session cookie claims, which are stamped at login time and would not
+        // reflect an admin role change made after the cookie was issued.
+        var roles = await userManager.GetRolesAsync(user);
 
         return Ok(new
         {
             isAuthenticated = true,
-            userName = user?.UserName ?? User.Identity?.Name,
-            email = user?.Email,
-            roles
+            userName = user.UserName ?? User.Identity?.Name,
+            email = user.Email,
+            roles = roles.OrderBy(r => r).ToArray()
         });
     }
 
