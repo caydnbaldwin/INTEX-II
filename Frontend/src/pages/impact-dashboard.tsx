@@ -169,13 +169,13 @@ export function ImpactDashboard() {
         // Unblock initial paint as soon as public impact data is ready.
         setLoading(false)
 
-        // Fetch safehouse occupancy in background; this may require auth.
+        // Fetch safehouse occupancy in background.
         void (async () => {
           try {
-            const safehouseRes = await api.get<SafehouseOccupancy[]>('/api/safehouses/occupancy')
+            const safehouseRes = await api.get<SafehouseOccupancy[]>('/api/public/safehouses/occupancy')
             setSafehouses(safehouseRes)
           } catch {
-            // Auth required or endpoint unavailable -- leave empty, will use stats fallback.
+            // Endpoint unavailable -- leave empty, will use stats fallback.
           }
         })()
       } catch (err) {

@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -6,20 +9,18 @@ import { Separator } from '@/components/ui/separator'
 import {
   MapPin,
   Globe,
-  Users,
-  CheckCircle2,
-  Star,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
-  Building2,
-  TrendingUp,
   AlertTriangle,
-  ShieldCheck,
-  HeartHandshake,
-  Landmark,
+  Brain,
+  RefreshCw,
+  Info,
+  Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { api } from '@/lib/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,47 @@ interface GlobalTarget {
   rationale: string
 }
 
+// ─── ML Pipeline Types ───────────────────────────────────────────────────────
+
+interface SegmentRate {
+  segment: string
+  count: number
+  successCount: number
+  successRate: number
+  liftOverBaseline: number
+}
+
+interface SuccessProfileApi {
+  totalResidentsAnalyzed: number
+  totalSuccessful: number
+  overallSuccessRate: number
+  byCaseSubcategory: SegmentRate[]
+  byAgeGroup: SegmentRate[]
+  byFamilyProfile: SegmentRate[]
+  byInitialRisk: SegmentRate[]
+  byReferralSource: SegmentRate[]
+}
+
+interface RegionRecommendationApi {
+  regionCode: string
+  regionName: string
+  islandGroup: string
+  needScore: number
+  successMatchScore: number
+  finalScore: number
+  rank: number
+  safetyFlag: boolean
+  topMatchingSegments: string[]
+  aiRationale: string | null
+}
+
+interface ExpansionRecommendation {
+  generatedAt: string
+  successProfile: SuccessProfileApi
+  rankedRegions: RegionRecommendationApi[]
+  overallInsight: string | null
+}
+
 // ─── Static Data ──────────────────────────────────────────────────────────────
 // Data sourced from PSA, DSWD, UNICEF Philippines, and IACAT annual reports.
 // Replace with live PSA OpenSTAT / DSWD API calls to keep indicators current.
@@ -64,125 +106,125 @@ interface GlobalTarget {
 const PHILIPPINE_REGIONS: PhilippineRegion[] = [
   {
     id: 'ncr', name: 'Metro Manila', code: 'NCR', island: 'Luzon',
-    needTier: 'high', populationM: 13.9, povertyRate: 8.9, distanceKm: 340,
-    existingNGOs: 42, hasLunas: false, score: 74,
-    primaryRisk: 'Online sexual exploitation, trafficking transit',
-    rationale: 'Largest population center and primary OSEC and trafficking transit hub nationally. High NGO density partially offsets need, but case volume at scale remains severe. 13.9M population means small percentages represent thousands of children.',
+    needTier: 'covered', populationM: 13.9, povertyRate: 8.9, distanceKm: 0,
+    existingNGOs: 42, hasLunas: true, score: 0,
+    primaryRisk: 'Covered — Lunas Safehouse 1 (Quezon City) operational',
+    rationale: 'Safehouse 1 operates in Quezon City, the largest population center nationally. High NGO density supports a strong referral network. Ongoing capacity monitoring is recommended given the scale of case volume across the metro region.',
   },
   {
     id: 'car', name: 'Cordillera', code: 'CAR', island: 'Luzon',
-    needTier: 'moderate', populationM: 1.8, povertyRate: 19.3, distanceKm: 120,
-    existingNGOs: 8, hasLunas: false, score: 52,
-    primaryRisk: 'Indigenous community vulnerability, geographic isolation',
-    rationale: 'Mountain terrain severely limits access to social services. Indigenous girls face compounded cultural and geographic barriers. Smaller population and proximity to Region I make joint programming feasible.',
+    needTier: 'covered', populationM: 1.8, povertyRate: 19.3, distanceKm: 0,
+    existingNGOs: 8, hasLunas: true, score: 0,
+    primaryRisk: 'Covered — Lunas Safehouse 5 (Baguio City) operational',
+    rationale: 'Safehouse 5 operates in Baguio City. Mountain terrain limits outside access, making the local safehouse critical for reaching indigenous communities and geographically isolated girls. Outreach programming into rural barangays is a recommended complement.',
   },
   {
     id: 'r1', name: 'Ilocos Region', code: 'Region I', island: 'Luzon',
-    needTier: 'covered', populationM: 5.3, povertyRate: 13.7, distanceKm: 0,
-    existingNGOs: 11, hasLunas: true, score: 0,
-    primaryRisk: 'Covered — Lunas Safehouse 1 operational',
-    rationale: 'Lunas Safehouse 1 has served this region for 8+ years. First safe home in Region I. Continued operations and capacity monitoring recommended ahead of any expansion elsewhere.',
+    needTier: 'low', populationM: 5.3, povertyRate: 13.7, distanceKm: 120,
+    existingNGOs: 11, hasLunas: false, score: 43,
+    primaryRisk: 'Lower relative need — referral coverage from CAR safehouse available',
+    rationale: 'Region I holds historical significance as the first region served by Lighthouse Sanctuary (the organization that inspired Lunas), but Lunas has not yet established a presence here. The relatively lower poverty rate (13.7%) and proximity to Safehouse 5 in Baguio City (CAR, ~120km) make this a lower-urgency expansion target compared to higher-need regions. A future satellite program or outreach partnership may be more appropriate than a full safehouse in the near term.',
   },
   {
     id: 'r2', name: 'Cagayan Valley', code: 'Region II', island: 'Luzon',
-    needTier: 'moderate', populationM: 3.7, povertyRate: 16.1, distanceKm: 180,
+    needTier: 'moderate', populationM: 3.7, povertyRate: 16.1, distanceKm: 200,
     existingNGOs: 7, hasLunas: false, score: 54,
     primaryRisk: 'Cross-border trafficking from northern corridor',
-    rationale: 'Agricultural poverty and proximity to northern border create vulnerability corridors. Moderate NGO presence with significant gaps in rural barangays. Reasonable proximity to Safehouse 1 allows some referral coverage.',
+    rationale: 'Agricultural poverty and proximity to the northern border create vulnerability corridors. Moderate NGO presence with significant gaps in rural barangays. Baguio Safehouse (CAR, ~200km) provides some referral coverage for southern sub-provinces.',
   },
   {
     id: 'r3', name: 'Central Luzon', code: 'Region III', island: 'Luzon',
-    needTier: 'high', populationM: 12.4, povertyRate: 11.2, distanceKm: 290,
+    needTier: 'high', populationM: 12.4, povertyRate: 11.2, distanceKm: 80,
     existingNGOs: 19, hasLunas: false, score: 68,
     primaryRisk: 'Industrial zone exploitation, labor trafficking',
-    rationale: 'Clark and other economic zones generate trafficking demand. Large migrant worker population with vulnerable dependents left behind. Urban–rural poverty divide creates service gaps in provincial areas.',
+    rationale: 'Clark and other economic zones generate trafficking demand. Large migrant worker population with vulnerable dependents left behind. Urban–rural poverty divide creates service gaps in provincial areas. NCR Safehouse provides some referral capacity for southern portions of the region.',
   },
   {
     id: 'r4a', name: 'CALABARZON', code: 'Region IV-A', island: 'Luzon',
-    needTier: 'high', populationM: 16.2, povertyRate: 10.5, distanceKm: 400,
+    needTier: 'high', populationM: 16.2, povertyRate: 10.5, distanceKm: 60,
     existingNGOs: 23, hasLunas: false, score: 71,
     primaryRisk: 'OSEC, semi-urban poverty, industrial trafficking',
-    rationale: 'Highest-population Luzon region outside NCR. High internet penetration combined with pockets of semi-urban poverty drive OSEC rates among the highest nationally. Proximity to NCR amplifies trafficking flow.',
+    rationale: 'Highest-population Luzon region outside NCR. High internet penetration combined with pockets of semi-urban poverty drive OSEC rates among the highest nationally. NCR Safehouse is nearby (~60km) but insufficient given the scale — a dedicated presence is warranted.',
   },
   {
     id: 'r4b', name: 'MIMAROPA', code: 'Region IV-B', island: 'Luzon',
-    needTier: 'moderate', populationM: 3.2, povertyRate: 23.4, distanceKm: 520,
+    needTier: 'moderate', populationM: 3.2, povertyRate: 23.4, distanceKm: 300,
     existingNGOs: 5, hasLunas: false, score: 55,
     primaryRisk: 'Island isolation, high poverty, limited services',
-    rationale: 'Archipelagic geography significantly limits service access and safehouse reach. High poverty rate but logistical complexity of island operations reduces operational feasibility in the near term.',
+    rationale: 'Archipelagic geography significantly limits service access. High poverty rate but logistical complexity of island operations reduces operational feasibility in the near term. NCR Safehouse (~300km by sea) is the nearest option but accessibility is limited.',
   },
   {
     id: 'r5', name: 'Bicol Region', code: 'Region V', island: 'Luzon',
-    needTier: 'high', populationM: 6.1, povertyRate: 28.4, distanceKm: 550,
+    needTier: 'high', populationM: 6.1, povertyRate: 28.4, distanceKm: 320,
     existingNGOs: 9, hasLunas: false, score: 76,
     primaryRisk: 'Typhoon displacement, poverty-driven exploitation',
-    rationale: 'Among the highest poverty rates in Luzon combined with repeated typhoon displacement creates acute and recurring vulnerability cycles. Limited NGO coverage outside Legazpi. Strong existing mission church network for partnership.',
-    recommended: 3,
+    rationale: 'Among the highest poverty rates in Luzon combined with repeated typhoon displacement creates acute and recurring vulnerability cycles. Limited NGO coverage outside Legazpi. Nearest Lunas safehouse is Tacloban (Region VIII, ~320km by sea). Strong existing mission church network for partnership.',
+    recommended: 2,
   },
   {
     id: 'r6', name: 'Western Visayas', code: 'Region VI', island: 'Visayas',
-    needTier: 'high', populationM: 7.9, povertyRate: 22.1, distanceKm: 680,
-    existingNGOs: 14, hasLunas: false, score: 73,
-    primaryRisk: 'Trafficking transit routes, sugar industry exploitation',
-    rationale: 'Iloilo and Bacolod are established trafficking transit points. Sugar plantation economy generates labor exploitation patterns affecting minors. Growing mission church network offers sustainable partnership potential.',
+    needTier: 'covered', populationM: 7.9, povertyRate: 22.1, distanceKm: 0,
+    existingNGOs: 14, hasLunas: true, score: 0,
+    primaryRisk: 'Covered — Lunas Safehouses 4 & 7 (Iloilo City & Bacolod) operational',
+    rationale: 'The only region with dual safehouse coverage: Safehouse 4 in Iloilo City and Safehouse 7 in Bacolod. This reflects the severity of trafficking transit activity and sugar industry exploitation patterns here. Coordination between both sites and ongoing capacity monitoring are recommended.',
   },
   {
     id: 'r7', name: 'Central Visayas', code: 'Region VII', island: 'Visayas',
-    needTier: 'critical', populationM: 8.1, povertyRate: 24.3, distanceKm: 780,
-    existingNGOs: 18, hasLunas: false, score: 84,
-    primaryRisk: 'OSEC epicenter, sex tourism, trafficking hub',
-    rationale: 'Cebu City is one of the Philippines\' primary documented OSEC and sex trafficking hotspots. Tourism industry exploitation, high internet penetration, and concentrated poverty create a severe risk environment. Two active mission partners with safehouse capacity already identified.',
-    recommended: 1,
+    needTier: 'covered', populationM: 8.1, povertyRate: 24.3, distanceKm: 0,
+    existingNGOs: 18, hasLunas: true, score: 0,
+    primaryRisk: 'Covered — Lunas Safehouse 2 (Cebu City) operational',
+    rationale: 'Safehouse 2 operates in Cebu City, one of the Philippines\' primary documented OSEC and sex trafficking hotspots. Given the severity and ongoing scale of need in this region, capacity expansion and close inter-agency partner coordination are strongly recommended.',
   },
   {
     id: 'r8', name: 'Eastern Visayas', code: 'Region VIII', island: 'Visayas',
     needTier: 'covered', populationM: 4.5, povertyRate: 34.2, distanceKm: 0,
     existingNGOs: 6, hasLunas: true, score: 0,
-    primaryRisk: 'Covered — Lunas Safehouse 2 operational',
-    rationale: 'Lunas Safehouse 2 operational for 3+ years. Highest poverty rate in Visayas. Continued capacity expansion within the existing safehouse is recommended before opening new locations in this region.',
+    primaryRisk: 'Covered — Lunas Safehouse 8 (Tacloban) operational',
+    rationale: 'Safehouse 8 operates in Tacloban, Leyte — the highest poverty rate in the Visayas. This safehouse also serves as the nearest Lunas referral point for Bicol Region to the north. Continued capacity expansion within the existing safehouse is recommended.',
   },
   {
     id: 'r9', name: 'Zamboanga Peninsula', code: 'Region IX', island: 'Mindanao',
-    needTier: 'critical', populationM: 3.9, povertyRate: 31.6, distanceKm: 1100,
+    needTier: 'critical', populationM: 3.9, povertyRate: 31.6, distanceKm: 380,
     existingNGOs: 6, hasLunas: false, score: 81,
     primaryRisk: 'Conflict displacement, maritime cross-border trafficking',
-    rationale: 'Proximity to BARMM conflict zone drives displacement and acute vulnerability. Maritime routes into Malaysia and Indonesia create cross-border trafficking pathways. Severe shortage of safe housing services despite documented high need.',
-    recommended: 2,
+    rationale: 'Proximity to BARMM conflict zone drives displacement and acute vulnerability. Maritime routes into Malaysia and Indonesia create cross-border trafficking pathways. Severe shortage of safe housing services despite documented high need. Nearest Lunas safehouse is Cagayan de Oro (Region X, ~380km).',
+    recommended: 1,
   },
   {
     id: 'r10', name: 'Northern Mindanao', code: 'Region X', island: 'Mindanao',
-    needTier: 'high', populationM: 5.0, povertyRate: 26.3, distanceKm: 1000,
-    existingNGOs: 11, hasLunas: false, score: 67,
-    primaryRisk: 'Urban trafficking, agricultural exploitation',
-    rationale: 'Cagayan de Oro is a fast-growing urban center with rising trafficking activity. Agricultural hinterlands create rural exploitation patterns. Emerging mission church network provides a foundation for partnership.',
+    needTier: 'covered', populationM: 5.0, povertyRate: 26.3, distanceKm: 0,
+    existingNGOs: 11, hasLunas: true, score: 0,
+    primaryRisk: 'Covered — Lunas Safehouse 6 (Cagayan de Oro) operational',
+    rationale: 'Safehouse 6 operates in Cagayan de Oro. Rapid urban growth means ongoing capacity monitoring is important. This safehouse also serves as a strategic referral hub for Zamboanga Peninsula (Region IX) and CARAGA (Region XIII).',
   },
   {
     id: 'r11', name: 'Davao Region', code: 'Region XI', island: 'Mindanao',
-    needTier: 'high', populationM: 5.2, povertyRate: 22.9, distanceKm: 1150,
-    existingNGOs: 15, hasLunas: false, score: 69,
-    primaryRisk: 'Trafficking hub, OSEC, agricultural labor exploitation',
-    rationale: 'Davao City is Mindanao\'s largest urban center and a secondary trafficking hub. Established NGO presence offers partnership potential but leaves significant gaps in rural provincial areas.',
+    needTier: 'covered', populationM: 5.2, povertyRate: 22.9, distanceKm: 0,
+    existingNGOs: 15, hasLunas: true, score: 0,
+    primaryRisk: 'Covered — Lunas Safehouse 3 (Davao City) operational',
+    rationale: 'Safehouse 3 operates in Davao City, Mindanao\'s largest urban center. The established NGO ecosystem in this region supports strong inter-agency referral partnerships alongside the safehouse.',
   },
   {
     id: 'r12', name: 'SOCCSKSARGEN', code: 'Region XII', island: 'Mindanao',
-    needTier: 'moderate', populationM: 4.8, povertyRate: 26.1, distanceKm: 1050,
-    existingNGOs: 7, hasLunas: false, score: 61,
-    primaryRisk: 'Conflict spillover, agricultural poverty',
-    rationale: 'Conflict proximity and agricultural poverty create moderate vulnerability. Lower trafficking case documentation may reflect reporting gaps rather than lower incidence. Staff operational security assessment required.',
+    needTier: 'covered', populationM: 4.8, povertyRate: 26.1, distanceKm: 0,
+    existingNGOs: 7, hasLunas: true, score: 0,
+    primaryRisk: 'Covered — Lunas Safehouse 9 (General Santos) operational',
+    rationale: 'Safehouse 9 operates in General Santos City, providing a strategic foothold in southern Mindanao. Its proximity to BARMM (~120km) positions it as a future staging point for BARMM outreach when security conditions allow.',
   },
   {
     id: 'r13', name: 'CARAGA', code: 'Region XIII', island: 'Mindanao',
-    needTier: 'high', populationM: 2.8, povertyRate: 34.7, distanceKm: 980,
+    needTier: 'high', populationM: 2.8, povertyRate: 34.7, distanceKm: 160,
     existingNGOs: 4, hasLunas: false, score: 72,
     primaryRisk: 'Mining industry exploitation, highest poverty in Mindanao',
-    rationale: 'Highest poverty rate in Mindanao combined with mining industry dynamics creates acute child exploitation risk. Severely under-resourced in social services and NGO coverage. Small but deeply vulnerable population with very few safe housing alternatives.',
+    rationale: 'Highest poverty rate in Mindanao combined with mining industry dynamics creates acute child exploitation risk. Severely under-resourced in social services and NGO coverage. Nearest Lunas safehouse is Cagayan de Oro (Region X, ~160km). Small but deeply vulnerable population with very few safe housing alternatives.',
+    recommended: 3,
   },
   {
     id: 'barmm', name: 'Bangsamoro', code: 'BARMM', island: 'Mindanao',
-    needTier: 'critical', populationM: 4.1, povertyRate: 61.8, distanceKm: 1200,
+    needTier: 'critical', populationM: 4.1, povertyRate: 61.8, distanceKm: 120,
     existingNGOs: 3, hasLunas: false, score: 88,
     primaryRisk: 'Active conflict zone, highest poverty nationally, severe service gap',
-    rationale: 'Highest poverty rate in the Philippines at 61.8%. Ongoing conflict significantly limits NGO access and creates the most acute child vulnerability nationally. Staff safety assessment required before operational planning. Designated as a long-term strategic priority pending security stabilization.',
+    rationale: 'Highest poverty rate in the Philippines at 61.8%. Ongoing conflict significantly limits NGO access and creates the most acute child vulnerability nationally. Nearest Lunas presence is General Santos (Region XII, ~120km). Staff safety assessment required before operational planning. Designated as a long-term strategic priority pending security stabilization.',
   },
 ]
 
@@ -305,69 +347,53 @@ const NEED_TIER: Record<NeedTier, {
   },
 }
 
-const EXPANSION_TIER: Record<ExpansionTier, {
-  label: string
-  description: string
-  badge: string
-  border: string
-}> = {
-  immediate: {
-    label: 'Tier 1 — Immediate Priority',
-    description: 'Conditions aligned for near-term deployment with the right partner relationships',
-    badge: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800',
-    border: 'border-rose-200 dark:border-rose-800/50',
-  },
-  developing: {
-    label: 'Tier 2 — Developing Readiness',
-    description: 'High need but requiring capacity building, partnership development, or contextual adaptation',
-    badge: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
-    border: 'border-amber-200 dark:border-amber-800/50',
-  },
-  future: {
-    label: 'Tier 3 — Future Horizon',
-    description: 'Strategic long-term targets requiring groundwork before active expansion planning',
-    badge: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800',
-    border: 'border-sky-200 dark:border-sky-800/50',
-  },
+// Approximate geographic center of each region (lat, lng)
+const REGION_COORDS: Record<string, [number, number]> = {
+  ncr:   [14.599, 120.984],
+  car:   [16.412, 120.593],
+  r1:    [16.080, 120.320],
+  r2:    [17.613, 121.727],
+  r3:    [15.479, 120.962],
+  r4a:   [14.100, 121.080],
+  r4b:   [10.490, 121.000],
+  r5:    [13.139, 123.734],
+  r6:    [10.720, 122.562],
+  r7:    [10.318, 123.899],
+  r8:    [11.244, 125.004],
+  r9:    [ 6.920, 122.076],
+  r10:   [ 8.487, 124.646],
+  r11:   [ 7.073, 125.613],
+  r12:   [ 6.284, 124.847],
+  r13:   [ 8.949, 125.543],
+  barmm: [ 6.950, 124.240],
 }
 
-const NGO_ECOSYSTEM_LABEL: Record<GlobalTarget['ngoEcosystem'], string> = {
-  strong: 'Strong NGO network',
-  developing: 'Developing network',
-  weak: 'Limited NGO presence',
+const PHILIPPINES_CENTER: L.LatLngExpression = [11.5, 122.5]
+const PHILIPPINES_BOUNDS: L.LatLngBoundsExpression = [[2.0, 114.0], [22.0, 130.0]]
+
+// Approximate geographic centers for international expansion targets
+const COUNTRY_COORDS: Record<string, [number, number]> = {
+  cambodia:   [12.565, 104.991],
+  indonesia:  [-0.789, 113.921],
+  myanmar:    [21.916,  95.956],
+  png:        [-6.315, 143.956],
+  vietnam:    [14.058, 108.277],
+  bangladesh: [23.685,  90.356],
+  india:      [20.594,  78.963],
+  thailand:   [15.870, 100.993],
+  ethiopia:   [ 9.145,  40.490],
+  kenya:      [-0.024,  37.906],
+}
+const WORLD_CENTER: L.LatLngExpression = [10.0, 90.0]
+const WORLD_BOUNDS: L.LatLngBoundsExpression = [[-50.0, 20.0], [60.0, 170.0]]
+const EXPANSION_TIER_HEX: Record<ExpansionTier, string> = {
+  immediate: '#f43f5e',
+  developing: '#f59e0b',
+  future:    '#38bdf8',
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ScoreRing({ score, tier, size = 56 }: { score: number; tier: NeedTier; size?: number }) {
-  const strokeWidth = 5
-  const radius = (size - strokeWidth * 2) / 2
-  const circumference = 2 * Math.PI * radius
-  const offset = circumference - (score / 100) * circumference
-
-  return (
-    <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90 absolute inset-0">
-        <circle
-          cx={size / 2} cy={size / 2} r={radius}
-          fill="none" stroke="currentColor"
-          className="text-muted-foreground/15"
-          strokeWidth={strokeWidth}
-        />
-        <circle
-          cx={size / 2} cy={size / 2} r={radius}
-          fill="none"
-          stroke={NEED_TIER[tier].hex}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-        />
-      </svg>
-      <span className="relative text-[11px] font-bold tabular-nums text-foreground">{score}</span>
-    </div>
-  )
-}
 
 function IslandDot({ island }: { island: PhilippineRegion['island'] }) {
   const colors = {
@@ -376,253 +402,320 @@ function IslandDot({ island }: { island: PhilippineRegion['island'] }) {
     Mindanao: 'bg-teal-400',
   }
   return (
-    <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
-      <span className={cn('inline-block size-1.5 rounded-full', colors[island])} />
+    <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+      <span className={cn('inline-block size-2 rounded-full', colors[island])} />
       {island}
     </span>
   )
 }
 
-function RegionCard({ region }: { region: PhilippineRegion }) {
-  const [expanded, setExpanded] = useState(false)
-  const cfg = NEED_TIER[region.needTier]
+// ─── Map sub-components ───────────────────────────────────────────────────────
 
-  return (
-    <Card
-      className={cn(
-        'border transition-all duration-150 hover:shadow-md cursor-pointer select-none',
-        cfg.card,
-        region.recommended ? 'ring-1 ring-offset-1 ring-offset-background' : '',
-        region.recommended === 1 ? 'ring-amber-400' :
-        region.recommended === 2 ? 'ring-slate-400' :
-        region.recommended === 3 ? 'ring-orange-300' : '',
-      )}
-      onClick={() => !region.hasLunas && setExpanded((v) => !v)}
-    >
-      <CardContent className="p-3.5">
-        {/* Header row */}
-        <div className="flex items-start gap-2.5">
-          {region.hasLunas ? (
-            <div className="flex-shrink-0 flex items-center justify-center size-14 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-              <CheckCircle2 className="size-6 text-emerald-500" />
-            </div>
-          ) : (
-            <ScoreRing score={region.score} tier={region.needTier} size={56} />
-          )}
+function MapController({
+  regions,
+  activeIndex,
+  markerRefs,
+}: {
+  regions: PhilippineRegion[]
+  activeIndex: number
+  markerRefs: React.RefObject<Map<string, L.CircleMarker>>
+}) {
+  const map = useMap()
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-1">
-              <div>
-                <p className="text-[11px] font-medium text-muted-foreground leading-none mb-0.5">{region.code}</p>
-                <p className="text-sm font-semibold leading-snug truncate">{region.name}</p>
-              </div>
-              {region.recommended && (
-                <div className={cn(
-                  'flex-shrink-0 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold',
-                  region.recommended === 1 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                  region.recommended === 2 ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' :
-                  'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'
-                )}>
-                  <Star className="size-2.5 fill-current" />
-                  #{region.recommended}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-1.5">
-              <IslandDot island={region.island} />
-              <Badge variant="outline" className={cn('text-[9px] font-semibold tracking-wide uppercase px-1.5 py-0', cfg.badge)}>
-                {cfg.label}
-              </Badge>
-            </div>
-          </div>
-        </div>
+  useEffect(() => {
+    const region = regions[activeIndex]
+    if (!region) return
+    const coords = REGION_COORDS[region.id]
+    if (!coords) return
 
-        {/* Stats row */}
-        {!region.hasLunas && (
-          <div className="mt-3 grid grid-cols-3 gap-1.5 text-center">
-            <div className="rounded-md bg-muted/50 px-1.5 py-1.5">
-              <p className="text-[11px] font-bold tabular-nums">{region.populationM.toFixed(1)}M</p>
-              <p className="text-[9px] text-muted-foreground leading-tight">Population</p>
-            </div>
-            <div className="rounded-md bg-muted/50 px-1.5 py-1.5">
-              <p className="text-[11px] font-bold tabular-nums">{region.povertyRate}%</p>
-              <p className="text-[9px] text-muted-foreground leading-tight">Poverty Rate</p>
-            </div>
-            <div className="rounded-md bg-muted/50 px-1.5 py-1.5">
-              <p className="text-[11px] font-bold tabular-nums">{region.distanceKm >= 1000 ? `${(region.distanceKm / 1000).toFixed(1)}k` : region.distanceKm} km</p>
-              <p className="text-[9px] text-muted-foreground leading-tight">Distance</p>
-            </div>
-          </div>
-        )}
+    map.flyTo(coords, 8, { duration: 0.5 })
 
-        {/* Covered state */}
-        {region.hasLunas && (
-          <div className="mt-2.5 rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/50 px-2.5 py-2">
-            <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium leading-snug">
-              {region.primaryRisk}
-            </p>
-          </div>
-        )}
+    const marker = markerRefs.current?.get(region.id)
+    const onMoveEnd = () => {
+      // Guard: if user clicked the dot directly, Leaflet already opened the popup
+      if (marker && !marker.isPopupOpen()) marker.openPopup()
+      map.off('moveend', onMoveEnd)
+    }
+    map.on('moveend', onMoveEnd)
+    return () => { map.off('moveend', onMoveEnd) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex])
 
-        {/* Expand toggle */}
-        {!region.hasLunas && (
-          <button
-            className="mt-2.5 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors w-full"
-            onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v) }}
-          >
-            {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-            <span className="truncate">{region.primaryRisk}</span>
-          </button>
-        )}
-
-        {/* Expanded rationale */}
-        {expanded && !region.hasLunas && (
-          <div className="mt-2 pt-2 border-t border-border">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">{region.rationale}</p>
-            <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Building2 className="size-3 flex-shrink-0" />
-              <span>{region.existingNGOs} existing NGOs in region</span>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
+  return null
 }
 
-function RecommendationCard({ region, rank }: { region: PhilippineRegion; rank: number }) {
-  const medalColors = [
-    'from-amber-400 to-amber-600',
-    'from-slate-300 to-slate-500',
-    'from-orange-400 to-orange-600',
-  ]
-  const cfg = NEED_TIER[region.needTier]
+function ExpansionMap({
+  candidates,
+  covered,
+  activeIndex,
+  onSelect,
+}: {
+  candidates: PhilippineRegion[]
+  covered: PhilippineRegion[]
+  activeIndex: number
+  onSelect: (i: number) => void
+}) {
+  const markerRefs = useRef<Map<string, L.CircleMarker>>(new Map())
+  const total = candidates.length
 
   return (
-    <Card className={cn('border', cfg.card)}>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div className={cn('size-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 bg-gradient-to-b shadow-sm', medalColors[rank - 1])}>
-            {rank}
-          </div>
-          <div>
-            <p className="font-semibold text-sm leading-tight">{region.name}</p>
-            <p className="text-[11px] text-muted-foreground">{region.code} · {region.island}</p>
-          </div>
-          <div className="ml-auto">
-            <ScoreRing score={region.score} tier={region.needTier} size={48} />
-          </div>
-        </div>
-
-        <Badge variant="outline" className={cn('text-[9px] font-semibold tracking-wide uppercase mb-2', cfg.badge)}>
-          {cfg.label}
-        </Badge>
-
-        <p className="text-[11px] text-muted-foreground leading-relaxed">{region.rationale}</p>
-
-        <div className="mt-3 grid grid-cols-2 gap-1.5 text-[10px]">
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Users className="size-3 flex-shrink-0" />
-            <span>{region.populationM.toFixed(1)}M population</span>
-          </div>
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <TrendingUp className="size-3 flex-shrink-0" />
-            <span>{region.povertyRate}% poverty rate</span>
-          </div>
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <MapPin className="size-3 flex-shrink-0" />
-            <span>{region.distanceKm} km from nearest safehouse</span>
-          </div>
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Building2 className="size-3 flex-shrink-0" />
-            <span>{region.existingNGOs} existing NGO partners</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function GlobalTargetCard({ target }: { target: GlobalTarget }) {
-  const [expanded, setExpanded] = useState(false)
-  const cfg = EXPANSION_TIER[target.tier]
-
-  const ngoColor = target.ngoEcosystem === 'strong'
-    ? 'text-emerald-600 dark:text-emerald-400'
-    : target.ngoEcosystem === 'developing'
-    ? 'text-amber-600 dark:text-amber-400'
-    : 'text-rose-600 dark:text-rose-400'
-
-  return (
-    <Card className={cn('border transition-all hover:shadow-md cursor-pointer', cfg.border)}
-      onClick={() => setExpanded((v) => !v)}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          {/* Readiness ring */}
-          <div className="flex-shrink-0 flex flex-col items-center gap-1">
-            <div className="relative flex items-center justify-center" style={{ width: 52, height: 52 }}>
-              <svg width={52} height={52} className="-rotate-90 absolute inset-0">
-                <circle cx={26} cy={26} r={21} fill="none" stroke="currentColor" className="text-muted-foreground/15" strokeWidth={5} />
-                <circle cx={26} cy={26} r={21} fill="none" stroke={
-                  target.tier === 'immediate' ? '#f43f5e' :
-                  target.tier === 'developing' ? '#f59e0b' : '#38bdf8'
-                } strokeWidth={5}
-                  strokeDasharray={2 * Math.PI * 21}
-                  strokeDashoffset={2 * Math.PI * 21 - (target.missionReadiness / 100) * 2 * Math.PI * 21}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <span className="relative text-[11px] font-bold tabular-nums">{target.missionReadiness}</span>
-            </div>
-            <span className="text-[9px] text-muted-foreground text-center leading-tight">Mission<br/>Ready</span>
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold text-sm leading-tight">{target.country}</p>
-                <p className="text-[11px] text-muted-foreground">{target.subregion} · {target.continent}</p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <div className="flex items-center gap-1 text-[10px] font-semibold">
-                  <AlertTriangle className="size-3 text-rose-500" />
-                  <span className="tabular-nums">{target.traffickingIndex}/10</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              <Badge variant="outline" className={cn('text-[9px] font-semibold tracking-wide uppercase px-1.5 py-0', cfg.badge)}>
-                {target.tier === 'immediate' ? 'Tier 1' : target.tier === 'developing' ? 'Tier 2' : 'Tier 3'}
-              </Badge>
-              <span className={cn('text-[10px] font-medium', ngoColor)}>
-                {NGO_ECOSYSTEM_LABEL[target.ngoEcosystem]}
-              </span>
-            </div>
-
-            <p className="mt-2 text-[10px] text-muted-foreground font-medium leading-snug">{target.primaryRisk}</p>
-          </div>
-        </div>
-
-        <button
-          className="mt-2.5 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-          onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v) }}
+    <div className="space-y-2">
+      <div className="relative rounded-xl overflow-hidden border border-border shadow-sm" style={{ height: 520 }}>
+        <MapContainer
+          center={PHILIPPINES_CENTER}
+          zoom={6}
+          minZoom={5}
+          maxZoom={12}
+          scrollWheelZoom={false}
+          maxBounds={PHILIPPINES_BOUNDS}
+          maxBoundsViscosity={1.0}
+          style={{ height: '100%', width: '100%' }}
         >
-          {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-          <span>{expanded ? 'Hide analysis' : 'View analysis'}</span>
-        </button>
+          <TileLayer
+            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          />
 
-        {expanded && (
-          <div className="mt-2 pt-2 border-t border-border">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">{target.rationale}</p>
-            <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Users className="size-3 flex-shrink-0" />
-              <span>{target.populationM >= 100 ? `${(target.populationM / 1000).toFixed(2)}B` : `${target.populationM}M`} population</span>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          <MapController regions={candidates} activeIndex={activeIndex} markerRefs={markerRefs} />
+
+          {/* Covered safehouses — small emerald context dots, no popup */}
+          {covered.map((region) => {
+            const coords = REGION_COORDS[region.id]
+            if (!coords) return null
+            return (
+              <CircleMarker
+                key={region.id}
+                center={coords}
+                radius={6}
+                pathOptions={{ color: '#fff', weight: 1.5, fillColor: '#10b981', fillOpacity: 0.85 }}
+              />
+            )
+          })}
+
+          {/* Expansion candidates — color-coded by need tier */}
+          {candidates.map((region, idx) => {
+            const coords = REGION_COORDS[region.id]
+            if (!coords) return null
+            const isActive = idx === activeIndex
+            return (
+              <CircleMarker
+                key={region.id}
+                ref={(m: L.CircleMarker | null) => {
+                  if (m) markerRefs.current.set(region.id, m)
+                }}
+                center={coords}
+                radius={isActive ? 14 : 10}
+                pathOptions={{
+                  color: '#fff',
+                  weight: isActive ? 3 : 1.5,
+                  fillColor: NEED_TIER[region.needTier].hex,
+                  fillOpacity: 0.9,
+                }}
+                eventHandlers={{ click: () => onSelect(idx) }}
+              >
+                <Popup minWidth={260} maxWidth={300}>
+                  <div className="p-1 select-none">
+                    {/* Navigation row */}
+                    <div className="flex items-center justify-between mb-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSelect((idx - 1 + total) % total) }}
+                        className="flex items-center justify-center size-6 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                      >
+                        <ChevronLeft className="size-4" />
+                      </button>
+                      <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                        {idx + 1} / {total}
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSelect((idx + 1) % total) }}
+                        className="flex items-center justify-center size-6 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                      >
+                        <ChevronRight className="size-4" />
+                      </button>
+                    </div>
+
+                    {/* Region identity */}
+                    <p className="text-xs text-muted-foreground font-medium mb-0.5">{region.code}</p>
+                    <p className="text-base font-semibold leading-tight mb-1.5">{region.name}</p>
+                    <IslandDot island={region.island} />
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-1.5 mt-2.5 text-center">
+                      <div className="rounded-md bg-muted/60 py-1.5">
+                        <p className="text-sm font-bold tabular-nums">{region.populationM.toFixed(1)}M</p>
+                        <p className="text-[11px] text-muted-foreground">Population</p>
+                      </div>
+                      <div className="rounded-md bg-muted/60 py-1.5">
+                        <p className="text-sm font-bold tabular-nums">{region.povertyRate}%</p>
+                        <p className="text-[11px] text-muted-foreground">Poverty</p>
+                      </div>
+                      <div className="rounded-md bg-muted/60 py-1.5">
+                        <p className="text-sm font-bold tabular-nums">{region.distanceKm} km</p>
+                        <p className="text-[11px] text-muted-foreground">Distance</p>
+                      </div>
+                    </div>
+
+                    {/* Primary risk */}
+                    <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed">{region.primaryRisk}</p>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            )
+          })}
+        </MapContainer>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
+        {(['critical', 'high', 'moderate', 'low'] as NeedTier[]).map((t) => (
+          <span key={t} className="flex items-center gap-1.5">
+            <span className="inline-block size-2 rounded-full" style={{ backgroundColor: NEED_TIER[t].hex }} />
+            {NEED_TIER[t].label}
+          </span>
+        ))}
+        <span className="flex items-center gap-1.5 ml-auto">
+          <span className="inline-block size-2 rounded-full bg-emerald-500" />
+          Active safehouse
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function WorldMapController({
+  countries,
+  activeIndex,
+  markerRefs,
+}: {
+  countries: GlobalTarget[]
+  activeIndex: number
+  markerRefs: React.RefObject<Map<string, L.CircleMarker>>
+}) {
+  const map = useMap()
+  useEffect(() => {
+    const country = countries[activeIndex]
+    if (!country) return
+    const coords = COUNTRY_COORDS[country.id]
+    if (!coords) return
+    map.flyTo(coords, 5, { duration: 0.5 })
+    const marker = markerRefs.current?.get(country.id)
+    const onMoveEnd = () => {
+      if (marker && !marker.isPopupOpen()) marker.openPopup()
+      map.off('moveend', onMoveEnd)
+    }
+    map.on('moveend', onMoveEnd)
+    return () => { map.off('moveend', onMoveEnd) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex])
+  return null
+}
+
+function InternationalMap({
+  countries,
+  activeIndex,
+  onSelect,
+}: {
+  countries: GlobalTarget[]
+  activeIndex: number
+  onSelect: (i: number) => void
+}) {
+  const markerRefs = useRef<Map<string, L.CircleMarker>>(new Map())
+  const total = countries.length
+
+  return (
+    <div className="space-y-2">
+      <div className="relative rounded-xl overflow-hidden border border-border shadow-sm" style={{ height: 520 }}>
+        <MapContainer
+          center={WORLD_CENTER}
+          zoom={3}
+          minZoom={2}
+          maxZoom={10}
+          scrollWheelZoom={false}
+          maxBounds={WORLD_BOUNDS}
+          maxBoundsViscosity={1.0}
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          />
+          <WorldMapController countries={countries} activeIndex={activeIndex} markerRefs={markerRefs} />
+          {countries.map((country, idx) => {
+            const coords = COUNTRY_COORDS[country.id]
+            if (!coords) return null
+            const isActive = idx === activeIndex
+            const tierHex = EXPANSION_TIER_HEX[country.tier]
+            return (
+              <CircleMarker
+                key={country.id}
+                ref={(m: L.CircleMarker | null) => {
+                  if (m) markerRefs.current.set(country.id, m)
+                }}
+                center={coords}
+                radius={isActive ? 14 : 10}
+                pathOptions={{
+                  color: '#fff',
+                  weight: isActive ? 3 : 1.5,
+                  fillColor: tierHex,
+                  fillOpacity: 0.9,
+                }}
+                eventHandlers={{ click: () => onSelect(idx) }}
+              >
+                <Popup minWidth={260} maxWidth={300}>
+                  <div className="p-1 select-none">
+                    <div className="flex items-center justify-between mb-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSelect((idx - 1 + total) % total) }}
+                        className="flex items-center justify-center size-6 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                      >
+                        <ChevronLeft className="size-4" />
+                      </button>
+                      <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                        {idx + 1} / {total}
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSelect((idx + 1) % total) }}
+                        className="flex items-center justify-center size-6 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                      >
+                        <ChevronRight className="size-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-medium mb-0.5">{country.subregion} · {country.continent}</p>
+                    <p className="text-base font-semibold leading-tight mb-1.5">{country.country}</p>
+                    <div className="grid grid-cols-3 gap-1.5 mt-2.5 text-center">
+                      <div className="rounded-md bg-muted/60 py-1.5">
+                        <p className="text-sm font-bold tabular-nums">{country.traffickingIndex}/10</p>
+                        <p className="text-[11px] text-muted-foreground">TI Index</p>
+                      </div>
+                      <div className="rounded-md bg-muted/60 py-1.5">
+                        <p className="text-sm font-bold tabular-nums">{country.missionReadiness}</p>
+                        <p className="text-[11px] text-muted-foreground">Readiness</p>
+                      </div>
+                      <div className="rounded-md bg-muted/60 py-1.5">
+                        <p className="text-sm font-bold tabular-nums">
+                          {country.populationM >= 100 ? `${(country.populationM / 1000).toFixed(2)}B` : `${country.populationM}M`}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">Population</p>
+                      </div>
+                    </div>
+                    <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed">{country.primaryRisk}</p>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            )
+          })}
+        </MapContainer>
+      </div>
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
+        {(['immediate', 'developing', 'future'] as ExpansionTier[]).map((t) => (
+          <span key={t} className="flex items-center gap-1.5">
+            <span className="inline-block size-2 rounded-full" style={{ backgroundColor: EXPANSION_TIER_HEX[t] }} />
+            {t === 'immediate' ? 'Tier 1 — Immediate' : t === 'developing' ? 'Tier 2 — Developing' : 'Tier 3 — Future'}
+          </span>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -631,18 +724,45 @@ function GlobalTargetCard({ target }: { target: GlobalTarget }) {
 export function ExpansionPlanning() {
   usePageTitle('Expansion Planning')
 
+  const [aiData, setAiData] = useState<ExpansionRecommendation | null>(null)
+  const [aiLoading, setAiLoading] = useState(true)
+  const [aiError, setAiError] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [activeCountryIndex, setActiveCountryIndex] = useState(0)
+  const [expandedRanks, setExpandedRanks] = useState<Set<number>>(new Set([1]))
+  const [expandedCountries, setExpandedCountries] = useState<Set<number>>(new Set([1]))
+
+  const fetchAi = async (forceRefresh = false) => {
+    try {
+      setAiError(false)
+      if (forceRefresh) setRefreshing(true)
+      else setAiLoading(true)
+      const endpoint = forceRefresh
+        ? '/api/expansion/recommendation/refresh'
+        : '/api/expansion/recommendation'
+      const data = forceRefresh
+        ? await api.post<ExpansionRecommendation>(endpoint, {})
+        : await api.get<ExpansionRecommendation>(endpoint)
+      setAiData(data)
+    } catch {
+      setAiError(true)
+    } finally {
+      setAiLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  useEffect(() => { fetchAi() }, [])
+
   const covered = PHILIPPINE_REGIONS.filter((r) => r.hasLunas)
   const totalRegions = PHILIPPINE_REGIONS.length
-  const criticalCount = PHILIPPINE_REGIONS.filter((r) => r.needTier === 'critical').length
-  const highCount = PHILIPPINE_REGIONS.filter((r) => r.needTier === 'high').length
-  const unreachedPopM = PHILIPPINE_REGIONS
-    .filter((r) => !r.hasLunas)
-    .reduce((sum, r) => sum + r.populationM, 0)
   const coveragePct = Math.round((covered.length / totalRegions) * 100)
 
-  const topRecommendations = PHILIPPINE_REGIONS
-    .filter((r) => r.recommended)
-    .sort((a, b) => (a.recommended ?? 9) - (b.recommended ?? 9))
+  // Expansion candidates sorted highest need score → lowest
+  const uncoveredByScore = PHILIPPINE_REGIONS
+    .filter((r) => !r.hasLunas)
+    .sort((a, b) => b.score - a.score)
 
   const islandGroups: Array<{ label: PhilippineRegion['island']; color: string }> = [
     { label: 'Luzon', color: 'bg-sky-400' },
@@ -651,6 +771,22 @@ export function ExpansionPlanning() {
   ]
 
   const globalByTier = (tier: ExpansionTier) => GLOBAL_TARGETS.filter((t) => t.tier === tier)
+
+  const tierOrder: Record<ExpansionTier, number> = { immediate: 0, developing: 1, future: 2 }
+  const globalRanked = [...GLOBAL_TARGETS].sort((a, b) => {
+    const tierDiff = tierOrder[a.tier] - tierOrder[b.tier]
+    if (tierDiff !== 0) return tierDiff
+    const tiDiff = b.traffickingIndex - a.traffickingIndex
+    if (tiDiff !== 0) return tiDiff
+    return b.missionReadiness - a.missionReadiness
+  })
+
+  const needScoreColor = (score: number): string => {
+    if (score >= 80) return NEED_TIER.critical.hex
+    if (score >= 65) return NEED_TIER.high.hex
+    if (score >= 50) return NEED_TIER.moderate.hex
+    return NEED_TIER.low.hex
+  }
 
   return (
     <div className="space-y-6">
@@ -675,47 +811,7 @@ export function ExpansionPlanning() {
         </TabsList>
 
         {/* ── SHORT-TERM TAB ──────────────────────────────────── */}
-        <TabsContent value="short-term" className="mt-6 space-y-6">
-
-          {/* Context banner */}
-          <Card className="border-sky-200 dark:border-sky-800/50 bg-sky-50/50 dark:bg-sky-900/10">
-            <CardContent className="p-4 flex items-start gap-3">
-              <Landmark className="size-4 text-sky-600 dark:text-sky-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-sky-800 dark:text-sky-300">Philippines Expansion Strategy</p>
-                <p className="text-xs text-sky-700 dark:text-sky-400 mt-0.5 leading-relaxed">
-                  The Philippines has 17 administrative regions. Lunas currently operates 2 safehouses.
-                  The founder's stated vision is <span className="font-semibold">one safehouse in every region</span>.
-                  Need scores are derived from poverty incidence (PSA), trafficking case volume (DSWD/IACAT),
-                  population size, distance to nearest safehouse, and existing NGO coverage.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Metric stats */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Card className="p-4">
-              <div className="text-2xl font-bold tabular-nums">{totalRegions}</div>
-              <div className="text-xs font-medium text-muted-foreground mt-0.5">Total Regions</div>
-              <div className="text-[10px] text-muted-foreground/70 mt-1">Philippines nationwide</div>
-            </Card>
-            <Card className="p-4 border-emerald-200 dark:border-emerald-800/50">
-              <div className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{covered.length}</div>
-              <div className="text-xs font-medium text-muted-foreground mt-0.5">Regions Covered</div>
-              <div className="text-[10px] text-muted-foreground/70 mt-1">Active Lunas safehouses</div>
-            </Card>
-            <Card className="p-4 border-rose-200 dark:border-rose-800/50">
-              <div className="text-2xl font-bold tabular-nums text-rose-600 dark:text-rose-400">{criticalCount}</div>
-              <div className="text-xs font-medium text-muted-foreground mt-0.5">Critical Priority</div>
-              <div className="text-[10px] text-muted-foreground/70 mt-1">{highCount} more high need</div>
-            </Card>
-            <Card className="p-4 border-amber-200 dark:border-amber-800/50">
-              <div className="text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{unreachedPopM.toFixed(0)}M</div>
-              <div className="text-xs font-medium text-muted-foreground mt-0.5">Unreached Population</div>
-              <div className="text-[10px] text-muted-foreground/70 mt-1">Across uncovered regions</div>
-            </Card>
-          </div>
+        <TabsContent value="short-term" className="mt-6 space-y-5">
 
           {/* Mission progress bar */}
           <Card>
@@ -727,171 +823,354 @@ export function ExpansionPlanning() {
                 </div>
                 <span className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{coveragePct}%</span>
               </div>
-              <div className="h-3 rounded-full bg-muted overflow-hidden">
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-700"
                   style={{ width: `${coveragePct}%` }}
                 />
               </div>
-              <div className="mt-2 flex items-center gap-4 text-[10px] text-muted-foreground">
+              <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
                 {islandGroups.map((g) => (
-                  <span key={g.label} className="flex items-center gap-1">
-                    <span className={cn('inline-block size-1.5 rounded-full', g.color)} />
+                  <span key={g.label} className="flex items-center gap-1.5">
+                    <span className={cn('inline-block size-2 rounded-full', g.color)} />
                     {g.label}
                   </span>
                 ))}
-                <span className="ml-auto">Goal: 17/17 regions</span>
+                <span className="ml-auto">Goal: {covered.length}/17 regions</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Main two-column layout */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Main layout: map + AI recommendations */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
 
-            {/* Region grid — left 2/3 */}
-            <div className="lg:col-span-2 space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold">All Regions</h2>
-                <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                  {(['covered', 'critical', 'high', 'moderate'] as NeedTier[]).map((t) => (
-                    <span key={t} className="flex items-center gap-1">
-                      <span className="inline-block size-1.5 rounded-full" style={{ backgroundColor: NEED_TIER[t].hex }} />
-                      {NEED_TIER[t].label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                {PHILIPPINE_REGIONS.map((region) => (
-                  <RegionCard key={region.id} region={region} />
-                ))}
-              </div>
-              <p className="text-[10px] text-muted-foreground pt-1">
-                Click any region card to expand analysis. Need scores integrate poverty incidence (PSA),
-                trafficking case volume (DSWD/IACAT), population, distance to nearest safehouse, and NGO
-                coverage density. Enrich with live PSA OpenSTAT API data for real-time updates.
-              </p>
+            {/* Left — expansion map (half width) */}
+            <div>
+              <h2 className="text-base font-semibold mb-3">Expansion Candidates</h2>
+              <ExpansionMap
+                candidates={uncoveredByScore}
+                covered={covered}
+                activeIndex={activeIndex}
+                onSelect={setActiveIndex}
+              />
             </div>
 
-            {/* Recommendations — right 1/3 */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Star className="size-4 text-amber-500 fill-amber-500" />
-                <h2 className="text-sm font-semibold">Strategic Recommendations</h2>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Top regions where a new Lunas safehouse would have the highest impact per the need score model.
-                Final decisions should integrate mission leader input and partner readiness.
-              </p>
-              <div className="space-y-3">
-                {topRecommendations.map((r) => (
-                  <RecommendationCard key={r.id} region={r} rank={r.recommended!} />
-                ))}
-              </div>
-
-              <Separator />
-
-              {/* Decision criteria card */}
-              <Card className="border-dashed">
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Expansion Criteria
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-4 space-y-2">
-                  {[
-                    { icon: AlertTriangle, label: 'Case volume & severity', color: 'text-rose-500' },
-                    { icon: TrendingUp, label: 'Poverty incidence rate', color: 'text-amber-500' },
-                    { icon: MapPin, label: 'Distance from nearest safehouse', color: 'text-sky-500' },
-                    { icon: Building2, label: 'Local partner availability', color: 'text-violet-500' },
-                    { icon: ShieldCheck, label: 'Staff operational safety', color: 'text-emerald-500' },
-                    { icon: HeartHandshake, label: 'Mission leader readiness', color: 'text-pink-500' },
-                  ].map(({ icon: Icon, label, color }) => (
-                    <div key={label} className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <Icon className={cn('size-3 flex-shrink-0', color)} />
-                      <span>{label}</span>
+            {/* Right — AI recommendations (half width) */}
+            <div>
+              <Card className="sticky top-4">
+                <CardHeader className="pb-3 pt-4 px-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Brain className="size-4 text-violet-500 flex-shrink-0" />
+                      <CardTitle className="text-base truncate">Expansion Recommendations</CardTitle>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge variant="outline" className="text-[9px] text-violet-600 border-violet-300 dark:text-violet-400 dark:border-violet-700">
+                        AI
+                      </Badge>
+                      {aiData && !aiLoading && (
+                        <button
+                          onClick={() => fetchAi(true)}
+                          disabled={refreshing}
+                          title="Re-run analysis"
+                          className="text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+                        >
+                          <RefreshCw className={cn('size-3.5', refreshing && 'animate-spin')} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="px-4 pb-4">
+
+                  {/* Loading */}
+                  {aiLoading && (
+                    <div className="space-y-3 animate-pulse">
+                      {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="size-6 rounded-full bg-muted flex-shrink-0" />
+                            <div className="h-3.5 rounded bg-muted w-3/4" />
+                          </div>
+                          <div className="h-2 rounded bg-muted w-full" />
+                          <div className="h-2 rounded bg-muted w-5/6" />
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground text-center pt-1">Analyzing resident outcomes…</p>
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {!aiLoading && aiError && (
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-900/10 p-3">
+                        <AlertTriangle className="size-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-1 flex-1 min-w-0">
+                          <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Analysis unavailable</p>
+                          <p className="text-xs text-muted-foreground">Region scores are based on static need data.</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => fetchAi(true)}
+                        disabled={refreshing}
+                        className="w-full flex items-center justify-center gap-1.5 rounded-md border border-border py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-50 transition-colors"
+                      >
+                        <RefreshCw className={cn('size-3', refreshing && 'animate-spin')} />
+                        Retry
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Loaded */}
+                  {!aiLoading && !aiError && aiData && (
+                    <div className="space-y-4">
+
+                      {/* Overall insight */}
+                      {aiData.overallInsight && (
+                        <div className="rounded-lg border border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-900/10 p-3">
+                          <p className="text-sm text-violet-700 dark:text-violet-400 leading-relaxed italic">
+                            {aiData.overallInsight}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Ranked regions */}
+                      <div className="space-y-3">
+                        {aiData.rankedRegions.map((r) => {
+                          const isExpanded = expandedRanks.has(r.rank)
+                          return (
+                            <div key={r.regionCode} className="space-y-2">
+                              {/* Clickable header row */}
+                              <button
+                                className="w-full flex items-center gap-3 text-left hover:bg-muted/30 rounded-md px-1 py-0.5 -mx-1 transition-colors"
+                                onClick={() => setExpandedRanks((prev) => {
+                                  const next = new Set(prev)
+                                  if (next.has(r.rank)) next.delete(r.rank)
+                                  else next.add(r.rank)
+                                  return next
+                                })}
+                              >
+                                <span className="text-base font-bold tabular-nums flex-shrink-0 w-6 text-center text-foreground">
+                                  {r.rank}
+                                </span>
+                                <span className="text-base font-semibold flex-1 min-w-0 truncate">{r.regionName}</span>
+                                <span className="text-base font-bold tabular-nums flex-shrink-0" style={{ color: needScoreColor(r.needScore) }}>
+                                  {r.finalScore.toFixed(0)}
+                                </span>
+                                <ChevronDown className={cn('size-4 text-muted-foreground flex-shrink-0 transition-transform', isExpanded && 'rotate-180')} />
+                              </button>
+
+                              {/* Expanded content */}
+                              {isExpanded && (
+                                <div className="pl-9 space-y-3">
+                                  {/* Score bars */}
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between text-sm text-muted-foreground">
+                                        <span>Need</span><span>{r.needScore}</span>
+                                      </div>
+                                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                        <div className="h-full rounded-full bg-rose-400 transition-all" style={{ width: `${r.needScore}%` }} />
+                                      </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between text-sm text-muted-foreground">
+                                        <span>Match</span><span>{r.successMatchScore.toFixed(0)}</span>
+                                      </div>
+                                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                        <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${r.successMatchScore}%` }} />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Safety flag */}
+                                  {r.safetyFlag && (
+                                    <div className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400">
+                                      <AlertTriangle className="size-4 flex-shrink-0" />
+                                      <span>Staff safety assessment required</span>
+                                    </div>
+                                  )}
+
+                                  {/* AI rationale */}
+                                  {r.aiRationale && (
+                                    <p className="text-sm text-muted-foreground leading-relaxed">{r.aiRationale}</p>
+                                  )}
+                                </div>
+                              )}
+
+                              {r.rank < aiData.rankedRegions.length && <Separator />}
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="pt-1 space-y-2">
+                        <div className="flex items-start gap-1.5 rounded-md bg-muted/40 p-2.5">
+                          <Info className="size-3 text-muted-foreground flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            Based on <strong>{aiData.successProfile.totalResidentsAnalyzed}</strong> resolved cases.
+                            Results are directional — reliability improves as more cases close.
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground px-0.5">
+                          <div className="flex items-center gap-1">
+                            <Clock className="size-3" />
+                            <span>{new Date(aiData.generatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          <button
+                            onClick={() => fetchAi(true)}
+                            disabled={refreshing}
+                            className="flex items-center gap-1 hover:text-foreground disabled:opacity-50 transition-colors"
+                          >
+                            <RefreshCw className={cn('size-3', refreshing && 'animate-spin')} />
+                            Re-run
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+
                 </CardContent>
               </Card>
             </div>
+
           </div>
         </TabsContent>
 
         {/* ── LONG-TERM TAB ───────────────────────────────────── */}
-        <TabsContent value="long-term" className="mt-6 space-y-6">
+        <TabsContent value="long-term" className="mt-6 space-y-5">
 
-          {/* Context banner */}
-          <Card className="border-violet-200 dark:border-violet-800/50 bg-violet-50/50 dark:bg-violet-900/10">
-            <CardContent className="p-4 flex items-start gap-3">
-              <Globe className="size-4 text-violet-600 dark:text-violet-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-violet-800 dark:text-violet-300">International Expansion Vision</p>
-                <p className="text-xs text-violet-700 dark:text-violet-400 mt-0.5 leading-relaxed">
-                  Countries are scored on trafficking severity (UNODC/TIP Report), mission readiness
-                  (existing partner network, Christian mission presence, government cooperation), and
-                  operational feasibility. Mission Readiness scores indicate how prepared the ground
-                  conditions are for deployment — <span className="font-semibold">not</span> how urgent the need is.
-                </p>
+          {/* International Expansion Vision card */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-sm font-semibold">International Expansion Vision</p>
+                  <p className="text-xs text-muted-foreground">Countries assessed for future Lunas safehouse deployment</p>
+                </div>
+                <span className="text-lg font-bold tabular-nums text-violet-600 dark:text-violet-400">{GLOBAL_TARGETS.length}</span>
+              </div>
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden flex">
+                <div
+                  className="h-full rounded-l-full bg-rose-400 transition-all duration-700"
+                  style={{ width: `${(globalByTier('immediate').length / GLOBAL_TARGETS.length) * 100}%` }}
+                />
+                <div
+                  className="h-full bg-amber-400 transition-all duration-700"
+                  style={{ width: `${(globalByTier('developing').length / GLOBAL_TARGETS.length) * 100}%` }}
+                />
+                <div
+                  className="h-full rounded-r-full bg-sky-400 transition-all duration-700"
+                  style={{ width: `${(globalByTier('future').length / GLOBAL_TARGETS.length) * 100}%` }}
+                />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block size-2 rounded-full bg-rose-400" />
+                  Tier 1 — Immediate ({globalByTier('immediate').length})
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block size-2 rounded-full bg-amber-400" />
+                  Tier 2 — Developing ({globalByTier('developing').length})
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block size-2 rounded-full bg-sky-400" />
+                  Tier 3 — Future ({globalByTier('future').length})
+                </span>
+                <span className="ml-auto">Goal: {GLOBAL_TARGETS.length} countries assessed</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Global stats */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Card className="p-4">
-              <div className="text-2xl font-bold tabular-nums">{GLOBAL_TARGETS.length}</div>
-              <div className="text-xs font-medium text-muted-foreground mt-0.5">Countries Assessed</div>
-            </Card>
-            <Card className="p-4 border-rose-200 dark:border-rose-800/50">
-              <div className="text-2xl font-bold tabular-nums text-rose-600 dark:text-rose-400">
-                {globalByTier('immediate').length}
-              </div>
-              <div className="text-xs font-medium text-muted-foreground mt-0.5">Tier 1 — Immediate</div>
-            </Card>
-            <Card className="p-4 border-amber-200 dark:border-amber-800/50">
-              <div className="text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">
-                {globalByTier('developing').length}
-              </div>
-              <div className="text-xs font-medium text-muted-foreground mt-0.5">Tier 2 — Developing</div>
-            </Card>
-            <Card className="p-4 border-sky-200 dark:border-sky-800/50">
-              <div className="text-2xl font-bold tabular-nums text-sky-600 dark:text-sky-400">
-                {globalByTier('future').length}
-              </div>
-              <div className="text-xs font-medium text-muted-foreground mt-0.5">Tier 3 — Future</div>
-            </Card>
-          </div>
+          {/* Main layout: world map + AI recommendations */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
 
-          {/* Tier sections */}
-          {(['immediate', 'developing', 'future'] as ExpansionTier[]).map((tier) => {
-            const cfg = EXPANSION_TIER[tier]
-            const countries = globalByTier(tier)
-            return (
-              <div key={tier} className="space-y-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <Badge variant="outline" className={cn('text-[10px] font-semibold tracking-wide uppercase', cfg.badge)}>
-                      {cfg.label}
+            {/* Left — international map */}
+            <div>
+              <h2 className="text-base font-semibold mb-3">Expansion Candidates</h2>
+              <InternationalMap
+                countries={globalRanked}
+                activeIndex={activeCountryIndex}
+                onSelect={setActiveCountryIndex}
+              />
+            </div>
+
+            {/* Right — ranked recommendations */}
+            <div>
+              <Card className="sticky top-4">
+                <CardHeader className="pb-3 pt-4 px-4">
+                  <div className="flex items-center gap-2">
+                    <Brain className="size-4 text-violet-500 flex-shrink-0" />
+                    <CardTitle className="text-base truncate">Expansion Recommendations</CardTitle>
+                    <Badge variant="outline" className="ml-auto text-[9px] text-violet-600 border-violet-300 dark:text-violet-400 dark:border-violet-700">
+                      AI
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">{cfg.description}</p>
-                </div>
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-                  {countries.map((target) => (
-                    <GlobalTargetCard key={target.id} target={target} />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <div className="space-y-3">
+                    {globalRanked.map((country, idx) => {
+                      const rank = idx + 1
+                      const isExpanded = expandedCountries.has(rank)
+                      const tierHex = EXPANSION_TIER_HEX[country.tier]
+                      return (
+                        <div key={country.id} className="space-y-2">
+                          <button
+                            className="w-full flex items-center gap-3 text-left hover:bg-muted/30 rounded-md px-1 py-0.5 -mx-1 transition-colors"
+                            onClick={() => setExpandedCountries((prev) => {
+                              const next = new Set(prev)
+                              if (next.has(rank)) next.delete(rank)
+                              else next.add(rank)
+                              return next
+                            })}
+                          >
+                            <span className="text-base font-bold tabular-nums flex-shrink-0 w-6 text-center text-foreground">
+                              {rank}
+                            </span>
+                            <span className="text-base font-semibold flex-1 min-w-0 truncate">{country.country}</span>
+                            <span className="text-sm font-bold tabular-nums flex-shrink-0" style={{ color: tierHex }}>
+                              {country.tier === 'immediate' ? 'T1' : country.tier === 'developing' ? 'T2' : 'T3'}
+                            </span>
+                            <ChevronDown className={cn('size-4 text-muted-foreground flex-shrink-0 transition-transform', isExpanded && 'rotate-180')} />
+                          </button>
 
-          <p className="text-[10px] text-muted-foreground pt-2">
-            Trafficking index sourced from UNODC Global Report on Trafficking in Persons and U.S. State Department
-            TIP Report tier classifications. Enrich with live World Bank Open Data and UNODC APIs for
-            real-time socioeconomic indicators. Mission Readiness scores reflect current network assessments
-            and should be reviewed annually as partner relationships develop.
-          </p>
+                          {isExpanded && (
+                            <div className="pl-9 space-y-3">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <div className="flex justify-between text-sm text-muted-foreground">
+                                    <span>TI Index</span><span>{country.traffickingIndex}/10</span>
+                                  </div>
+                                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                    <div className="h-full rounded-full bg-rose-400 transition-all" style={{ width: `${country.traffickingIndex * 10}%` }} />
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="flex justify-between text-sm text-muted-foreground">
+                                    <span>Readiness</span><span>{country.missionReadiness}</span>
+                                  </div>
+                                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                    <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${country.missionReadiness}%` }} />
+                                  </div>
+                                </div>
+                              </div>
+                              <p className="text-sm text-muted-foreground leading-relaxed">{country.rationale}</p>
+                            </div>
+                          )}
+
+                          {rank < globalRanked.length && <Separator />}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+          </div>
         </TabsContent>
       </Tabs>
     </div>
