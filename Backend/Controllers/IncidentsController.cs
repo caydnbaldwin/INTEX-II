@@ -14,6 +14,7 @@ namespace Backend.Controllers;
 public class IncidentsController(AppDbContext db) : ControllerBase
 {
     [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
         if (!JsonRequestPatch<IncidentWriteRequest>.TryParse(body, out var patch, out var parseProblem))

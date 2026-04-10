@@ -245,7 +245,7 @@ export function CaseloadInventory() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { authSession } = useAuth()
-  const canEdit = authSession.roles.includes('Admin') || authSession.roles.includes('Staff')
+  const canEdit = authSession.roles.includes('Admin')
 
   // Read initial filter values from URL params
   const initialFilters = useMemo(() => ({

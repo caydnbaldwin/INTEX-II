@@ -44,7 +44,7 @@ public class ProcessRecordingsController(
     }
 
     [HttpPost]
-    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] ProcessRecordingWriteRequest request)
     {
         if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save session."))
@@ -61,7 +61,7 @@ public class ProcessRecordingsController(
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
         if (!JsonRequestPatch<ProcessRecordingWriteRequest>.TryParse(body, out var patch, out var parseProblem))
@@ -79,6 +79,7 @@ public class ProcessRecordingsController(
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var recording = await db.ProcessRecordings.FindAsync(id);

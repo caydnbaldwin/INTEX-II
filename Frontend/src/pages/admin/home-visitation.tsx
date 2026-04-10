@@ -198,7 +198,7 @@ type FormFieldErrors = Partial<Record<'residentId' | 'date' | 'visitType' | 'gen
 export function HomeVisitation() {
   usePageTitle('Home Visitation')
   const { authSession } = useAuth()
-  const canEdit = authSession.roles.includes('Admin') || authSession.roles.includes('Staff')
+  const canEdit = authSession.roles.includes('Admin')
   const [visits, setVisits] = useState<HomeVisit[]>([])
   const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
