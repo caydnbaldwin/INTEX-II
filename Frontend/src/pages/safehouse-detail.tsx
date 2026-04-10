@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import L from 'leaflet'
-import { ArrowLeft, Heart, MapPin, Calendar, Users, Sparkles } from 'lucide-react'
+import { ArrowLeft, Heart, MapPin, Calendar, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getSafehouseById } from '@/lib/safehouseData'
@@ -20,10 +20,6 @@ const markerIcon = L.divIcon({
   iconSize: [20, 20],
   iconAnchor: [10, 10],
 })
-
-const PROGRAM_ICONS: Record<string, React.ElementType> = {
-  default: Sparkles,
-}
 
 export function SafehouseDetail() {
   usePageTitle('Safehouse Details')
@@ -110,11 +106,10 @@ export function SafehouseDetail() {
       {/* Tabs */}
       <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
         <Tabs defaultValue="overview">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="stories">Stories</TabsTrigger>
             <TabsTrigger value="photos">Photos</TabsTrigger>
-            <TabsTrigger value="programs">Programs</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -266,35 +261,6 @@ export function SafehouseDetail() {
             </div>
           </TabsContent>
 
-          {/* Programs Tab */}
-          <TabsContent value="programs" className="mt-8">
-            <h2 className="font-serif text-2xl font-semibold text-foreground mb-2">
-              Programs at {safehouse.name}
-            </h2>
-            <p className="text-muted-foreground mb-8">
-              Every program is designed to help residents heal, grow, and prepare for an independent future.
-            </p>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {safehouse.programs.map((program) => {
-                const Icon = PROGRAM_ICONS[program] ?? PROGRAM_ICONS.default
-                return (
-                  <div
-                    key={program}
-                    className="rounded-xl border border-border p-6 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 mb-4">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <h3 className="font-semibold text-foreground">{program}</h3>
-                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                      Part of our holistic care model at {safehouse.name}, supporting the {safehouse.occupancy} girls currently in residence.
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
-          </TabsContent>
         </Tabs>
 
         {/* CTA */}

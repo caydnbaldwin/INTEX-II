@@ -8,40 +8,6 @@ import { usePageTitle } from '@/hooks/usePageTitle'
 
 export function LandingPage() {
   usePageTitle('Home')
-  const API = import.meta.env.VITE_API_BASE_URL as string
-  const [backendStatus, setBackendStatus] = useState('')
-  const [dbStatus, setDbStatus] = useState('')
-  const [isCheckingBackend, setIsCheckingBackend] = useState(false)
-  const [isCheckingDb, setIsCheckingDb] = useState(false)
-  async function verifyBackend() {
-    setBackendStatus('Checking backend...')
-    setIsCheckingBackend(true)
-    try {
-      const response = await fetch(`${API}/api/health`, { method: 'GET', credentials: 'include' })
-      if (!response.ok) { setBackendStatus(`Backend check failed (${response.status}).`); return }
-      const data = await response.json() as { message?: string }
-      setBackendStatus(data.message ?? 'Backend reachable.')
-    } catch {
-      setBackendStatus('Unable to reach backend.')
-    } finally {
-      setIsCheckingBackend(false)
-    }
-  }
-
-  async function verifyDatabase() {
-    setDbStatus('Checking database...')
-    setIsCheckingDb(true)
-    try {
-      const response = await fetch(`${API}/api/dbcheck`, { method: 'GET', credentials: 'include' })
-      if (!response.ok) { setDbStatus(`Database check failed (${response.status}).`); return }
-      const data = await response.json() as Record<string, unknown>
-      setDbStatus(`Database check succeeded (${Object.keys(data).length} tables verified).`)
-    } catch {
-      setDbStatus('Unable to reach database check endpoint.')
-    } finally {
-      setIsCheckingDb(false)
-    }
-  }
 
   const scrollToContent = () => {
     document.getElementById('crisis')?.scrollIntoView({ behavior: 'smooth' })
@@ -219,29 +185,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ───────────────── Verify Links (subtle, bottom-right) ───────────────── */}
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 pb-2 flex justify-end gap-3 text-[10px] text-muted-foreground/40">
-        <button
-          type="button"
-          onClick={verifyBackend}
-          disabled={isCheckingBackend}
-          className="hover:text-muted-foreground transition-colors disabled:opacity-60"
-        >
-          {isCheckingBackend ? 'Verifying...' : 'Verify Backend'}
-        </button>
-        <span>|</span>
-        <button
-          type="button"
-          onClick={verifyDatabase}
-          disabled={isCheckingDb}
-          className="hover:text-muted-foreground transition-colors disabled:opacity-60"
-        >
-          {isCheckingDb ? 'Verifying...' : 'Verify Database'}
-        </button>
-        {(backendStatus || dbStatus) && (
-          <span>{backendStatus && `${backendStatus}`}{backendStatus && dbStatus && ' · '}{dbStatus && `${dbStatus}`}</span>
-        )}
-      </div>
     </div>
   )
 }

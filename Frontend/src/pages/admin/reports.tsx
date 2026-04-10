@@ -471,8 +471,8 @@ export function ReportsAnalytics() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={socialMediaEffectiveness}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="platform" className="text-xs fill-muted-foreground" />
-                      <YAxis className="text-xs fill-muted-foreground" />
+                      <XAxis dataKey="platform" interval={0} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
                       <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                       <Bar dataKey="referralsPerPost" name="Referrals / Post" radius={[4, 4, 0, 0]}>
                         {socialMediaEffectiveness.map((_e, i) => (
@@ -495,8 +495,8 @@ export function ReportsAnalytics() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={socialMediaEffectiveness}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="platform" className="text-xs fill-muted-foreground" />
-                      <YAxis className="text-xs fill-muted-foreground" />
+                      <XAxis dataKey="platform" interval={0} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
                       <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                       <Bar dataKey="avgValue" name="Avg. Value (PHP)" radius={[4, 4, 0, 0]}>
                         {socialMediaEffectiveness.map((_e, i) => (
@@ -524,8 +524,8 @@ export function ReportsAnalytics() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={socialDriversData}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="topic" className="text-xs fill-muted-foreground" />
-                      <YAxis className="text-xs fill-muted-foreground" />
+                      <XAxis dataKey="topic" interval={0} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} />
                       <Tooltip
                         contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', color: '#111827', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         formatter={(value) => [`${Number(value).toFixed(2)}`, 'Avg. Impact Score']}

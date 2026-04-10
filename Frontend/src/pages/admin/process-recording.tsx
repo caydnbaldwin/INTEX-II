@@ -185,7 +185,7 @@ const blankForm = {
 export function ProcessRecording() {
   usePageTitle('Process Recording')
   const { authSession } = useAuth()
-  const isAdmin = authSession.roles.includes('Admin')
+  const canEdit = authSession.roles.includes('Admin') || authSession.roles.includes('Staff')
   const [sessions, setSessions] = useState<Session[]>([])
   const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)
@@ -340,7 +340,7 @@ export function ProcessRecording() {
   }
 
   function openEdit(session: Session) {
-    if (!isAdmin) return
+    if (!canEdit) return
     setEditingId(session.id)
     setFormResident(String(session.residentId))
     setForm({
@@ -362,7 +362,7 @@ export function ProcessRecording() {
   }
 
   async function handleDelete(id: number) {
-    if (!isAdmin) return
+    if (!canEdit) return
     try {
       await api.delete(`/api/process-recordings/${id}`)
       await fetchData()
@@ -373,7 +373,7 @@ export function ProcessRecording() {
   }
 
   async function handleSave() {
-    if (!isAdmin) return
+    if (!canEdit) return
     if (!formResident) { toast.error('Resident is required.'); return }
     if (!form.date) { toast.error('Session Date is required.'); return }
     if (!form.narrative?.trim()) { toast.error('Session Narrative is required.'); return }
@@ -439,7 +439,7 @@ export function ProcessRecording() {
             Document counseling sessions and track emotional progress.
           </p>
         </div>
-        {isAdmin && (
+        {canEdit && (
           <Button
             onClick={() => {
               setEditingId(null)
@@ -484,13 +484,13 @@ export function ProcessRecording() {
               <TableHead className="text-muted-foreground">Social Worker</TableHead>
               <TableHead className="text-muted-foreground">Duration</TableHead>
               <TableHead className="text-muted-foreground">Emotional State</TableHead>
-              {isAdmin && <TableHead className="text-right text-muted-foreground">Actions</TableHead>}
+              {canEdit && <TableHead className="text-right text-muted-foreground">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedSessions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={canEdit ? 7 : 6} className="h-24 text-center text-muted-foreground">
                   No sessions found.
                 </TableCell>
               </TableRow>
@@ -529,7 +529,7 @@ export function ProcessRecording() {
                       </Badge>
                     </div>
                   </TableCell>
-                  {isAdmin && (
+                  {canEdit && (
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); openEdit(session) }}>
@@ -879,7 +879,7 @@ export function ProcessRecording() {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setViewingSession(null)}>Close</Button>
-            {isAdmin && (
+            {canEdit && (
               <Button
                 className="bg-violet-700 hover:bg-violet-800"
                 onClick={() => {

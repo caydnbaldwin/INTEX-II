@@ -68,7 +68,6 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var visitation = await db.HomeVisitations.FindAsync(id);

@@ -79,7 +79,6 @@ public class ProcessRecordingsController(
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var recording = await db.ProcessRecordings.FindAsync(id);

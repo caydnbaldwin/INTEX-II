@@ -84,7 +84,6 @@ public class ResidentsController(AppDbContext db) : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var resident = await db.Residents.FindAsync(id);
