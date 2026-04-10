@@ -28,8 +28,12 @@ export default function Navbar() {
         { to: '/dashboard', label: 'Dashboard', adminOnly: true },
         { to: '/donors', label: 'Donors', adminOnly: true },
         { to: '/impact', label: 'Impact', adminOnly: false },
+        { to: '/donate', label: 'Donate', adminOnly: false },
       ].filter((l) => !l.adminOnly || isAdmin)
-    : [{ to: '/impact', label: 'Impact', adminOnly: false }];
+    : [
+        { to: '/impact', label: 'Impact', adminOnly: false },
+        { to: '/donate', label: 'Donate', adminOnly: false },
+      ];
 
   return (
     <header className="bg-surface-container-low border-b border-outline-variant sticky top-0 z-40">

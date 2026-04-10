@@ -159,12 +159,12 @@ PRINT '';
 
 PRINT '--- 2. Invalid enum-like value corrections ---';
 
--- Residents.CaseStatus: accepted values are Active, Closed, Pending Review
+-- Residents.CaseStatus: accepted values are Active, Closed, Pending Review, Transferred
 -- Anything else is mapped to Pending Review as a safe default.
 UPDATE Residents
 SET CaseStatus = 'Pending Review'
 WHERE NULLIF(LTRIM(RTRIM(CaseStatus)), '') IS NOT NULL
-  AND CaseStatus NOT IN ('Active', 'Closed', 'Pending Review');
+  AND CaseStatus NOT IN ('Active', 'Closed', 'Pending Review', 'Transferred');
 PRINT 'Residents.CaseStatus invalid values corrected: ' + CAST(@@ROWCOUNT AS VARCHAR);
 
 -- Supporters.Status: accepted values are Active, Inactive
@@ -273,7 +273,7 @@ SELECT 'SafehouseMonthlyMetrics SafehouseId orphans'   AS Check_, COUNT(*) AS Re
 SELECT 'BoardingPlacements ResidentId orphans'         AS Check_, COUNT(*) AS Remaining FROM BoardingPlacements p LEFT JOIN Residents r ON r.ResidentId = p.ResidentId WHERE p.ResidentId IS NOT NULL AND r.ResidentId IS NULL;
 SELECT 'BoardingPlacements SafehouseId orphans'        AS Check_, COUNT(*) AS Remaining FROM BoardingPlacements p LEFT JOIN Safehouses s ON s.SafehouseId = p.SafehouseId WHERE p.SafehouseId IS NOT NULL AND s.SafehouseId IS NULL;
 SELECT 'BoardingStandingOrders placement orphans'      AS Check_, COUNT(*) AS Remaining FROM BoardingStandingOrders o LEFT JOIN BoardingPlacements p ON p.BoardingPlacementId = o.BoardingPlacementId WHERE p.BoardingPlacementId IS NULL;
-SELECT 'Residents invalid CaseStatus'                  AS Check_, COUNT(*) AS Remaining FROM Residents WHERE NULLIF(LTRIM(RTRIM(CaseStatus)), '') IS NOT NULL AND CaseStatus NOT IN ('Active', 'Closed', 'Pending Review');
+SELECT 'Residents invalid CaseStatus'                  AS Check_, COUNT(*) AS Remaining FROM Residents WHERE NULLIF(LTRIM(RTRIM(CaseStatus)), '') IS NOT NULL AND CaseStatus NOT IN ('Active', 'Closed', 'Pending Review', 'Transferred');
 SELECT 'Supporters invalid Status'                     AS Check_, COUNT(*) AS Remaining FROM Supporters WHERE NULLIF(LTRIM(RTRIM(Status)), '') IS NOT NULL AND Status NOT IN ('Active', 'Inactive');
 SELECT 'BoardingPlacements invalid PlacementStatus'    AS Check_, COUNT(*) AS Remaining FROM BoardingPlacements WHERE NULLIF(LTRIM(RTRIM(PlacementStatus)), '') IS NOT NULL AND PlacementStatus NOT IN ('Incoming', 'Current', 'CheckedOut', 'Transferred', 'Cancelled');
 SELECT 'Residents DateClosed < DateOfAdmission'        AS Check_, COUNT(*) AS Remaining FROM Residents WHERE DateClosed IS NOT NULL AND DateOfAdmission IS NOT NULL AND DateClosed < DateOfAdmission;

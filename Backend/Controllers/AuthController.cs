@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using Backend.Data;
+using Backend.Models;
 
 namespace Backend.Controllers;
 
@@ -12,7 +14,8 @@ namespace Backend.Controllers;
 public class AuthController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
-    IConfiguration configuration) : ControllerBase
+    IConfiguration configuration,
+    AppDbContext db) : ControllerBase
 {
     private const string DefaultFrontendUrl = "http://localhost:4200";
     private const string DefaultExternalReturnPath = "/dashboard";
@@ -141,11 +144,32 @@ public class AuthController(
 
         if (user is null)
         {
+            var firstName = info.Principal.FindFirstValue(ClaimTypes.GivenName);
+            var lastName  = info.Principal.FindFirstValue(ClaimTypes.Surname);
+            var fullName  = info.Principal.FindFirstValue(ClaimTypes.Name);
+
+            // Create a Supporter record so the user has a name in the system
+            var nextSupporterId = (await db.Supporters.MaxAsync(s => (int?)s.SupporterId) ?? 0) + 1;
+            var supporter = new Supporter
+            {
+                SupporterId   = nextSupporterId,
+                Email         = email,
+                FirstName     = firstName ?? fullName?.Split(' ').FirstOrDefault(),
+                LastName      = lastName  ?? (fullName?.Contains(' ') == true ? fullName.Split(' ', 2)[1] : null),
+                DisplayName   = fullName ?? firstName ?? email,
+                SupporterType = "Individual",
+                Status        = "Active",
+                CreatedAt     = DateTime.UtcNow,
+            };
+            db.Supporters.Add(supporter);
+            await db.SaveChangesAsync();
+
             user = new ApplicationUser
             {
-                UserName = email,
-                Email = email,
-                EmailConfirmed = true
+                UserName    = email,
+                Email       = email,
+                EmailConfirmed = true,
+                SupporterId = nextSupporterId,
             };
 
             var createResult = await userManager.CreateAsync(user);

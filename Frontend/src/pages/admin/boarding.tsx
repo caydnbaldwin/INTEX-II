@@ -125,6 +125,8 @@ interface BoardingPlacement {
 
 interface ApiResident {
   residentId: number
+  caseControlNo: string | null
+  internalCode: string | null
 }
 
 interface ApiSafehouse {
@@ -325,6 +327,10 @@ function residentLabel(placement: BoardingPlacement) {
   if (placement.residentCaseControlNo) return placement.residentCaseControlNo
   if (placement.residentId != null) return `Resident ${placement.residentId}`
   return 'Pending intake'
+}
+
+function residentOptionLabel(resident: ApiResident) {
+  return resident.internalCode || resident.caseControlNo || `Resident ${resident.residentId}`
 }
 
 function compactResidentLabel(placement: BoardingPlacement | null) {
@@ -951,6 +957,19 @@ export function BoardingManagement() {
   useEffect(() => {
     void fetchData()
   }, [fetchData])
+
+  useEffect(() => {
+    if (!placementDialogOpen) return
+
+    void (async () => {
+      try {
+        const residentData = await api.get<ApiResident[]>('/api/residents')
+        setResidents(residentData)
+      } catch (err) {
+        console.error('Failed to refresh resident options', err)
+      }
+    })()
+  }, [placementDialogOpen])
 
   const activePlacements = useMemo(
     () => placements.filter((p) => ACTIVE_STATUSES.has((p.placementStatus ?? '') as PlacementStatus)),
@@ -2289,12 +2308,12 @@ export function BoardingManagement() {
               <div className="space-y-2">
                 <Label>Resident</Label>
                 <Select value={placementForm.residentId} onValueChange={(value) => setPlacementForm({ ...placementForm, residentId: value })}>
-                  <SelectTrigger><SelectValue placeholder="Select resident ID" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select resident" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No linked resident yet</SelectItem>
                     {residents.map((resident) => (
                       <SelectItem key={resident.residentId} value={String(resident.residentId)}>
-                        Resident ID {resident.residentId}
+                        {residentOptionLabel(resident)}
                       </SelectItem>
                     ))}
                   </SelectContent>
