@@ -69,12 +69,12 @@ export function ContactPage() {
           </p>
         </section>
 
-        <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(240px,300px)] lg:items-start lg:gap-12">
+        <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(300px,375px)] lg:items-start lg:gap-14">
           <section>
             <h2 className="font-serif text-2xl font-semibold text-foreground">Send us a message</h2>
             <form
               onSubmit={handleMessageSubmit}
-              className="mt-4 rounded-xl border border-border bg-card p-5 sm:p-6 space-y-4"
+              className="mt-4 rounded-xl border border-border bg-card p-6 sm:p-8 space-y-5"
             >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -133,9 +133,9 @@ export function ContactPage() {
               {teamMembers.map((member) => (
                 <article
                   key={member.email}
-                  className="rounded-xl border border-border bg-card p-4 flex items-start gap-3"
+                  className="rounded-xl border border-border bg-card p-5 flex items-start gap-4"
                 >
-                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-muted ring-2 ring-border">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-muted ring-2 ring-border">
                     <img
                       src={member.photoSrc}
                       alt=""
@@ -145,11 +145,11 @@ export function ContactPage() {
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">{member.name}</p>
-                    <p className="text-xs text-muted-foreground leading-snug">{member.title}</p>
+                    <p className="text-base font-medium text-foreground">{member.name}</p>
+                    <p className="text-sm text-muted-foreground leading-snug">{member.title}</p>
                     <a
                       href={`mailto:${member.email}`}
-                      className="mt-1 block truncate text-xs text-primary hover:underline"
+                      className="mt-1 block truncate text-sm text-primary hover:underline"
                     >
                       {member.email}
                     </a>

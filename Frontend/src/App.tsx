@@ -48,6 +48,12 @@ const EmailTemplates = lazy(() =>
 const BoardingManagement = lazy(() =>
   import('./pages/admin/boarding').then((m) => ({ default: m.BoardingManagement })),
 )
+const AiChatPage = lazy(() =>
+  import('./pages/admin/chat').then((m) => ({ default: m.AiChatPage })),
+)
+const ExpansionPlanning = lazy(() =>
+  import('./pages/admin/expansion').then((m) => ({ default: m.ExpansionPlanning })),
+)
 const DonorPortal = lazy(() =>
   import('./pages/donor/portal').then((m) => ({ default: m.DonorPortal })),
 )
@@ -121,6 +127,7 @@ export default function App() {
             }
           >
             <Route index element={<AdminDashboard />} />
+            <Route path="chat" element={<AiChatPage />} />
             <Route path="caseload" element={<CaseloadInventory />} />
             <Route path="process-recording" element={<ProcessRecording />} />
             <Route path="visitation" element={<HomeVisitation />} />
@@ -128,6 +135,7 @@ export default function App() {
             <Route path="email-templates" element={<EmailTemplates />} />
             <Route path="reports" element={<ReportsAnalytics />} />
             <Route path="safehouses/boarding" element={<BoardingManagement />} />
+            <Route path="expansion" element={<ExpansionPlanning />} />
           </Route>
 
           {/* Donor routes */}

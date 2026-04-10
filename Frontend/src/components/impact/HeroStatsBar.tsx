@@ -20,7 +20,7 @@ export function HeroStatsBar({ stats }: HeroStatsBarProps) {
     : null
 
   return (
-    <section className="border-b border-border bg-muted/30">
+    <section id="impact-map" className="border-b border-border bg-muted/30 scroll-mt-20">
       <div className="mx-auto max-w-7xl px-6 lg:px-8 py-10">
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {items

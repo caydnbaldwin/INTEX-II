@@ -140,6 +140,13 @@ builder.Services.AddHttpClient<IAudioAutofillService, AudioAutofillService>();
 builder.Services.AddHttpClient<IEmailService, ResendEmailService>();
 builder.Services.AddScoped<IDonorScoringService, DonorScoringService>();
 builder.Services.AddHostedService<WeeklyEmailHostedService>();
+
+// ── Expansion Recommendation (Gemini API) ─────────────────────────────────────
+// Reuses the existing Gemini:ApiKey already configured for AudioAutofillService.
+// No additional API key or registration needed — the service calls Gemini directly
+// via IHttpClientFactory with no named client.
+builder.Services.AddScoped<IExpansionRecommendationService, ExpansionRecommendationService>();
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();

@@ -125,10 +125,10 @@ def run_weekly_check(triggered_by="scheduler"):
         print(f"[scheduler] Pipeline error: {e}")
         return {"error": str(e)}
 
-    # Step 2: Identify candidates
-    candidates = rfm[rfm["upgrade_candidate"] == 1].copy()
-    n_candidates = len(candidates)
-    print(f"[scheduler] Found {n_candidates} upgrade candidates")
+    # Step 2: Email outreach population (all scored donors)
+    outreach = rfm.copy()
+    n_outreach = len(outreach)
+    print(f"[scheduler] Found {n_outreach} donors in outreach")
 
     # Step 3: Check feedback — log any new conversions/declines as model signal
     feedback = load_feedback()
@@ -144,29 +144,56 @@ def run_weekly_check(triggered_by="scheduler"):
         print(f"[scheduler] Feedback found: {conversions} converted, {declines} declined — "
               f"these are used to re-label donors on next pipeline run")
 
-    # Step 4: Email candidates not contacted in last 30 days
+    # Step 4: Email donors not contacted in last 30 days
     emails_sent = 0
-    for _, donor in candidates.iterrows():
+    emails_failed = 0
+    emails_skipped_no_email = 0
+    emails_skipped_cooldown = 0
+    for _, donor in outreach.iterrows():
         donor_dict = donor.to_dict()
-        if not was_emailed_recently(donor_dict["supporter_id"], days=30):
-            log_email(donor_dict, triggered_by=triggered_by)
-            emails_sent += 1
-        else:
-            print(f"[scheduler] Skipping {donor_dict['display_name']} — emailed recently")
+        donor_name = donor_dict.get("display_name", "?")
+        donor_email = donor_dict.get("email", "")
 
-    print(f"[scheduler] Emails logged: {emails_sent}")
+        if not donor_email:
+            print(f"[scheduler] Skipping {donor_name} — no email on file")
+            emails_skipped_no_email += 1
+            continue
+
+        if was_emailed_recently(donor_dict["supporter_id"], days=30):
+            print(f"[scheduler] Skipping {donor_name} <{donor_email}> — emailed recently")
+            emails_skipped_cooldown += 1
+            continue
+
+        ts = datetime.now().isoformat(timespec="seconds")
+        entry = log_email(donor_dict, triggered_by=triggered_by)
+        status = entry.get("status", "unknown")
+
+        if status == "sent":
+            emails_sent += 1
+            print(f"[scheduler] SENT {donor_name} <{donor_email}> at {ts}")
+        elif status == "failed":
+            emails_failed += 1
+            print(f"[scheduler] FAIL {donor_name} <{donor_email}> at {ts} — {entry.get('error', '')}")
+        else:
+            emails_sent += 1
+            print(f"[scheduler] LOGGED {donor_name} <{donor_email}> at {ts} status={status}")
+
+    print(f"[scheduler] Emails sent: {emails_sent}, failed: {emails_failed}, "
+          f"skipped (no email): {emails_skipped_no_email}, skipped (cooldown): {emails_skipped_cooldown}")
 
     # Step 5: Save run summary to state.json
     state = load_state()
     run_entry = {
         "timestamp":        datetime.now().isoformat(timespec="seconds"),
-        "candidates_found": n_candidates,
+        "candidates_found": n_outreach,
         "emails_sent":      emails_sent,
         "model_accuracy":   round(accuracy * 100, 1),
         "p75_threshold":    round(p75, 2),
         "triggered_by":     triggered_by,
         "feedback_conversions": conversions,
         "feedback_declines":    declines,
+        "outreach_total": n_outreach,
+        "skipped_cooldown": emails_skipped_cooldown,
     }
     state.setdefault("runs", []).append(run_entry)
     state["last_run"] = run_entry["timestamp"]

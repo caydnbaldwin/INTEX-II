@@ -164,7 +164,7 @@ let cachedSafehouses: SafehouseData[] | null = null
 export async function fetchSafehouses(): Promise<SafehouseData[]> {
   if (cachedSafehouses) return cachedSafehouses
   try {
-    const data = await api.get<SafehouseApiResponse[]>('/api/safehouses')
+    const data = await api.get<SafehouseApiResponse[]>('/api/public/safehouses')
     cachedSafehouses = data.map(mergeWithPresentation)
     return cachedSafehouses
   } catch {

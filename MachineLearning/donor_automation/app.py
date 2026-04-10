@@ -38,6 +38,7 @@ SCRIPT_DIR    = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE    = os.path.join(SCRIPT_DIR, "state.json")
 EMAIL_LOG     = os.path.join(SCRIPT_DIR, "email_log.json")
 FEEDBACK_FILE = os.path.join(SCRIPT_DIR, "feedback_log.json")
+TEMPLATES_FILE = os.path.join(SCRIPT_DIR, "email_templates.json")
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)  # Allow cross-origin requests (needed for dev / Azure deployment)
@@ -56,6 +57,24 @@ def read_json(path, default=None):
             return json.load(f)
     except Exception:
         return default
+
+
+def write_json(path, payload):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+
+
+def _sample_preview_donor():
+    return {
+        "supporter_id": 999,
+        "display_name": "Sample Donor",
+        "first_name": "Sample",
+        "email": "sample@example.com",
+        "Frequency": 4,
+        "Recency": 35,
+        "Monetary_total": 5600.0,
+        "donor_tenure_days": 820,
+    }
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -108,31 +127,57 @@ def get_donors():
     upgrade_candidate, upgrade_probability, RFM fields, latest_donation.
     """
     try:
-        # Auto-detect conversions before scoring so the model uses fresh labels
         pl.check_auto_conversions()
 
         rfm, acc, p75 = pl.run_pipeline(save_summary=False)
-        donors = rfm[[
+        print(f"[app] /api/donors — pipeline returned {len(rfm)} rows, "
+              f"columns: {list(rfm.columns)}")
+
+        needed = [
             "rank", "supporter_id", "display_name", "first_name", "email",
             "upgrade_score", "upgrade_candidate", "upgrade_probability",
             "Monetary_avg", "Monetary_total", "Frequency", "Recency",
             "latest_donation", "acquisition_channel",
-        ]].copy()
+        ]
+        missing = [c for c in needed if c not in rfm.columns]
+        if missing:
+            print(f"[app] WARNING — columns missing from pipeline output: {missing}")
 
-        # Round floats for clean JSON
-        donors["Monetary_avg"]         = donors["Monetary_avg"].round(2)
-        donors["Monetary_total"]        = donors["Monetary_total"].round(2)
-        donors["upgrade_probability"]   = donors["upgrade_probability"].round(4)
+        cols = [c for c in needed if c in rfm.columns]
+        donors = rfm[cols].copy()
 
-        return jsonify({
-            "donors":   donors.to_dict(orient="records"),
-            "accuracy": round(acc * 100, 1),
-            "p75":      round(p75, 2),
-            "total":    len(donors),
-            "candidates": int((donors["upgrade_candidate"] == 1).sum()),
-        })
+        for col in ["Monetary_avg", "Monetary_total", "upgrade_probability"]:
+            if col in donors.columns:
+                donors[col] = donors[col].round(4 if col == "upgrade_probability" else 2)
+
+        def mask_email(email):
+            if not email or not isinstance(email, str) or "@" not in email:
+                return ""
+            local, domain = email.rsplit("@", 1)
+            if len(local) <= 2:
+                masked_local = local[0] + "***"
+            else:
+                masked_local = local[0] + "***" + local[-1]
+            return f"{masked_local}@{domain}"
+
+        if "email" in donors.columns:
+            donors["email_masked"] = donors["email"].apply(mask_email)
+
+        result = {
+            "donors":     donors.to_dict(orient="records"),
+            "accuracy":   round(acc * 100, 1),
+            "p75":        round(p75, 2),
+            "total":      len(donors),
+            "candidates": int((donors["upgrade_candidate"] == 1).sum()) if "upgrade_candidate" in donors.columns else 0,
+        }
+        print(f"[app] /api/donors — returning {result['total']} donors, "
+              f"{result['candidates']} candidates, accuracy={result['accuracy']}%")
+        return jsonify(result)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        print(f"[app] /api/donors ERROR: {e}")
+        return jsonify({"error": str(e), "donors": [], "accuracy": 0, "p75": 0, "total": 0, "candidates": 0}), 500
 
 
 @app.route("/api/emails")
@@ -140,6 +185,77 @@ def get_emails():
     """Return the full email log (most recent first)."""
     log = read_json(EMAIL_LOG, default=[])
     return jsonify(list(reversed(log)))
+
+
+@app.route("/api/email-log")
+def get_email_log():
+    """Alias endpoint used by frontend table integrations."""
+    log = read_json(EMAIL_LOG, default=[])
+    return jsonify(list(reversed(log)))
+
+
+@app.route("/api/templates", methods=["GET"])
+def get_templates():
+    payload = read_json(TEMPLATES_FILE, default={"templates": []})
+    return jsonify(payload)
+
+
+@app.route("/api/templates/<template_id>", methods=["PUT"])
+def update_template(template_id):
+    data = request.get_json(force=True)
+    subject = data.get("subject")
+    body = data.get("body")
+    if subject is None or body is None:
+        return jsonify({"error": "subject and body are required"}), 400
+
+    payload = read_json(TEMPLATES_FILE, default={"templates": []})
+    templates = payload.get("templates", [])
+    updated = None
+    for template in templates:
+        if template.get("id") == template_id:
+            template["subject"] = subject
+            template["body"] = body
+            template["last_edited"] = datetime.now().isoformat(timespec="seconds")
+            template["last_edited_by"] = data.get("edited_by", "admin")
+            updated = template
+            break
+
+    if updated is None:
+        return jsonify({"error": f"Template not found: {template_id}"}), 404
+
+    write_json(TEMPLATES_FILE, payload)
+    return jsonify(updated)
+
+
+@app.route("/api/templates/<template_id>/preview", methods=["GET"])
+def preview_template(template_id):
+    donor_id = request.args.get("donor_id")
+    donor = None
+    if donor_id:
+        rfm, _, _ = pl.run_pipeline(save_summary=False)
+        match = rfm[rfm["supporter_id"] == int(donor_id)]
+        if match.empty:
+            return jsonify({"error": f"Donor {donor_id} not found"}), 404
+        donor = match.iloc[0].to_dict()
+    else:
+        donor = _sample_preview_donor()
+
+    templates = em.load_templates()
+    template = templates.get(template_id)
+    if template is None:
+        return jsonify({"error": f"Template not found: {template_id}"}), 404
+
+    subject, body, _ = em.render_template_for_donor(template, donor)
+    donor_used = {
+        "supporter_id": donor.get("supporter_id"),
+        "display_name": donor.get("display_name"),
+        "first_name": donor.get("first_name"),
+    }
+    return jsonify({
+        "subject_rendered": subject,
+        "body_rendered": body,
+        "donor_used": donor_used,
+    })
 
 
 @app.route("/api/feedback", methods=["GET"])
@@ -180,6 +296,73 @@ def post_feedback():
 
     print(f"[app] Feedback recorded: {entry['donor_name']} → {entry['outcome']}")
     return jsonify({"status": "recorded", "entry": entry})
+
+
+@app.route("/api/config")
+def get_config():
+    """
+    Return safe-to-expose config (never includes API key).
+    Response: { env, from_email, reply_to, from_name }
+    """
+    return jsonify(em.get_config())
+
+
+@app.route("/api/send-test", methods=["POST"])
+def send_test():
+    """
+    Send a personalized email to a donor.
+
+    Body options:
+      { "donor_id": 123 }           → look up real donor, send to their email
+      { "email": "x@example.com" }  → use fake profile, send to that address
+      {}                             → use fake profile, send to default test address
+
+    In dev mode, all emails are redirected to the test address automatically.
+    """
+    data = request.get_json(force=True)
+    donor_id = data.get("donor_id")
+
+    if donor_id is not None:
+        try:
+            rfm, _, _ = pl.run_pipeline(save_summary=False)
+            match = rfm[rfm["supporter_id"] == int(donor_id)]
+            if match.empty:
+                return jsonify({"success": False, "error": f"Donor {donor_id} not found"}), 404
+            donor_dict = match.iloc[0].to_dict()
+            donor_dict["_triggered_by"] = "api-send-invite"
+            donor_email = donor_dict.get("email", "")
+            if not donor_email:
+                return jsonify({"success": False, "error": "Donor has no email on file"}), 400
+            entry = em.send_donor_email(donor_dict)
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+    else:
+        to_email = data.get("email", "ethansmithxela23@gmail.com")
+        fake_donor = {
+            "supporter_id":        99,
+            "display_name":        "Ethan Test",
+            "first_name":          "Ethan",
+            "email":               to_email,
+            "acquisition_channel": "Website",
+            "Frequency":           7,
+            "Recency":             45,
+            "Monetary_avg":        850.0,
+            "upgrade_probability": 0.91,
+            "_triggered_by":       "api-test",
+        }
+        entry = em.send_donor_email(fake_donor)
+
+    if entry.get("status") == "sent":
+        return jsonify({
+            "success":    True,
+            "message_id": entry.get("message_id", ""),
+            "email":      entry.get("email", ""),
+            "entry":      entry,
+        })
+    elif entry.get("status") == "skipped":
+        return jsonify({"success": False, "error": entry.get("skip_reason", "skipped"), "entry": entry}), 400
+    else:
+        return jsonify({"success": False, "error": entry.get("error", "Unknown error"), "entry": entry}), 500
 
 
 @app.route("/api/run-now", methods=["POST"])

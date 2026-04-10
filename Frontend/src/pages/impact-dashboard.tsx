@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { HeroStatsBar } from '@/components/impact/HeroStatsBar'
 import { InteractiveMap } from '@/components/impact/InteractiveMap'
-import { ResidentStoryCard } from '@/components/impact/ResidentStoryCard'
+import { StoriesOfTransformationSection } from '@/components/impact/StoriesOfTransformationSection'
 import {
   AreaChart,
   Area,
@@ -138,6 +138,15 @@ export function ImpactDashboard() {
     return () => window.clearTimeout(t)
   }, [location.hash])
 
+  // Scroll to map after content loads (element missing while initial fetch spinner shows).
+  useEffect(() => {
+    if (loading || location.hash !== '#impact-map') return
+    const t = window.setTimeout(() => {
+      document.getElementById('impact-map')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [loading, location.hash])
+
   // Parse metric payloads from snapshots
   const parsedSnapshots = snapshots
     .filter(s => s.isPublished)
@@ -196,7 +205,7 @@ export function ImpactDashboard() {
       <InteractiveMap />
 
       {/* Resident Stories Carousel */}
-      <StoriesCarousel stories={impactStories} />
+      <StoriesOfTransformationSection stories={impactStories} />
 
       <section className="mt-10 w-full border-y border-border bg-[#e8e2f4]">
         <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8 lg:py-12">
@@ -341,6 +350,7 @@ export function ImpactDashboard() {
     </div>
   )
 }
+
 
 function StoriesCarousel({ stories }: { stories: ReturnType<typeof listPublicImpactJourneyStories> }) {
   const perPage = 3
