@@ -8,7 +8,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/chat")]
-[Authorize(Policy = AuthPolicies.StaffOrAdmin)]
+[Authorize(Policy = AuthPolicies.AdminOnly)]
 public class ChatController(
     GeminiChatService geminiChat,
     ChatQueryService queryService,

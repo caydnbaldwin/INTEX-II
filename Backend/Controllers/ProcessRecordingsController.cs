@@ -90,6 +90,7 @@ public class ProcessRecordingsController(
     }
 
     [HttpPost("autofill-from-audio")]
+    [Authorize(Roles = AuthRoles.Admin)]
     [RequestSizeLimit(25 * 1024 * 1024)]
     public async Task<IActionResult> AutofillFromAudio(
         [FromForm] IFormFile? audio,

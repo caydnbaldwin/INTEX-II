@@ -187,8 +187,22 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="social-media" element={<SocialMediaGuide />} />
-            <Route path="users" element={<UserManagement />} />
+            <Route
+              path="social-media"
+              element={
+                <ProtectedRoute requiredRole="Admin" redirectTo="/admin/caseload">
+                  <SocialMediaGuide />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute requiredRole="Admin" redirectTo="/admin/caseload">
+                  <UserManagement />
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
           {/* Donor routes */}
