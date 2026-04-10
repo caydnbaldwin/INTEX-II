@@ -78,7 +78,7 @@ export function AdminLayout() {
   const isItemActive = (item: { href: string }) =>
     location.pathname === item.href
     || (item.href.includes('?') && location.pathname + location.search === item.href)
-  const navItems = isAdmin ? adminNav : donorNav
+  const navItems = isAdmin ? [...adminNav, ...donorFundingNav, ...outreachNav] : donorNav
   const activeHeaderItem = navItems.find(isItemActive)
 
   useEffect(() => {
