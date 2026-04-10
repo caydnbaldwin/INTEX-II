@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, Copy, Check } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -35,7 +35,6 @@ export function LoginPage() {
   const [registerPassword, setRegisterPassword] = useState('')
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('')
   const [acceptTerms, setAcceptTerms] = useState(false)
-  const [copiedValue, setCopiedValue] = useState('')
 
   const externalError = searchParams.get('externalError')
   const [error, setError] = useState(externalError ?? '')
@@ -123,16 +122,6 @@ export function LoginPage() {
 
   const handleGoogleLogin = () => {
     window.location.href = getGoogleLoginUrl()
-  }
-
-  const handleCopy = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopiedValue(value)
-      window.setTimeout(() => setCopiedValue(''), 1500)
-    } catch {
-      setError('Unable to copy to clipboard. Please copy the text manually.')
-    }
   }
 
   // ── MFA TOTP step ─────────────────────────────────────────────────────────
@@ -344,69 +333,6 @@ export function LoginPage() {
           </Tabs>
         </Card>
 
-        {/* Test Accounts */}
-        <Card className="mt-6 bg-muted/30 border-dashed">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Test Accounts</CardTitle>
-            <CardDescription className="text-xs">For grader use</CardDescription>
-          </CardHeader>
-          <CardContent className="text-xs space-y-3">
-            {[
-              {
-                label: 'Admin (no MFA)',
-                email: 'testadmin@lunas-project.site',
-                password: 'super secure p@ssw0rd',
-              },
-              {
-                label: 'Donor (no MFA)',
-                email: 'testdonor@lunas-project.site',
-                password: 'super secure p@ssw0rd',
-              },
-              {
-                label: 'Staff (MFA enabled)',
-                email: 'teststaff@lunas-project.site',
-                password: 'super secure p@ssw0rd',
-              },
-            ].map((account) => (
-              <div key={account.email} className="rounded-md border border-border/60 bg-background/70 p-3 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium text-foreground">{account.label}</span>
-                  {copiedValue === account.email || copiedValue === account.password ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600">
-                      <Check className="h-3 w-3" /> Copied
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-mono break-all text-foreground">{account.email}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => void handleCopy(account.email)}
-                  >
-                    <Copy className="mr-1 h-3.5 w-3.5" /> Copy email
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-mono break-all text-foreground">{account.password}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => void handleCopy(account.password)}
-                  >
-                    <Copy className="mr-1 h-3.5 w-3.5" /> Copy password
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
