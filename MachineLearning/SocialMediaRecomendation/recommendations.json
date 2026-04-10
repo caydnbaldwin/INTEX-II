@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-04-09T18:03:18",
+  "real_results_logged": 0,
+  "data_note": "Based on seed data only. Log real post results to improve accuracy.",
+  "money_strategy": {
+    "label": "Maximize Donations",
+    "primary_platform": "WhatsApp",
+    "also_strong_on": [
+      "YouTube",
+      "TikTok"
+    ],
+    "post_type": "ImpactStory",
+    "also_effective_types": [
+      "FundraisingAppeal",
+      "Campaign"
+    ],
+    "best_day": "Tuesday",
+    "best_time": "10:00",
+    "best_time_per_platform": {
+      "Facebook": "15:00",
+      "Instagram": "13:00",
+      "LinkedIn": "10:00",
+      "TikTok": "23:00",
+      "Twitter": "08:00",
+      "WhatsApp": "10:00",
+      "YouTube": "17:00"
+    },
+    "content_topic": "Health",
+    "top_topics": [
+      "Health",
+      "SafehouseLife",
+      "Reintegration"
+    ],
+    "tone": "Urgent",
+    "checklist": {
+      "feature_resident_story": true,
+      "include_call_to_action": true,
+      "boost_the_post": true
+    },
+    "boost_lift_pct": 107.3,
+    "recommended_frequency": "1 dedicated fundraising post per week on WhatsApp"
+  },
+  "viewership_strategy": {
+    "label": "Grow Viewership & Followers",
+    "primary_platform": "Instagram",
+    "also_strong_on": [
+      "LinkedIn",
+      "TikTok"
+    ],
+    "post_type": "Campaign",
+    "best_day": "Saturday",
+    "best_time": "19:00",
+    "content_topic": "CampaignLaunch",
+    "top_topics": [
+      "CampaignLaunch",
+      "EventRecap",
+      "AwarenessRaising"
+    ],
+    "tone": "Celebratory",
+    "recommended_frequency": "1 post per week on Instagram, consistent schedule"
+  },
+  "combined_weekly_plan": {
+    "description": "2 posts per week \u2014 one to convert, one to grow",
+    "Tuesday_money_post": {
+      "platform": "WhatsApp",
+      "goal": "Donations",
+      "post_type": "ImpactStory",
+      "time": "10:00",
+      "tone": "Urgent",
+      "must_include": "Resident story + donate CTA + boost"
+    },
+    "Saturday_viewership_post": {
+      "platform": "Instagram",
+      "goal": "Viewership",
+      "post_type": "Campaign",
+      "time": "19:00",
+      "tone": "Celebratory",
+      "must_include": "Resident story + hashtags + Reel if possible"
+    }
+  },
+  "model_performance": {
+    "algorithm": "GradientBoostingRegressor",
+    "test_mae_php": 49272,
+    "test_r2": -0.307,
+    "cv_r2_5fold": -0.577,
+    "training_samples": 649,
+    "note": "Model accuracy improves as more real results are logged."
+  }
+}

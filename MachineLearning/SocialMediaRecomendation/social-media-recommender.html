@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Social Media Guide — Luna's Project</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    .fade-in { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    .caption-box { background:#f8f5ff; border:1px solid #e9d5ff; border-radius:12px; padding:16px; white-space:pre-wrap; line-height:1.6; font-size:0.9rem; color:#374151; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Header -->
+<div class="bg-gradient-to-r from-purple-700 to-purple-500 text-white px-6 py-5">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold">Social Media Guide</h1>
+    <p class="text-purple-200 text-sm mt-0.5">Luna's Project · Lighthouse Sanctuary</p>
+  </div>
+</div>
+
+<div id="statusStrip" class="hidden max-w-2xl mx-auto px-4 pt-4"></div>
+
+<div class="max-w-2xl mx-auto px-4 py-8 space-y-6 fade-in">
+
+  <!-- Last Post Summary -->
+  <div id="lastPostCard" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Your Last Post</p>
+    <div id="lastPostContent" class="text-gray-500 text-sm">Loading...</div>
+  </div>
+
+  <!-- Next Post Guide — MAIN CARD -->
+  <div id="nextPostCard" class="bg-white rounded-2xl shadow-sm border-2 border-purple-400 p-6">
+    <p class="text-xs font-semibold text-purple-500 uppercase tracking-wide mb-1">What to Post Next</p>
+    <h2 id="nextPostHeadline" class="text-2xl font-bold text-gray-900 leading-snug"></h2>
+    <p id="nextPostSub" class="text-gray-500 text-sm mt-1"></p>
+
+    <div id="nextPostDetails" class="mt-5 grid grid-cols-2 gap-3 text-sm"></div>
+
+    <div id="checklistBox" class="mt-5 bg-purple-50 rounded-xl p-4">
+      <p class="text-xs font-semibold text-purple-600 uppercase mb-2">Your checklist</p>
+      <ul id="checklist" class="space-y-1.5 text-sm text-gray-700"></ul>
+    </div>
+  </div>
+
+  <!-- Example Captions -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Example Captions</p>
+    <p class="text-xs text-gray-400 mb-4">Pick one of these, personalize it, and post. These are generated from your data.</p>
+
+    <div class="space-y-3" id="captionExamples"></div>
+
+    <div class="mt-4 pt-4 border-t border-gray-100">
+      <p class="text-xs text-gray-400 uppercase font-semibold mb-2">What NOT to post this week</p>
+      <div id="avoidBox" class="text-sm text-gray-500"></div>
+    </div>
+  </div>
+
+  <!-- Second Post This Week -->
+  <div id="secondPostCard" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Also This Week</p>
+    <h3 id="secondPostHeadline" class="text-lg font-bold text-gray-800"></h3>
+    <p id="secondPostSub" class="text-sm text-gray-500 mt-1"></p>
+    <div id="secondCaptionExample" class="mt-4"></div>
+  </div>
+
+  <!-- Results Logger -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">After You Post</p>
+    <p class="text-sm text-gray-500 mb-4">Log your results so the recommendations improve over time.</p>
+    <div class="grid grid-cols-2 gap-3 text-sm">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Donations received (PHP)</label>
+        <input id="log_donation" type="number" placeholder="0"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">Engagement rate</label>
+        <input id="log_engagement" type="number" step="0.001" placeholder="e.g. 0.045"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+      </div>
+    </div>
+    <button onclick="logResult()"
+      class="mt-3 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition">
+      Save Results
+    </button>
+    <p id="logStatus" class="text-xs text-green-600 mt-2 hidden"></p>
+    <p id="logHint" class="text-xs text-gray-400 mt-2">When using <code class="text-gray-500">python serve.py</code>, results append to <code class="text-gray-500">post_results_log.json</code>. Then run <code class="text-gray-500">python run_pipeline.py</code> to refresh recommendations.</p>
+  </div>
+
+</div>
+
+<script>
+// ── Example captions library ─────────────────────────────────────────────────
+// Keyed by [strategy][topic] — platform/tone injected at render time
+const CAPTION_LIBRARY = {
+  donations: {
+    Health: [
+      `When Maria arrived at Lighthouse Sanctuary, she hadn't seen a doctor in years. Today, she had her first dental appointment — and she couldn't stop smiling.\n\nYour support makes moments like this possible. A gift of ₱500 covers one month of health check-ins for a girl in our care.\n\nWould you give today? Reply "GIVE" or tap the link below. Every peso stays in the Philippines and goes directly to our girls.`,
+      `One of our residents was afraid of hospitals. Trauma does that.\n\nAfter six months at Lighthouse, she asked to see a nurse on her own. That's the kind of healing your support funds.\n\n💛 ₱1,000 = one girl's full wellness check for a month. Can you help? Tap the link in our profile.`,
+    ],
+    SafehouseLife: [
+      `Sunday mornings at the safehouse look like this: pancakes, laughter, and girls helping each other braid hair.\n\nIt sounds simple. For girls who came from survival mode, it is everything.\n\nKeep the safehouse running → [donation link]. Even a small gift matters more than you know.`,
+      `Our girls have chores, homework, curfews, and inside jokes. They have a home.\n\nLighthouse Sanctuary exists because people like you decided these girls deserve one. Thank you — and if you haven't yet, will you give today?\n\n₱300 covers one girl's school supplies for a month. Reply or tap the link.`,
+    ],
+    Reintegration: [
+      `Last month, one of our graduates moved back with her family. She packed her own bag, said her goodbyes, and walked out the door with her head up.\n\nThat's what reintegration looks like when it works. Your support funded the two years of counseling that made it possible.\n\nHelp the next girl reach that door → [donation link]`,
+      `She's been in the safehouse for 18 months. This week she enrolled in a vocational program.\n\nNext stop: her own income. Her own life. We couldn't do this without you.\n\nDonate today and fund the next chapter for a girl like her. Link in bio. 🙏`,
+    ],
+    DonorImpact: [
+      `A donor gave ₱2,000 last December. Here's what that paid for: 4 weeks of counseling sessions, 2 school uniforms, and one birthday cake.\n\nYour gift has a face. It has a story. Thank you.\n\nIf you haven't given yet — now is a good time. [donation link]`,
+    ],
+  },
+  viewership: {
+    CampaignLaunch: [
+      `We just launched our Year-End Hope campaign and we need YOU to help spread the word. 🌟\n\nShare this post. Tag a friend who cares. Follow us for updates.\n\nEvery girl at Lighthouse Sanctuary deserves a future — help us make sure they get one.\n\n#LighthouseSanctuary #LunasProject #EndTrafficking #Philippines #HopeForGirls #SafehouseLife`,
+      `Big news from Lighthouse Sanctuary Philippines 🌺\n\nWe're opening enrollment for our next safehouse cohort — and we need the community to show up.\n\nFollow, share, and stay tuned. These girls need witnesses to their courage.\n\n#LunasProject #LighthousePhilippines #GirlsWhoSurvive #TraffickingPrevention`,
+    ],
+    SafehouseLife: [
+      `A regular Tuesday at Lighthouse Sanctuary:\n7am: breakfast together\n9am: school\n2pm: counseling\n5pm: free time (usually dancing)\n8pm: lights out\n\nThis is what safety looks like.\n\n#SafehouseLife #LighthouseSanctuary #LunasProject #ChildProtection #Philippines`,
+      `Our girls didn't ask to be survivors. But they are — and they are also artists, students, friends, and dreamers.\n\nThis is their home. This is their story.\n\nFollow along 🌿 #LighthousePhilippines #LunasProject #HopeAndHealing`,
+    ],
+    AwarenessRaising: [
+      `Did you know: Trafficking survivors need an average of 18–24 months of structured care before they're ready for reintegration.\n\nThat's why Lighthouse Sanctuary exists — not a quick fix, but a real home.\n\nShare this so more people understand what recovery actually looks like. 💜\n\n#TraffickingAwareness #LunasProject #Philippines #ChildProtection`,
+      `Most people think trafficking looks like what they see in movies. It doesn't.\n\nIt looks like a "job offer" to a desperate family. A trusted adult. A broken system.\n\nOur girls survived that. Now they're thriving. Follow us to witness the difference.\n\n#HumanTrafficking #Awareness #LighthouseSanctuary #LunasProject`,
+    ],
+  }
+};
+
+// ── Data ─────────────────────────────────────────────────────────────────────
+let recs = null;
+let lastPost = null;
+let loadMeta = { fromServer: false, recsOk: false, lastOk: false };
+
+async function init() {
+  try {
+    const [recRes, lastRes] = await Promise.all([
+      fetch('recommendations.json', { cache: 'no-store' }),
+      fetch('last_post.json', { cache: 'no-store' })
+    ]);
+    loadMeta.fromServer = true;
+    loadMeta.recsOk = recRes.ok;
+    loadMeta.lastOk = lastRes.ok;
+    if (recRes.ok) recs = await recRes.json();
+    else recs = fallbackRecs();
+    if (lastRes.ok) lastPost = await lastRes.json();
+    else lastPost = fallbackLastPost();
+  } catch {
+    loadMeta.fromServer = false;
+    recs = fallbackRecs();
+    lastPost = fallbackLastPost();
+  }
+
+  renderStatusStrip();
+  renderLastPost();
+  renderNextPost();
+  renderSecondPost();
+}
+
+function renderStatusStrip() {
+  const el = document.getElementById('statusStrip');
+  if (!el) return;
+  const mp = recs?.model_performance;
+  const note = recs?.data_note || '';
+  let inner = '';
+  if (!loadMeta.fromServer) {
+    inner = `<div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <strong>Offline preview.</strong> Open this page via <code class="bg-amber-100 px-1 rounded">python serve.py</code> in this folder so recommendations and last-post data load from JSON.
+    </div>`;
+  } else if (!loadMeta.recsOk || !loadMeta.lastOk) {
+    inner = `<div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <strong>Partial load.</strong> ${!loadMeta.recsOk ? 'recommendations.json missing. ' : ''}${!loadMeta.lastOk ? 'last_post.json missing. ' : ''}Using built-in fallbacks for missing files.
+    </div>`;
+  } else if (note || mp) {
+    const perf = mp
+      ? `Model: ${mp.algorithm || 'GBR'} · test R² ${mp.test_r2 ?? '—'} · MAE ₱${mp.test_mae_php ?? '—'} · ${mp.training_samples ?? '—'} samples`
+      : '';
+    inner = `<div class="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+      ${note ? `<p class="text-gray-700">${escapeHtml(note)}</p>` : ''}
+      ${perf ? `<p class="mt-1 text-xs text-gray-400">${escapeHtml(perf)}</p>` : ''}
+    </div>`;
+  }
+  if (inner) {
+    el.innerHTML = inner;
+    el.classList.remove('hidden');
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ── Last Post Card ───────────────────────────────────────────────────────────
+function renderLastPost() {
+  const d = new Date(lastPost.date + 'T00:00:00');
+  const formatted = d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  const daysSince = Math.floor((new Date() - d) / 86400000);
+
+  const donation = lastPost.estimated_donation_value_php > 0
+    ? `₱${lastPost.estimated_donation_value_php.toLocaleString(undefined, {maximumFractionDigits:0})} estimated`
+    : 'No donations tracked';
+
+  document.getElementById('lastPostContent').innerHTML = `
+    <div class="flex flex-wrap gap-x-6 gap-y-2">
+      <div><span class="font-semibold text-gray-700">${formatted}</span> <span class="text-gray-400 text-xs">(${daysSince} days ago)</span></div>
+    </div>
+    <div class="flex flex-wrap gap-2 mt-3">
+      <span class="inline-block bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">${lastPost.platform}</span>
+      <span class="inline-block bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">${formatLabel(lastPost.post_type)}</span>
+      <span class="inline-block bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">${formatLabel(lastPost.content_topic)}</span>
+      <span class="inline-block bg-purple-50 text-purple-600 text-xs px-3 py-1 rounded-full">${donation}</span>
+    </div>
+  `;
+}
+
+// ── Next Post Card ───────────────────────────────────────────────────────────
+function renderNextPost() {
+  const m = recs.money_strategy;
+  const lastDate = new Date(lastPost.date + 'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const daysSince = Math.floor((today - lastDate) / 86400000);
+
+  const dayMap = { Monday:1, Tuesday:2, Wednesday:3, Thursday:4, Friday:5, Saturday:6, Sunday:0 };
+  const nextDayOffset = getNextWeekday(today, dayMap[m.best_day]);
+  const nextDate = new Date(today);
+  nextDate.setDate(today.getDate() + nextDayOffset);
+
+  const dateStr = nextDate.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+
+  // Headline
+  let headline, sub;
+  if (daysSince < 3) {
+    headline = `Wait ${3 - daysSince} more day${3 - daysSince === 1 ? '' : 's'}`;
+    sub = `Your last post was only ${daysSince} day${daysSince === 1 ? '' : 's'} ago — give it time before posting again.`;
+  } else if (nextDayOffset === 0) {
+    headline = `Post today on ${m.primary_platform}`;
+    sub = `Today is ${m.best_day} — your best day for donations. Don't wait.`;
+  } else {
+    headline = `Post this ${m.best_day}`;
+    sub = `${dateStr} · ${m.primary_platform} · ${m.best_time}`;
+  }
+
+  document.getElementById('nextPostHeadline').textContent = headline;
+  document.getElementById('nextPostSub').textContent = sub;
+
+  // Details grid
+  document.getElementById('nextPostDetails').innerHTML = `
+    <div class="bg-gray-50 rounded-xl p-3">
+      <p class="text-xs text-gray-400 font-semibold uppercase mb-1">Platform</p>
+      <p class="font-bold text-gray-800 text-base">${m.primary_platform}</p>
+    </div>
+    <div class="bg-gray-50 rounded-xl p-3">
+      <p class="text-xs text-gray-400 font-semibold uppercase mb-1">Post Type</p>
+      <p class="font-bold text-gray-800 text-base">${formatLabel(m.post_type)}</p>
+    </div>
+    <div class="bg-gray-50 rounded-xl p-3">
+      <p class="text-xs text-gray-400 font-semibold uppercase mb-1">Post Time</p>
+      <p class="font-bold text-gray-800 text-base">${m.best_time_per_platform?.[m.primary_platform] || m.best_time}</p>
+    </div>
+    <div class="bg-gray-50 rounded-xl p-3">
+      <p class="text-xs text-gray-400 font-semibold uppercase mb-1">Topic</p>
+      <p class="font-bold text-gray-800 text-base">${formatLabel(m.content_topic)}</p>
+    </div>
+  `;
+
+  // Checklist
+  const checks = [
+    { text: 'Feature a resident story (anonymized)', done: true },
+    { text: 'Include a clear donate call-to-action', done: true },
+    { text: `Boost the post — data shows +${m.boost_lift_pct || 107}% more donations when boosted`, done: true },
+    { text: `Write in an ${m.tone} tone`, done: true },
+  ];
+  document.getElementById('checklist').innerHTML = checks.map(c =>
+    `<li class="flex items-start gap-2"><span class="text-purple-500 mt-0.5">✓</span> ${c.text}</li>`
+  ).join('');
+
+  // Captions
+  renderCaptions(m.content_topic, m.primary_platform, 'donations');
+
+  // Avoid box
+  document.getElementById('avoidBox').innerHTML = `
+    <ul class="space-y-1">
+      <li class="flex items-start gap-2 text-gray-500"><span class="text-red-400">✗</span> ThankYou posts — they get low donations (avg ₱2,928 vs ₱116,000 for Impact Stories)</li>
+      <li class="flex items-start gap-2 text-gray-500"><span class="text-red-400">✗</span> Event Promotion posts — data shows minimal donation impact</li>
+      <li class="flex items-start gap-2 text-gray-500"><span class="text-red-400">✗</span> Posting on ${lastPost.platform} again this week — diversify platforms</li>
+    </ul>
+  `;
+}
+
+// ── Second Post Card ─────────────────────────────────────────────────────────
+function renderSecondPost() {
+  const v = recs.viewership_strategy;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dayMap = { Monday:1, Tuesday:2, Wednesday:3, Thursday:4, Friday:5, Saturday:6, Sunday:0 };
+  const offset = getNextWeekday(today, dayMap[v.best_day]);
+  const nextDate = new Date(today);
+  nextDate.setDate(today.getDate() + offset);
+  const dateStr = nextDate.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+
+  document.getElementById('secondPostHeadline').textContent =
+    `${v.best_day} on ${v.primary_platform} — grow your audience`;
+  document.getElementById('secondPostSub').textContent =
+    `${dateStr} · ${v.best_time} · ${formatLabel(v.post_type)} · ${v.tone} tone`;
+
+  // Caption
+  const captions = CAPTION_LIBRARY.viewership?.[v.content_topic]
+    || CAPTION_LIBRARY.viewership?.['CampaignLaunch']
+    || CAPTION_LIBRARY.viewership?.['SafehouseLife']
+    || ['Share a short Lighthouse update with hashtags — personalize before posting.'];
+  const cap0 = Array.isArray(captions) ? captions[0] : String(captions);
+
+  document.getElementById('secondCaptionExample').innerHTML = `
+    <p class="text-xs text-gray-400 font-semibold uppercase mb-2">Example caption</p>
+    <div class="flex items-center justify-between mb-1">
+      <span class="text-xs text-gray-400">${escapeHtml(v.primary_platform)}</span>
+      <button type="button" onclick="copySecondCaption()" class="text-xs text-purple-500 hover:underline font-medium">Copy</button>
+    </div>
+    <div class="caption-box" id="secondCapBox">${cap0}</div>
+    <p class="text-xs text-gray-400 mt-2">Copy and personalize before posting.</p>
+  `;
+}
+
+function copySecondCaption() {
+  const box = document.getElementById('secondCapBox');
+  if (!box) return;
+  navigator.clipboard.writeText(box.textContent).catch(() => {});
+}
+
+// ── Caption Examples ─────────────────────────────────────────────────────────
+function renderCaptions(topic, platform, strategy) {
+  const lib = CAPTION_LIBRARY[strategy] || {};
+  let pool = lib[topic] || lib['Health'] || lib['SafehouseLife'];
+  if (!pool || !pool.length) {
+    const keys = Object.keys(lib);
+    pool = keys.length ? lib[keys[0]] : null;
+  }
+  if (!pool || !pool.length) {
+    pool = ['Write a short fundraising post with a resident story (anonymized) and a clear donate CTA — personalize before publishing.'];
+  }
+
+  document.getElementById('captionExamples').innerHTML = pool.map((cap, i) => `
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-xs text-gray-400 font-semibold uppercase">Option ${i + 1} — ${platform}</p>
+        <button onclick="copyText(this, ${i})" class="text-xs text-purple-500 hover:underline font-medium">Copy</button>
+      </div>
+      <div class="caption-box" id="cap_${i}">${cap}</div>
+    </div>
+  `).join('');
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function getNextWeekday(from, targetDay) {
+  const todayDay = from.getDay();
+  let diff = targetDay - todayDay;
+  if (diff < 0) diff += 7;
+  return diff;
+}
+
+function formatLabel(str) {
+  if (!str) return '';
+  return str.replace(/([A-Z])/g, ' $1').trim();
+}
+
+function copyText(btn, index) {
+  const text = document.getElementById(`cap_${index}`).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+function parsePostHour(timeStr) {
+  if (!timeStr) return 10;
+  const h = parseInt(String(timeStr).split(':')[0], 10);
+  return Number.isFinite(h) ? Math.min(23, Math.max(0, h)) : 10;
+}
+
+async function logResult() {
+  const donation   = parseFloat(document.getElementById('log_donation').value) || 0;
+  const engagement = parseFloat(document.getElementById('log_engagement').value) || 0;
+  const m = recs?.money_strategy;
+  const timeStr = m?.best_time_per_platform?.[m.primary_platform] || m?.best_time || '10:00';
+
+  const entry = {
+    platform: m?.primary_platform || 'WhatsApp',
+    post_type: m?.post_type || 'ImpactStory',
+    day_of_week: m?.best_day || 'Tuesday',
+    post_hour: parsePostHour(timeStr),
+    content_topic: m?.content_topic || 'Health',
+    sentiment_tone: m?.tone || 'Urgent',
+    media_type: 'Photo',
+    has_call_to_action: true,
+    is_boosted: true,
+    boost_budget_php: 500,
+    features_resident_story: true,
+    num_hashtags: 6,
+    caption_length: 400,
+    actual_donation_value_php: donation,
+    actual_engagement_rate: engagement,
+    notes: 'Logged from Social Media Guide',
+  };
+
+  const el = document.getElementById('logStatus');
+  el.classList.remove('hidden', 'text-red-600', 'text-green-600');
+
+  try {
+    const r = await fetch('/api/log-result', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+    });
+    const data = r.ok ? await r.json().catch(() => ({})) : {};
+    if (r.ok && data.ok !== false) {
+      el.classList.add('text-green-600');
+      el.textContent = 'Saved to post_results_log.json. Run python run_pipeline.py to retrain.';
+      setTimeout(() => el.classList.add('hidden'), 5000);
+      return;
+    }
+  } catch (_) {
+    /* fall through to localStorage */
+  }
+
+  const existing = JSON.parse(localStorage.getItem('luna_post_results') || '[]');
+  existing.push({ ...entry, logged_at: new Date().toISOString(), source: 'real' });
+  localStorage.setItem('luna_post_results', JSON.stringify(existing));
+  el.classList.add('text-amber-700');
+  el.textContent = `Saved in browser only (${existing.length} entr${existing.length === 1 ? 'y' : 'ies'}). Start python serve.py and try again to write post_results_log.json, or paste JSON into the file manually.`;
+  setTimeout(() => el.classList.add('hidden'), 7000);
+}
+
+function fallbackRecs() {
+  return {
+    money_strategy: { primary_platform:'WhatsApp', post_type:'ImpactStory', best_day:'Tuesday', best_time:'10:00', best_time_per_platform:{WhatsApp:'10:00'}, content_topic:'Health', tone:'Urgent', boost_lift_pct:107 },
+    viewership_strategy: { primary_platform:'Instagram', post_type:'Campaign', best_day:'Saturday', best_time:'19:00', content_topic:'CampaignLaunch', tone:'Celebratory' },
+  };
+}
+
+function fallbackLastPost() {
+  return { date:'2026-02-26', platform:'Facebook', post_type:'FundraisingAppeal', content_topic:'Gratitude', sentiment_tone:'Urgent', estimated_donation_value_php:77346.63 };
+}
+
+init();
+</script>
+</body>
+</html>
