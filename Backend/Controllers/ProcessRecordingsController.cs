@@ -121,8 +121,7 @@ public class ProcessRecordingsController(
                 (DateTime.UtcNow - startedAt).TotalMilliseconds,
                 result.Confidence ?? 0);
 
-            return Ok(result);
-        }
+            return Ok(result); }
         catch (OperationCanceledException)
         {
             return StatusCode(408);

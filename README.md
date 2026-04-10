@@ -81,6 +81,23 @@ Local defaults:
 
 Use seeded accounts documented in [BusinessContext/TEST_CREDENTIALS.md](BusinessContext/TEST_CREDENTIALS.md).
 
+### 7. Stripe Test Payments (For TA Grading)
+
+Use Stripe in test mode on [https://lunas-project.site/donate](https://lunas-project.site/donate) (no real charges).
+
+| Field | Value |
+| --- | --- |
+| Card number | 4242 4242 4242 4242 |
+| Expiry | 12/34 |
+| CVC | 123 |
+| ZIP | 10001 |
+
+Official Stripe references:
+
+- Test card docs: https://docs.stripe.com/testing#cards
+- Test mode overview: https://docs.stripe.com/test-mode
+- Webhook testing and Stripe CLI: https://docs.stripe.com/webhooks/test
+
 ## IS 401 TA Note
 
 IS 401 was submitted as a separate deliverable package. For IS 401 grading, TAs should use the FigJam board as the source of truth for requirements evidence:
@@ -115,6 +132,7 @@ Test links are intentionally left blank for IS 413 per rubric instructions.
 | Bonus item | File links | Site links | Test links | What to show |
 | --- | --- | --- | --- | --- |
 | Lazy routing optimization | [Frontend/src/App.tsx](Frontend/src/App.tsx) | https://lunas-project.site |  | Show route-level lazy loading with `React.lazy`/`Suspense` to optimize initial bundle load. |
+| Stripe payment integration (test-mode donations + webhook processing) | [Frontend/src/pages/donate.tsx](Frontend/src/pages/donate.tsx), [Backend/Controllers/PaymentController.cs](Backend/Controllers/PaymentController.cs), [Backend/Models/Donation.cs](Backend/Models/Donation.cs), [Backend/Data/AppDbContext.cs](Backend/Data/AppDbContext.cs) | https://lunas-project.site/donate |  | Use card `4242 4242 4242 4242` and submit a donation; then show successful `payment_intent.succeeded` handling and persisted donation linkage in app data. Stripe docs: https://docs.stripe.com/testing#cards, https://docs.stripe.com/payments/payment-intents, https://docs.stripe.com/webhooks/test |
 | AI chat operations page | [Frontend/src/pages/admin/chat.tsx](Frontend/src/pages/admin/chat.tsx), [Backend/Controllers/ChatController.cs](Backend/Controllers/ChatController.cs) | https://lunas-project.site/admin/chat |  | Show admin AI chat workflow and backend integration. |
 | At-risk donor ML tab and churn mitigations | [Frontend/src/pages/admin/donors.tsx](Frontend/src/pages/admin/donors.tsx), [Backend/Controllers/PipelineResultsController.cs](Backend/Controllers/PipelineResultsController.cs), [MachineLearning/ml-pipelines/donor-churn-classifier.ipynb](MachineLearning/ml-pipelines/donor-churn-classifier.ipynb) | https://lunas-project.site/admin/donors?tab=at-risk |  | Show automated churn-risk ranking and mitigation-ready targeting in the at-risk view. |
 | Process recording AI-assisted transcription/summary autofill | [Frontend/src/pages/admin/process-recording.tsx](Frontend/src/pages/admin/process-recording.tsx), [Backend/Services/AudioAutofillService.cs](Backend/Services/AudioAutofillService.cs), [Backend/Services/IAudioAutofillService.cs](Backend/Services/IAudioAutofillService.cs) | https://lunas-project.site/admin/process-recording |  | Show recording intake and AI-assisted parsing/transcribe/summarize autofill into documentation fields. |

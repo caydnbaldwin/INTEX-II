@@ -92,12 +92,8 @@ public class UserManagementController(UserManager<ApplicationUser> userManager) 
 
         // Prevent deleting the last admin
         var isAdmin = await userManager.IsInRoleAsync(user, AuthRoles.Admin);
-        if (isAdmin)
-        {
-            var admins = await userManager.GetUsersInRoleAsync(AuthRoles.Admin);
-            if (admins.Count <= 1)
-                return BadRequest(new { error = "Cannot delete the last admin account." });
-        }
+        if (isAdmin && (await userManager.GetUsersInRoleAsync(AuthRoles.Admin)).Count <= 1)
+            return BadRequest(new { error = "Cannot delete the last admin account." });
 
         var result = await userManager.DeleteAsync(user);
         if (!result.Succeeded)
