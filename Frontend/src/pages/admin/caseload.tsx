@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Search,
   Plus,
@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   Loader2,
   ChevronDown,
+  Sparkles,
 } from 'lucide-react'
 import {
   Table,
@@ -239,6 +240,7 @@ const blankForm = {
 
 export function CaseloadInventory() {
   usePageTitle('Caseload')
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
   // Read initial filter values from URL params
@@ -1333,19 +1335,34 @@ export function CaseloadInventory() {
               )}
             </div>
           )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setViewingResident(null)}>Close</Button>
+          <div className="flex justify-between gap-2 pt-2">
             <Button
-              className="bg-violet-700 hover:bg-violet-800"
+              variant="outline"
+              size="sm"
+              className="text-muted-foreground gap-1.5"
               onClick={() => {
-                const resident = viewingResident
+                const id = viewingResident?.id
                 setViewingResident(null)
-                if (resident) openEdit(resident)
+                if (id) navigate(`/admin/chat?context=resident:${id}`)
               }}
             >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
+              <Sparkles className="h-3.5 w-3.5" />
+              Ask AI
             </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setViewingResident(null)}>Close</Button>
+              <Button
+                className="bg-violet-700 hover:bg-violet-800"
+                onClick={() => {
+                  const resident = viewingResident
+                  setViewingResident(null)
+                  if (resident) openEdit(resident)
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
