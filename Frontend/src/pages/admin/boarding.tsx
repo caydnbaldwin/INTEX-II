@@ -894,7 +894,7 @@ export function BoardingManagement() {
   usePageTitle('Safehouse Operations')
 
   const { authSession } = useAuth()
-  const canEdit = authSession.roles.includes('Admin') || authSession.roles.includes('Staff')
+  const canEdit = authSession.roles.includes('Admin')
 
   const [placements, setPlacements] = useState<BoardingPlacement[]>([])
   const [residents, setResidents] = useState<ApiResident[]>([])

@@ -185,7 +185,7 @@ const blankForm = {
 export function ProcessRecording() {
   usePageTitle('Process Recording')
   const { authSession } = useAuth()
-  const canEdit = authSession.roles.includes('Admin') || authSession.roles.includes('Staff')
+  const canEdit = authSession.roles.includes('Admin')
   const [sessions, setSessions] = useState<Session[]>([])
   const [residents, setResidents] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(true)

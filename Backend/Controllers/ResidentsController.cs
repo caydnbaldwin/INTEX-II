@@ -50,6 +50,7 @@ public class ResidentsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] ResidentWriteRequest request)
     {
         if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save resident."))
@@ -65,6 +66,7 @@ public class ResidentsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
         if (!JsonRequestPatch<ResidentWriteRequest>.TryParse(body, out var patch, out var parseProblem))
@@ -82,6 +84,7 @@ public class ResidentsController(AppDbContext db) : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         var resident = await db.Residents.FindAsync(id);
