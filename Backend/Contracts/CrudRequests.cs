@@ -62,6 +62,7 @@ public class ResidentWriteRequest
 
 public class SupporterWriteRequest
 {
+    [MinLength(1)]
     public string? SupporterType { get; set; }
     public string? DisplayName { get; set; }
     public string? OrganizationName { get; set; }

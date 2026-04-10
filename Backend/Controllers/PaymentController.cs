@@ -13,7 +13,8 @@ namespace Backend.Controllers;
 public class PaymentController(
     IConfiguration configuration,
     AppDbContext db,
-    UserManager<ApplicationUser> userManager
+    UserManager<ApplicationUser> userManager,
+    IStripeClient? stripeClient = null
 ) : ControllerBase
 {
     // ── Create payment intent (one-time or recurring) ─────────────────────────
@@ -28,18 +29,23 @@ public class PaymentController(
         if (string.IsNullOrEmpty(secretKey))
             return StatusCode(503, new { error = "Payment processing is not configured." });
 
-        StripeConfiguration.ApiKey = secretKey;
+        if (stripeClient is null) StripeConfiguration.ApiKey = secretKey;
 
         try
         {
             if (request.Recurring)
             {
-                var customer = await new CustomerService().CreateAsync(new CustomerCreateOptions
+                var customerService = stripeClient is null ? new CustomerService() : new CustomerService(stripeClient);
+                var priceService = stripeClient is null ? new PriceService() : new PriceService(stripeClient);
+                var subscriptionService = stripeClient is null ? new SubscriptionService() : new SubscriptionService(stripeClient);
+                var invoiceService = stripeClient is null ? new InvoiceService() : new InvoiceService(stripeClient);
+
+                var customer = await customerService.CreateAsync(new CustomerCreateOptions
                 {
                     Metadata = new Dictionary<string, string> { { "source", "donate_page" } },
                 });
 
-                var price = await new PriceService().CreateAsync(new PriceCreateOptions
+                var price = await priceService.CreateAsync(new PriceCreateOptions
                 {
                     Currency    = "usd",
                     UnitAmount  = request.AmountCents,
@@ -47,7 +53,7 @@ public class PaymentController(
                     ProductData = new PriceProductDataOptions { Name = "Monthly Donation – Lunas Project" },
                 });
 
-                var subscription = await new SubscriptionService().CreateAsync(new SubscriptionCreateOptions
+                var subscription = await subscriptionService.CreateAsync(new SubscriptionCreateOptions
                 {
                     Customer        = customer.Id,
                     Items           = [new SubscriptionItemOptions { Price = price.Id }],
@@ -58,7 +64,7 @@ public class PaymentController(
                 if (invoiceId is null)
                     return StatusCode(500, new { error = "Failed to initialize recurring payment." });
 
-                var invoice = await new InvoiceService().GetAsync(invoiceId, new InvoiceGetOptions
+                var invoice = await invoiceService.GetAsync(invoiceId, new InvoiceGetOptions
                 {
                     Expand = ["payments.data.payment.payment_intent"],
                 });
@@ -73,7 +79,8 @@ public class PaymentController(
             }
             else
             {
-                var intent = await new PaymentIntentService().CreateAsync(new PaymentIntentCreateOptions
+                var paymentIntentService = stripeClient is null ? new PaymentIntentService() : new PaymentIntentService(stripeClient);
+                var intent = await paymentIntentService.CreateAsync(new PaymentIntentCreateOptions
                 {
                     Amount   = request.AmountCents,
                     Currency = "usd",
