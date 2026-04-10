@@ -39,11 +39,12 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, getApiErrorMessage } from '@/lib/api'
 import { sanitize } from '@/lib/sanitize'
 import { TablePagination } from '@/components/TablePagination'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { useAuth } from '@/context/AuthContext'
+import { toast } from 'sonner'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -241,6 +242,7 @@ export function ProcessRecording() {
       )
     } catch (err) {
       console.error('Failed to load process recording data', err)
+      toast.error(getApiErrorMessage(err, 'Failed to load process recording data.'))
     } finally {
       setLoading(false)
     }
@@ -338,6 +340,7 @@ export function ProcessRecording() {
   }
 
   function openEdit(session: Session) {
+    if (!isAdmin) return
     setEditingId(session.id)
     setFormResident(String(session.residentId))
     setForm({
@@ -359,21 +362,27 @@ export function ProcessRecording() {
   }
 
   async function handleDelete(id: number) {
+    if (!isAdmin) return
     try {
       await api.delete(`/api/process-recordings/${id}`)
       await fetchData()
     } catch (err) {
       console.error('Failed to delete session', err)
+      toast.error(getApiErrorMessage(err, 'Failed to delete session.'))
     }
   }
 
   async function handleSave() {
-    if (!formResident) { alert('Resident is required.'); return }
-    if (!form.date) { alert('Session Date is required.'); return }
-    if (!form.narrative?.trim()) { alert('Session Narrative is required.'); return }
+    if (!isAdmin) return
+    if (!formResident) { toast.error('Resident is required.'); return }
+    if (!form.date) { toast.error('Session Date is required.'); return }
+    if (!form.narrative?.trim()) { toast.error('Session Narrative is required.'); return }
 
     const resident = residents.find((r) => String(r.id) === formResident)
-    if (!resident) return
+    if (!resident) {
+      toast.error('Please select a valid resident.')
+      return
+    }
 
     setSaving(true)
     try {
@@ -403,6 +412,7 @@ export function ProcessRecording() {
       await fetchData()
     } catch (err) {
       console.error('Failed to save session', err)
+      toast.error(getApiErrorMessage(err, 'Failed to save session.'))
     } finally {
       setSaving(false)
     }
@@ -429,22 +439,24 @@ export function ProcessRecording() {
             Document counseling sessions and track emotional progress.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditingId(null)
-            setForm(blankForm)
-            setFormResident('')
-            setAudioFile(null)
-            setAutoFillError('')
-            setAutoFillMissingFields([])
-            setAutoFillConfidence(null)
-            setDialogOpen(true)
-          }}
-          className="gap-2 bg-violet-700 hover:bg-violet-800"
-        >
-          <Plus className="h-4 w-4" />
-          New Session
-        </Button>
+        {isAdmin && (
+          <Button
+            onClick={() => {
+              setEditingId(null)
+              setForm(blankForm)
+              setFormResident('')
+              setAudioFile(null)
+              setAutoFillError('')
+              setAutoFillMissingFields([])
+              setAutoFillConfidence(null)
+              setDialogOpen(true)
+            }}
+            className="gap-2 bg-violet-700 hover:bg-violet-800"
+          >
+            <Plus className="h-4 w-4" />
+            New Session
+          </Button>
+        )}
       </div>
 
       {/* Search */}

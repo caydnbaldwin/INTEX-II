@@ -266,6 +266,8 @@ namespace Backend.Migrations
 
                     b.HasKey("DonationId");
 
+                    b.HasIndex("SupporterId");
+
                     b.ToTable("Donations");
                 });
 
@@ -294,6 +296,10 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("AllocationId");
+
+                    b.HasIndex("DonationId");
+
+                    b.HasIndex("SafehouseId");
 
                     b.ToTable("DonationAllocations");
                 });
@@ -333,6 +339,8 @@ namespace Backend.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("EducationRecordId");
+
+                    b.HasIndex("ResidentId");
 
                     b.ToTable("EducationRecords");
                 });
@@ -461,6 +469,8 @@ namespace Backend.Migrations
 
                     b.HasKey("HealthRecordId");
 
+                    b.HasIndex("ResidentId");
+
                     b.ToTable("HealthWellbeingRecords");
                 });
 
@@ -510,6 +520,8 @@ namespace Backend.Migrations
 
                     b.HasKey("VisitationId");
 
+                    b.HasIndex("ResidentId");
+
                     b.ToTable("HomeVisitations");
                 });
 
@@ -546,6 +558,8 @@ namespace Backend.Migrations
 
                     b.HasKey("ItemId");
 
+                    b.HasIndex("DonationId");
+
                     b.ToTable("InKindDonationItems");
                 });
 
@@ -554,13 +568,13 @@ namespace Backend.Migrations
                     b.Property<int>("IncidentId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("AssignedStaffDisplayName")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("AssignedStaffUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool?>("FollowUpRequired")
@@ -594,6 +608,10 @@ namespace Backend.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("IncidentId");
+
+                    b.HasIndex("ResidentId");
+
+                    b.HasIndex("SafehouseId");
 
                     b.ToTable("IncidentReports");
                 });
@@ -634,6 +652,8 @@ namespace Backend.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("PlanId");
+
+                    b.HasIndex("ResidentId");
 
                     b.ToTable("InterventionPlans");
                 });
@@ -842,6 +862,8 @@ namespace Backend.Migrations
 
                     b.HasKey("RecordingId");
 
+                    b.HasIndex("ResidentId");
+
                     b.ToTable("ProcessRecordings");
                 });
 
@@ -1024,6 +1046,8 @@ namespace Backend.Migrations
 
                     b.HasKey("ResidentId");
 
+                    b.HasIndex("SafehouseId");
+
                     b.ToTable("Residents");
                 });
 
@@ -1111,6 +1135,8 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("MetricId");
+
+                    b.HasIndex("SafehouseId");
 
                     b.ToTable("SafehouseMonthlyMetrics");
                 });
@@ -1449,6 +1475,104 @@ namespace Backend.Migrations
                         .HasForeignKey("BoardingPlacementId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Backend.Models.Donation", b =>
+                {
+                    b.HasOne("Backend.Models.Supporter", null)
+                        .WithMany()
+                        .HasForeignKey("SupporterId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Backend.Models.DonationAllocation", b =>
+                {
+                    b.HasOne("Backend.Models.Donation", null)
+                        .WithMany()
+                        .HasForeignKey("DonationId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Backend.Models.Safehouse", null)
+                        .WithMany()
+                        .HasForeignKey("SafehouseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Backend.Models.EducationRecord", b =>
+                {
+                    b.HasOne("Backend.Models.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Backend.Models.HealthWellbeingRecord", b =>
+                {
+                    b.HasOne("Backend.Models.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Backend.Models.HomeVisitation", b =>
+                {
+                    b.HasOne("Backend.Models.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Backend.Models.InKindDonationItem", b =>
+                {
+                    b.HasOne("Backend.Models.Donation", null)
+                        .WithMany()
+                        .HasForeignKey("DonationId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("Backend.Models.IncidentReport", b =>
+                {
+                    b.HasOne("Backend.Models.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Backend.Models.Safehouse", null)
+                        .WithMany()
+                        .HasForeignKey("SafehouseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Backend.Models.InterventionPlan", b =>
+                {
+                    b.HasOne("Backend.Models.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Backend.Models.ProcessRecording", b =>
+                {
+                    b.HasOne("Backend.Models.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Backend.Models.Resident", b =>
+                {
+                    b.HasOne("Backend.Models.Safehouse", null)
+                        .WithMany()
+                        .HasForeignKey("SafehouseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Backend.Models.SafehouseMonthlyMetric", b =>
+                {
+                    b.HasOne("Backend.Models.Safehouse", null)
+                        .WithMany()
+                        .HasForeignKey("SafehouseId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

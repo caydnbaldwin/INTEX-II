@@ -73,6 +73,9 @@ export function AdminLayout() {
 
   const { theme, setTheme, canSetTheme } = useTheme()
   const isAdmin = authSession.roles.includes('Admin')
+  const isStaff = authSession.roles.includes('Staff')
+  const isDonor = authSession.roles.includes('Donor')
+  const isOperationalUser = isAdmin || isStaff
 
   const [showMfaBanner, setShowMfaBanner] = useState(false)
   const isItemActive = (item: { href: string }) =>
@@ -109,7 +112,7 @@ export function AdminLayout() {
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold font-serif">Lunas</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {isAdmin ? 'Admin Portal' : 'Donor Portal'}
+                      {isAdmin ? 'Admin Portal' : isStaff ? 'Staff Portal' : isDonor ? 'Donor Portal' : 'Portal'}
                     </span>
                   </div>
                 </Link>
@@ -174,7 +177,7 @@ export function AdminLayout() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <span className="text-sm font-medium text-muted-foreground flex-1">
-            {activeHeaderItem?.name ?? 'Dashboard'}
+            {activeHeaderItem?.name ?? (isOperationalUser ? 'Portal' : 'Dashboard')}
           </span>
           <TooltipProvider>
             <Tooltip>
