@@ -12,6 +12,8 @@ public class ChatQueryService(AppDbContext db)
     {
         return intent.Category switch
         {
+            "resident_detail"  => await QueryResidentByNameAsync(intent, ct),
+            "supporter_detail" => await QuerySupporterByNameAsync(intent, ct),
             "resident_risk"    => await QueryResidentRiskAsync(intent, ct),
             "donor_churn"      => await QueryDonorChurnAsync(intent, ct),
             "resident_list"    => await QueryResidentListAsync(intent, ct),
@@ -19,6 +21,78 @@ public class ChatQueryService(AppDbContext db)
             "safehouse_capacity" => await QuerySafehouseCapacityAsync(intent, ct),
             _ => ("", [])
         };
+    }
+
+    private async Task<(string, List<RecordReference>)> QueryResidentByNameAsync(
+        IntentResult intent, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(intent.EntityName))
+            return ("", []);
+
+        var name = intent.EntityName.Trim();
+
+        var resident = await db.Residents
+            .Where(r => r.InternalCode != null && EF.Functions.Like(r.InternalCode, $"%{name}%"))
+            .FirstOrDefaultAsync(ct)
+            ?? await db.Residents
+                .Where(r => r.CaseControlNo != null && EF.Functions.Like(r.CaseControlNo, $"%{name}%"))
+                .FirstOrDefaultAsync(ct);
+
+        if (resident is null)
+            return ("", []);
+
+        return await QueryResidentDetailAsync(resident.ResidentId, ct);
+    }
+
+    private async Task<(string, List<RecordReference>)> QuerySupporterByNameAsync(
+        IntentResult intent, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(intent.EntityName))
+            return ("", []);
+
+        var name = intent.EntityName.Trim();
+
+        var supporter = await db.Supporters
+            .Where(s => EF.Functions.Like(s.FirstName + " " + s.LastName, $"%{name}%")
+                     || EF.Functions.Like(s.OrganizationName ?? "", $"%{name}%"))
+            .FirstOrDefaultAsync(ct);
+
+        if (supporter is null)
+            return ("", []);
+
+        return await QuerySupporterDetailAsync(supporter.SupporterId, ct);
+    }
+
+    private async Task<(string, List<RecordReference>)> QuerySupporterDetailAsync(
+        int supporterId,
+        CancellationToken ct = default)
+    {
+        var supporter = await db.Supporters.FindAsync([supporterId], ct);
+        if (supporter is null)
+            return ("Supporter not found.", []);
+
+        var label = supporter.DisplayName ?? $"Supporter {supporterId}";
+        var refs = new List<RecordReference>
+        {
+            new("supporter", supporterId, label, $"/admin/donors?donor={supporterId}")
+        };
+
+        var churn = await db.PipelineResults
+            .Where(p => p.PipelineName == "DonorChurn" && p.ResultType == "Prediction" && p.EntityId == supporterId)
+            .OrderByDescending(p => p.GeneratedAt)
+            .FirstOrDefaultAsync(ct);
+
+        var lines = new List<string>
+        {
+            $"Supporter [[supporter:{supporterId}]] ({label})",
+            $"Type: {supporter.SupporterType ?? "—"} | Status: {supporter.Status ?? "—"}",
+            $"Email: {(string.IsNullOrWhiteSpace(supporter.Email) ? "None on file" : supporter.Email)}"
+        };
+
+        if (churn is not null)
+            lines.Add($"Churn Score: {churn.Score:F2} ({churn.Label})");
+
+        return (string.Join("\n", lines), refs);
     }
 
     private async Task<(string, List<RecordReference>)> QueryResidentRiskAsync(
@@ -181,6 +255,98 @@ public class ChatQueryService(AppDbContext db)
         var lines = safehouses.Select(s =>
             $"Safehouse [[safehouse:{s.SafehouseId}]] ({s.Name}, Occupancy={s.CurrentOccupancy}/{s.CapacityGirls})"
         ).ToList();
+
+        return (string.Join("\n", lines), refs);
+    }
+
+    /// <summary>
+    /// Fetches the full case bundle for a single resident: demographic data,
+    /// latest intervention plan, last two process recordings, most recent home
+    /// visitation, and ML pipeline scores. Used for the "Ask AI about this resident"
+    /// flow where the caller already knows the resident ID.
+    /// </summary>
+    public async Task<(string Summary, List<RecordReference> Refs)> QueryResidentDetailAsync(
+        int residentId,
+        CancellationToken ct = default)
+    {
+        var resident = await db.Residents.FindAsync([residentId], ct);
+        if (resident is null)
+            return ("Resident not found.", []);
+
+        var label = resident.InternalCode ?? resident.CaseControlNo ?? $"Resident {residentId}";
+        var refs = new List<RecordReference>
+        {
+            new("resident", residentId, label, $"/admin/caseload?resident={residentId}")
+        };
+
+        var lines = new List<string>();
+
+        // Core demographics
+        var subcats = new List<string>();
+        if (resident.SubCatTrafficked == true)    subcats.Add("Trafficked");
+        if (resident.SubCatPhysicalAbuse == true)  subcats.Add("Physical Abuse");
+        if (resident.SubCatSexualAbuse == true)    subcats.Add("Sexual Abuse");
+        if (resident.SubCatChildLabor == true)     subcats.Add("Child Labor");
+        if (resident.SubCatOrphaned == true)       subcats.Add("Orphaned");
+        if (resident.SubCatAtRisk == true)         subcats.Add("At Risk");
+
+        lines.Add($"Resident [[resident:{residentId}]] ({label})");
+        lines.Add($"Category: {resident.CaseCategory ?? "Unknown"}" +
+                  (subcats.Count > 0 ? $" | Sub-categories: {string.Join(", ", subcats)}" : ""));
+        lines.Add($"Status: {resident.CaseStatus ?? "Unknown"} | Risk Level: {resident.CurrentRiskLevel ?? "Unknown"}");
+        lines.Add($"Assigned Social Worker: {resident.AssignedSocialWorker ?? "Unassigned"}");
+        lines.Add($"Reintegration: {resident.ReintegrationType ?? "—"} ({resident.ReintegrationStatus ?? "Not Started"})");
+        if (resident.HasSpecialNeeds == true)
+            lines.Add($"Special Needs: {resident.SpecialNeedsDiagnosis ?? "Yes"}");
+
+        // ML risk score
+        var mlRisk = await db.PipelineResults
+            .Where(p => p.PipelineName == "ResidentRisk" && p.ResultType == "Prediction" && p.EntityId == residentId)
+            .OrderByDescending(p => p.GeneratedAt)
+            .FirstOrDefaultAsync(ct);
+        if (mlRisk is not null)
+            lines.Add($"ML Risk Score: {mlRisk.Score:F2} ({mlRisk.Label})");
+
+        // Latest intervention plan
+        var plan = await db.InterventionPlans
+            .Where(p => p.ResidentId == residentId)
+            .OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+        if (plan is not null)
+        {
+            lines.Add($"Intervention Plan: {plan.PlanCategory ?? "—"} | Status: {plan.Status ?? "—"}");
+            if (!string.IsNullOrWhiteSpace(plan.ServicesProvided))
+                lines.Add($"Services: {plan.ServicesProvided}");
+            if (plan.CaseConferenceDate.HasValue)
+                lines.Add($"Next Case Conference: {plan.CaseConferenceDate}");
+        }
+
+        // Last two process recordings
+        var recordings = await db.ProcessRecordings
+            .Where(r => r.ResidentId == residentId)
+            .OrderByDescending(r => r.SessionDate)
+            .Take(2)
+            .ToListAsync(ct);
+        foreach (var rec in recordings)
+        {
+            lines.Add($"Session ({rec.SessionDate}): {rec.EmotionalStateObserved}→{rec.EmotionalStateEnd}" +
+                      (rec.ConcernsFlagged == true ? " [Concerns flagged]" : "") +
+                      (rec.ProgressNoted == true ? " [Progress noted]" : ""));
+            if (!string.IsNullOrWhiteSpace(rec.FollowUpActions))
+                lines.Add($"  Follow-up: {rec.FollowUpActions}");
+        }
+
+        // Most recent home visitation
+        var visit = await db.HomeVisitations
+            .Where(v => v.ResidentId == residentId)
+            .OrderByDescending(v => v.VisitDate)
+            .FirstOrDefaultAsync(ct);
+        if (visit is not null)
+        {
+            lines.Add($"Last Home Visit ({visit.VisitDate}): Outcome={visit.VisitOutcome ?? "—"}" +
+                      (visit.SafetyConcernsNoted == true ? " [Safety concerns noted]" : "") +
+                      (visit.FollowUpNeeded == true ? " [Follow-up needed]" : ""));
+        }
 
         return (string.Join("\n", lines), refs);
     }

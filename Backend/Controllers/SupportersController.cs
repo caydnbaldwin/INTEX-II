@@ -11,7 +11,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/supporters")]
-[Authorize(Policy = AuthPolicies.AdminOnly)]
+[Authorize(Policy = AuthPolicies.StaffOrAdmin)]
 public class SupportersController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
@@ -39,7 +39,7 @@ public class SupportersController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = AuthRoles.Admin)]
+    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Create([FromBody] SupporterWriteRequest request)
     {
         if (!RequestValidation.TryValidate(request, out var validationProblem, "Unable to save supporter."))
@@ -56,7 +56,7 @@ public class SupportersController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
+    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Update(int id, [FromBody] JsonElement body)
     {
         if (!JsonRequestPatch<SupporterWriteRequest>.TryParse(body, out var patch, out var parseProblem))
