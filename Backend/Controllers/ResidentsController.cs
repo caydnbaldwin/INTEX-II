@@ -47,7 +47,7 @@ public class ResidentsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = AuthRoles.Admin)]
+    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Create([FromBody] Resident resident)
     {
         // Auto-assign ID if not provided
@@ -60,13 +60,15 @@ public class ResidentsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
+    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Update(int id, [FromBody] Resident resident)
     {
         var existing = await db.Residents.FindAsync(id);
         if (existing is null) return NotFound();
+
+        // Ensure EF does not attempt to mutate the primary key from default payload values.
+        resident.ResidentId = id;
         db.Entry(existing).CurrentValues.SetValues(resident);
-        existing.ResidentId = id; // Preserve ID
         await db.SaveChangesAsync();
         return Ok(existing);
     }

@@ -8,7 +8,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/supporters")]
-[Authorize(Policy = AuthPolicies.AdminOnly)]
+[Authorize(Policy = AuthPolicies.StaffOrAdmin)]
 public class SupportersController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
@@ -36,7 +36,7 @@ public class SupportersController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = AuthRoles.Admin)]
+    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Create([FromBody] Supporter supporter)
     {
         if (supporter.SupporterId == 0)
@@ -48,19 +48,25 @@ public class SupportersController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
+    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Update(int id, [FromBody] Supporter supporter)
     {
         var existing = await db.Supporters.FindAsync(id);
         if (existing is null) return NotFound();
-        db.Entry(existing).CurrentValues.SetValues(supporter);
-        existing.SupporterId = id; // Preserve ID
+
+        // Update only editable profile fields and never touch the primary key.
+        existing.DisplayName = supporter.DisplayName;
+        existing.Email = supporter.Email;
+        existing.SupporterType = supporter.SupporterType;
+        existing.AcquisitionChannel = supporter.AcquisitionChannel;
+        existing.Status = supporter.Status;
+
         await db.SaveChangesAsync();
         return Ok(existing);
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = AuthRoles.Admin)]
+    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Delete(int id)
     {
         var supporter = await db.Supporters.FindAsync(id);

@@ -18,6 +18,22 @@ public class ChatController(
         "I can help with resident risk levels, donor retention, caseload summaries, " +
         "incidents, and safehouse capacity. Try asking one of those.";
 
+    // Resident-context endpoint: skips intent classification, fetches the full case
+    // bundle for the given resident, and returns a concise summary + suggested actions.
+    [HttpPost("resident/{residentId:int}")]
+    public async Task<IActionResult> ChatResident(int residentId, CancellationToken ct)
+    {
+        var (summary, refs) = await queryService.QueryResidentDetailAsync(residentId, ct);
+
+        if (refs.Count == 0)
+            return NotFound("Resident not found.");
+
+        var rawAnswer = await geminiChat.GenerateResidentAdviceAsync(summary, ct);
+        var validatedAnswer = validation.ValidateAndStrip(rawAnswer, refs);
+
+        return Ok(new ChatResponse(validatedAnswer, refs));
+    }
+
     [HttpPost]
     public async Task<IActionResult> Chat([FromBody] ChatRequest request, CancellationToken ct)
     {
@@ -40,7 +56,12 @@ public class ChatController(
                 []));
 
         // Generate natural-language answer from Gemini
-        var rawAnswer = await geminiChat.GenerateAnswerAsync(request.Question, summary, intent, ct);
+        var rawAnswer = intent.Category switch
+        {
+            "resident_detail"  => await geminiChat.GenerateResidentAdviceAsync(summary, ct),
+            "supporter_detail" => await geminiChat.GenerateDonorAdviceAsync(summary, ct),
+            _                  => await geminiChat.GenerateAnswerAsync(request.Question, summary, intent, ct)
+        };
 
         // Strip any IDs Gemini hallucinated that weren't in our result set
         var validatedAnswer = validation.ValidateAndStrip(rawAnswer, refs);

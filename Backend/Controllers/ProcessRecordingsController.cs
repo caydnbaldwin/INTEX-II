@@ -41,7 +41,7 @@ public class ProcessRecordingsController(
     }
 
     [HttpPost]
-    [Authorize(Roles = AuthRoles.Admin)]
+    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Create([FromBody] ProcessRecording recording)
     {
         recording.RecordingId = await db.ProcessRecordings.AnyAsync()
@@ -58,8 +58,10 @@ public class ProcessRecordingsController(
     {
         var existing = await db.ProcessRecordings.FindAsync(id);
         if (existing is null) return NotFound();
+
+        // Prevent EF from trying to modify the primary key from default payload values.
+        recording.RecordingId = id;
         db.Entry(existing).CurrentValues.SetValues(recording);
-        existing.RecordingId = id;
         await db.SaveChangesAsync();
         return Ok(existing);
     }

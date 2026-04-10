@@ -32,7 +32,7 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = AuthRoles.Admin)]
+    [Authorize(Policy = AuthPolicies.StaffOrAdmin)]
     public async Task<IActionResult> Create([FromBody] HomeVisitation visitation)
     {
         if (visitation.VisitationId == 0)
@@ -48,8 +48,22 @@ public class HomeVisitationsController(AppDbContext db) : ControllerBase
     {
         var existing = await db.HomeVisitations.FindAsync(id);
         if (existing is null) return NotFound();
-        db.Entry(existing).CurrentValues.SetValues(visitation);
-        existing.VisitationId = id; // Preserve ID
+
+        // Update only editable fields; never overwrite the entity key.
+        existing.ResidentId = visitation.ResidentId;
+        existing.VisitDate = visitation.VisitDate;
+        existing.SocialWorker = visitation.SocialWorker;
+        existing.VisitType = visitation.VisitType;
+        existing.LocationVisited = visitation.LocationVisited;
+        existing.FamilyMembersPresent = visitation.FamilyMembersPresent;
+        existing.Purpose = visitation.Purpose;
+        existing.Observations = visitation.Observations;
+        existing.FamilyCooperationLevel = visitation.FamilyCooperationLevel;
+        existing.SafetyConcernsNoted = visitation.SafetyConcernsNoted;
+        existing.FollowUpNeeded = visitation.FollowUpNeeded;
+        existing.FollowUpNotes = visitation.FollowUpNotes;
+        existing.VisitOutcome = visitation.VisitOutcome;
+
         await db.SaveChangesAsync();
         return Ok(existing);
     }
