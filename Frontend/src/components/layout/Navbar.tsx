@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { ShieldCheck, LogOut, Menu, X } from 'lucide-react';
+import { LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { logout } from '@/lib/authApi';
@@ -40,8 +40,8 @@ export default function Navbar() {
             to={isAuthenticated ? '/dashboard' : '/'}
             className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity"
           >
-            <ShieldCheck size={24} />
-            <span className="text-title-large text-on-surface">Luna's Project</span>
+            <img src="/images/PinwheelLogo-cropped.png" alt="Lunas logo" className="h-7 w-7" />
+            <span className="text-title-large text-on-surface">Lunas</span>
           </Link>
 
           {/* Desktop nav */}

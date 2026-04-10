@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Shield, Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, ShieldCheck, Copy, Check } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -142,10 +142,8 @@ export function LoginPage() {
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
             <Link to="/" className="inline-flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-                <ShieldCheck className="h-7 w-7 text-primary-foreground" />
-              </div>
-              <span className="text-2xl font-semibold tracking-tight text-foreground">Lunas</span>
+              <img src="/images/PinwheelLogo-cropped.png" alt="Lunas logo" className="h-12 w-12" />
+              <span className="text-2xl font-semibold font-serif text-foreground">Lunas</span>
             </Link>
             <p className="mt-4 text-muted-foreground">Two-factor authentication required</p>
           </div>
@@ -214,10 +212,8 @@ export function LoginPage() {
         {/* Logo */}
         <div className="mb-8 text-center">
           <Link to="/" className="inline-flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-              <Shield className="h-7 w-7 text-primary-foreground" aria-hidden="true" />
-            </div>
-            <span className="text-2xl font-semibold tracking-tight text-foreground">
+            <img src="/images/PinwheelLogo-cropped.png" alt="Lunas logo" className="h-12 w-12" />
+            <span className="text-2xl font-semibold font-serif text-foreground">
               Lunas
             </span>
           </Link>

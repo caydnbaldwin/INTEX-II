@@ -141,6 +141,11 @@ builder.Services.AddHttpClient<IEmailService, ResendEmailService>();
 builder.Services.AddScoped<IDonorScoringService, DonorScoringService>();
 builder.Services.AddHostedService<WeeklyEmailHostedService>();
 
+// ── AI Chat ──────────────────────────────────────────────────────────────────
+builder.Services.AddHttpClient<GeminiChatService>();
+builder.Services.AddScoped<ChatQueryService>();
+builder.Services.AddScoped<ChatValidationService>();
+
 // ── Expansion Recommendation (Gemini API) ─────────────────────────────────────
 // Reuses the existing Gemini:ApiKey already configured for AudioAutofillService.
 // No additional API key or registration needed — the service calls Gemini directly
