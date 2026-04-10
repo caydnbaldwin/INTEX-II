@@ -71,16 +71,17 @@ Security implementation is already substantial and includes major graded items:
 
 ML pipeline work is active and broad:
 
-- `ml-pipelines/` contains 8 domain-specific notebooks:
+- `MachineLearning/ml-pipelines/` contains 8 domain-specific notebooks:
   - donor churn classifier
-  - social media donation driver
-  - campaign ROI analyzer
   - resident risk predictor
-  - post engagement predictor
-  - reintegration readiness
-  - intervention effectiveness
+  - campaign ROI analyzer
+  - safehouse performance analyzer
+  - education progress predictor
+  - social media donation driver
+  - social media recommender
   - visitation outcome predictor
-- `ml-pipelines/pipeline-results-summary.md` provides business interpretation and action recommendations for all pipelines.
+- `MachineLearning/pipeline-results-summary.md` provides business interpretation and action recommendations for all pipelines.
+- `MachineLearning/refresh_all_pipelines.py` orchestrates a single-shot refresh of every pipeline's results (run from `MachineLearning/` after creating a `.env` with DB credentials).
 - Pipelines are framed around distinct organizational decisions (fundraising, operations, outcomes, and case prioritization).
 
 ## Architecture at a Glance
@@ -88,7 +89,7 @@ ML pipeline work is active and broad:
 - `Backend/`: .NET 10 API, Identity auth, EF Core models/migrations, seed and security middleware.
 - `Frontend/`: React SPA, routing, auth context, protected routes, cookie consent context.
 - `BusinessContext/`: requirements, PRD, setup and project planning artifacts.
-- `ml-pipelines/`: executable notebooks and ML findings summary.
+- `MachineLearning/ml-pipelines/`: executable notebooks (one per pipeline). Supporting docs, the refresh script, and `requirements.txt` live one level up in `MachineLearning/`.
 - `MockFrontend/`: separate design/prototyping workspace.
 
 ## Running the Current Build Locally
